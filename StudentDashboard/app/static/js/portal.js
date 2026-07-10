@@ -202,6 +202,9 @@ function initContentViewer() {
   const renderPreview = (contentType, url) => {
     const effectiveType = inferContentType(contentType, url);
     if (!url) {
+      if (effectiveType === 'article') {
+        return '<div class="content-empty">Use the Article/Text field to write lesson notes or instructions.</div>';
+      }
       return '<div class="content-empty">No file or external link has been attached yet.</div>';
     }
     if (effectiveType === 'video_file') {
@@ -295,9 +298,14 @@ function initContentViewer() {
     previewGrid.innerHTML = '';
     const sections = [
       {
-        title: 'YouTube / Video Content',
-        empty: 'No YouTube link or video file uploaded for this lesson yet.',
-        matches: type => type === 'video_link' || type === 'video_file',
+        title: 'YouTube / Video Link',
+        empty: 'No YouTube or external video link added for this lesson yet.',
+        matches: type => type === 'video_link',
+      },
+      {
+        title: 'Uploaded Video File',
+        empty: 'No uploaded video file added for this lesson yet.',
+        matches: type => type === 'video_file',
       },
       {
         title: 'PDF Content',
@@ -308,6 +316,11 @@ function initContentViewer() {
         title: 'PPT Content',
         empty: 'No PPT/PPTX uploaded for this lesson yet.',
         matches: type => type === 'ppt',
+      },
+      {
+        title: 'Article / Text Content',
+        empty: 'No article/text note added for this lesson yet.',
+        matches: type => type === 'article',
       },
     ];
 
@@ -340,10 +353,14 @@ function initContentViewer() {
               <span class="badge badge-warn">${effectiveType}</span>
               <h4>${candidate.dataset.contentTitle || 'Untitled content'}</h4>
             </div>
-            ${resourceUrl ? `<a class="resource-link" href="${resourceUrl}" target="_blank" rel="noopener">Open</a>` : ''}
           </div>
           <p>${candidate.dataset.contentBody || 'No description available.'}</p>
           <div class="content-preview-card-frame">${renderPreview(effectiveType, resourceUrl)}</div>
+          ${resourceUrl ? `
+          <a class="btn-ghost content-preview-open" href="${resourceUrl}" target="_blank" rel="noopener">
+            <i class="ti ti-external-link"></i> Open resource
+          </a>
+          ` : ''}
         `;
         card.addEventListener('click', event => {
           if (event.target.closest('a')) return;
@@ -403,6 +420,47 @@ function initContentViewer() {
   });
 }
 
+function initContentTypePlaceholders() {
+  const placeholderByType = {
+    article: {
+      url: 'No link needed for article/text',
+      body: 'Write the article/text content or lesson note here',
+    },
+    pdf: {
+      url: 'Choose a PDF file to upload',
+      body: 'Short PDF description or student instructions',
+    },
+    ppt: {
+      url: 'Choose a PPT/PPTX file to upload',
+      body: 'Short PPT description or student instructions',
+    },
+    video_link: {
+      url: 'Paste YouTube/video URL here',
+      body: 'Short video description or student instructions',
+    },
+    video_file: {
+      url: 'Choose a video file to upload',
+      body: 'Short uploaded video description or student instructions',
+    },
+  };
+
+  document.querySelectorAll('.content-upload-form, [data-content-edit-form]').forEach(form => {
+    const type = form.querySelector('select[name="content_type"]');
+    const url = form.querySelector('input[name="resource_url"]');
+    const body = form.querySelector('textarea[name="content_body"]');
+    if (!type) return;
+
+    const updatePlaceholders = () => {
+      const copy = placeholderByType[type.value] || placeholderByType.article;
+      if (url) url.placeholder = copy.url;
+      if (body) body.placeholder = copy.body;
+    };
+
+    type.addEventListener('change', updatePlaceholders);
+    updatePlaceholders();
+  });
+}
+
 function initLessonSelect() {
   const courseSelect = document.querySelector('[data-course-select]');
   const lessonSelect = document.querySelector('[data-lesson-select]');
@@ -438,7 +496,7 @@ function initAttendanceBulkForm() {
   const dateInput = document.querySelector('[data-attendance-date]');
   const rows = Array.from(document.querySelectorAll('[data-attendance-school]'));
   const empty = document.querySelector('[data-attendance-empty]');
-  if (!batchSelect || !rows.length) return;
+  if (!batchSelect) return;
 
   let statusMap = {};
   const statusData = document.getElementById('attendanceStatusData');
@@ -456,11 +514,22 @@ function initAttendanceBulkForm() {
     const attendanceDate = dateInput?.value || '';
     document.querySelectorAll('[data-attendance-export]').forEach(link => {
       const [scope, group] = link.dataset.attendanceExport.split('-');
-      const params = new URLSearchParams({ scope, group, school_id: schoolId, batch_id: batchId });
+      const params = new URLSearchParams({ scope, group });
+      if (schoolId) params.set('school_id', schoolId);
+      if (batchId) params.set('batch_id', batchId);
       if (scope === 'day') params.set('attendance_date', attendanceDate);
       link.href = `/attendance/export?${params.toString()}`;
     });
   };
+
+  document.querySelectorAll('[data-attendance-export]').forEach(link => {
+    link.addEventListener('click', event => {
+      if (!batchSelect.value) {
+        event.preventDefault();
+        alert('Please select the batch before downloading attendance.');
+      }
+    });
+  });
 
   const updateBatches = () => {
     const schoolId = schoolSelect?.value || '';
@@ -550,11 +619,22 @@ function initReportFilters() {
     const attendanceDate = document.querySelector('[data-attendance-date]')?.value || '';
     document.querySelectorAll('[data-report-export]').forEach(link => {
       const [scope, group] = link.dataset.reportExport.split('-');
-      const params = new URLSearchParams({ scope, group, school_id: schoolId, batch_id: batchId });
+      const params = new URLSearchParams({ scope, group });
+      if (schoolId) params.set('school_id', schoolId);
+      if (batchId) params.set('batch_id', batchId);
       if (scope === 'day') params.set('attendance_date', attendanceDate);
       link.href = `/attendance/export?${params.toString()}`;
     });
   };
+
+  document.querySelectorAll('[data-report-export]').forEach(link => {
+    link.addEventListener('click', event => {
+      if (!batchSelect.value) {
+        event.preventDefault();
+        alert('Please select the batch before downloading attendance.');
+      }
+    });
+  });
 
   const applyFilters = () => {
     const schoolId = schoolSelect.value || '';
@@ -580,6 +660,133 @@ function initReportFilters() {
   document.querySelector('[data-attendance-date]')?.addEventListener('change', updateExports);
   updateBatchOptions();
   applyFilters();
+}
+
+function initGeneratedReports() {
+  const filterShell = document.querySelector('[data-generated-report-filters]');
+  const rows = Array.from(document.querySelectorAll('[data-generated-report-row]'));
+  if (!filterShell || !rows.length) return;
+
+  const controls = Array.from(filterShell.querySelectorAll('[data-generated-report-filter]'));
+  const startDate = filterShell.querySelector('[data-generated-report-date="start"]');
+  const endDate = filterShell.querySelector('[data-generated-report-date="end"]');
+  const generateButton = filterShell.querySelector('[data-generate-report-button]');
+  const resultMessage = document.querySelector('[data-generated-report-message]');
+  const exportLinks = Array.from(document.querySelectorAll('[data-generated-report-export]'));
+
+  const getFilters = () => {
+    const filters = {};
+    controls.forEach(control => {
+      filters[control.dataset.generatedReportFilter] = control.value || '';
+    });
+    filters.startDate = startDate?.value || '';
+    filters.endDate = endDate?.value || '';
+    return filters;
+  };
+
+  const rowMatchesDate = (row, filters) => {
+    const rowStart = row.dataset.reportStartDate || '';
+    const rowEnd = row.dataset.reportEndDate || '';
+    if (!filters.startDate && !filters.endDate) return true;
+    if (!rowStart && !rowEnd) return true;
+    if (filters.startDate && rowEnd && rowEnd < filters.startDate) return false;
+    if (filters.endDate && rowStart && rowStart > filters.endDate) return false;
+    return true;
+  };
+
+  const updateExports = filters => {
+    exportLinks.forEach(link => {
+      const params = new URLSearchParams();
+      const paramMap = {
+        schoolId: 'school_id',
+        district: 'district',
+        taluk: 'taluk',
+        village: 'village',
+        trainer: 'trainer',
+        medium: 'medium',
+        gender: 'gender',
+        incomeStatus: 'income_status',
+        physicallyChallenged: 'physically_challenged',
+        urbanRural: 'urban_rural',
+        caste: 'caste',
+        category: 'category',
+      };
+      Object.entries(paramMap).forEach(([filterKey, paramKey]) => {
+        if (filters[filterKey]) params.set(paramKey, filters[filterKey]);
+      });
+      if (filters.startDate) params.set('start_date', filters.startDate);
+      if (filters.endDate) params.set('end_date', filters.endDate);
+      const query = params.toString();
+      link.href = `/reports/export/${link.dataset.generatedReportExport}${query ? `?${query}` : ''}`;
+    });
+  };
+
+  const hasActiveFilters = filters => Object.values(filters).some(value => String(value || '').trim());
+
+  const hideGeneratedResults = () => {
+    document.querySelectorAll('[data-generated-report-table]').forEach(table => {
+      table.hidden = true;
+    });
+    if (resultMessage) resultMessage.hidden = true;
+  };
+
+  const applyFilters = () => {
+    const filters = getFilters();
+    hideGeneratedResults();
+    updateExports(filters);
+    if (!hasActiveFilters(filters)) {
+      if (resultMessage) {
+        resultMessage.hidden = false;
+        resultMessage.textContent = 'Please select at least one report option before generating.';
+        resultMessage.classList.remove('notice-success');
+        resultMessage.classList.add('notice-error');
+      }
+      return;
+    }
+    let visibleTableCount = 0;
+    const normalize = value => String(value || '').trim().toLowerCase();
+    rows.forEach(row => {
+      const datasetMatches = [
+        'schoolId',
+        'district',
+        'taluk',
+        'village',
+        'trainer',
+        'medium',
+        'gender',
+        'incomeStatus',
+        'physicallyChallenged',
+        'urbanRural',
+        'caste',
+        'category',
+      ]
+        .every(key => !filters[key] || normalize(row.dataset[`report${key[0].toUpperCase()}${key.slice(1)}`]) === normalize(filters[key]));
+      const matches = datasetMatches && rowMatchesDate(row, filters);
+      row.style.display = matches ? '' : 'none';
+    });
+    document.querySelectorAll('[data-generated-report-table]').forEach(table => {
+      const visibleRows = Array.from(table.querySelectorAll('[data-generated-report-row]')).filter(row => row.style.display !== 'none');
+      const hasVisibleRows = visibleRows.length > 0;
+      table.hidden = !hasVisibleRows;
+      visibleTableCount += hasVisibleRows ? 1 : 0;
+    });
+    if (resultMessage) {
+      resultMessage.hidden = false;
+      resultMessage.textContent = visibleTableCount
+        ? 'Student report generated below. Use Download Excel to save this report.'
+        : 'No matching records found for the selected filters.';
+      resultMessage.classList.toggle('notice-success', visibleTableCount > 0);
+      resultMessage.classList.toggle('notice-error', visibleTableCount === 0);
+    }
+  };
+
+  [startDate, endDate, ...controls].forEach(control => {
+    control?.addEventListener('input', hideGeneratedResults);
+    control?.addEventListener('change', hideGeneratedResults);
+  });
+  generateButton?.addEventListener('click', applyFilters);
+  updateExports(getFilters());
+  hideGeneratedResults();
 }
 
 function readJsonScript(id) {
@@ -689,6 +896,85 @@ function clearNoticeFromUrl() {
   window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
 }
 
+function initAddCourseToggle() {
+  const button = document.querySelector('[data-add-course-toggle]');
+  const form = document.querySelector('[data-add-course-form]');
+  if (!button || !form) return;
+
+  button.addEventListener('click', () => {
+    form.hidden = !form.hidden;
+    button.innerHTML = form.hidden
+      ? '<i class="ti ti-plus"></i> Add Course'
+      : '<i class="ti ti-x"></i> Close Add Course';
+  });
+}
+
+function initCourseItems() {
+  const list = document.querySelector('[data-course-items]');
+  const addButton = document.querySelector('[data-add-course-item]');
+  const addCourseRow = () => {
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'course-item-row';
+    row.dataset.courseItemRow = '';
+    row.innerHTML = `
+      <input name="item_title" placeholder="Item title" required>
+      <textarea name="item_description" placeholder="Item description"></textarea>
+      <button class="btn-ghost" type="button" data-remove-course-item><i class="ti ti-trash"></i> Remove Item</button>
+    `;
+    row.querySelector('[data-remove-course-item]')?.addEventListener('click', () => row.remove());
+    list.appendChild(row);
+  };
+
+  addButton?.addEventListener('click', addCourseRow);
+
+  document.querySelectorAll('[data-add-manage-course-item]').forEach(button => {
+    button.addEventListener('click', () => {
+      const container = button.closest('.course-edit-items')?.querySelector('[data-manage-course-items]');
+      if (!container) return;
+      const row = document.createElement('div');
+      row.className = 'course-item-row';
+      row.innerHTML = `
+        <input name="new_item_title" placeholder="New item title">
+        <textarea name="new_item_description" placeholder="New item description"></textarea>
+        <button class="btn-ghost" type="button" data-remove-course-item><i class="ti ti-trash"></i> Remove Item</button>
+      `;
+      row.querySelector('[data-remove-course-item]')?.addEventListener('click', () => row.remove());
+      container.appendChild(row);
+    });
+  });
+}
+
+function initCourseSearch() {
+  const search = document.querySelector('[data-course-search]');
+  const cards = Array.from(document.querySelectorAll('.volume-card'));
+  if (!search || !cards.length) return;
+
+  const applySearch = () => {
+    const query = search.value.trim().toLowerCase();
+    const metaMatches = query
+      ? new Set(cards.filter(card => {
+        const terms = (card.dataset.courseMetaTerms || '')
+          .split('|')
+          .map(term => term.trim().toLowerCase())
+          .filter(Boolean);
+        return terms.some(term => term === query || term.includes(query));
+      }))
+      : null;
+
+    cards.forEach(card => {
+      const haystack = (card.dataset.courseSearchText || '').toLowerCase();
+      const matches = !query
+        || (metaMatches && metaMatches.size > 0 ? metaMatches.has(card) : haystack.includes(query));
+      card.style.display = matches ? '' : 'none';
+    });
+  };
+
+  search.value = '';
+  search.addEventListener('input', applySearch);
+  applySearch();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateThemeButtons();
   resetSearchFields();
@@ -712,8 +998,13 @@ document.addEventListener('DOMContentLoaded', () => {
   initManagedTables();
   initContentFilters();
   initContentViewer();
+  initContentTypePlaceholders();
   initLessonSelect();
   initAttendanceBulkForm();
   initReportFilters();
+  initGeneratedReports();
   initPerformanceForms();
+  initAddCourseToggle();
+  initCourseItems();
+  initCourseSearch();
 });

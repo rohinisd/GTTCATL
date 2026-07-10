@@ -82,7 +82,26 @@ def _ensure_columns():
             "caste": "VARCHAR(80)",
             "category": "VARCHAR(80)",
             "phone": "VARCHAR(40)",
+            "urban_rural": "VARCHAR(40)",
+            "income_status": "VARCHAR(20)",
+            "physically_challenged": "VARCHAR(10)",
+            "medium": "VARCHAR(80)",
+            "state": "VARCHAR(120)",
+            "district": "VARCHAR(120)",
+            "taluk": "VARCHAR(120)",
+            "village": "VARCHAR(160)",
+            "pincode": "VARCHAR(20)",
             "address": "TEXT",
+        },
+    )
+    add_missing(
+        "courses",
+        {
+            "sector": "VARCHAR(160)",
+            "sub_sector": "VARCHAR(160)",
+            "occupation": "VARCHAR(160)",
+            "reference_id": "VARCHAR(120)",
+            "resource_url": "VARCHAR(500)",
         },
     )
     add_missing(
@@ -190,6 +209,55 @@ def _parse_date(value):
         return None
 
 
+def _split_assigned_schools(value: str):
+    if not value:
+        return []
+    parts = re.split(r"\s*(?:,|;|\|)\s*", str(value).strip())
+    return [part for part in (item.strip() for item in parts) if part]
+
+
+def _join_assigned_schools(*values):
+    schools = []
+    for value in values:
+        for school in _split_assigned_schools(value):
+            if school and school.lower() not in {item.lower() for item in schools}:
+                schools.append(school)
+            if len(schools) == 3:
+                return ", ".join(schools)
+    return ", ".join(schools) or None
+
+
+def _trainer_school_scope_ids(db, account):
+    if not account or account.get("role") != "trainer":
+        return None
+    trainer = (
+        db.query(models.Trainer)
+        .filter(func.lower(models.Trainer.email) == account.get("email", "").lower())
+        .first()
+    )
+    if not trainer:
+        return set()
+    assigned_names = {name.lower() for name in _split_assigned_schools(trainer.assigned_school)}
+    if not assigned_names:
+        return set()
+    schools = db.query(models.School).all()
+    return {school.id for school in schools if (school.name or "").lower() in assigned_names}
+
+
+def _school_in_scope(scope_school_ids, school_id):
+    return scope_school_ids is None or school_id in scope_school_ids
+
+
+def _request_school_scope_ids(request: Request, db):
+    return _trainer_school_scope_ids(db, _current_account(request))
+
+
+def _compose_student_address(state="", district="", taluk="", village="", pincode="", fallback=""):
+    parts = [village, taluk, district, state, pincode]
+    cleaned = [str(part).strip() for part in parts if str(part or "").strip()]
+    return ", ".join(cleaned) or (fallback.strip() if fallback else None)
+
+
 PERFORMANCE_LEVELS = {"not_assessed", "needs_support", "developing", "proficient", "excellent"}
 TEAMWORK_BADGES = {
     "ideator": "Ideator",
@@ -255,6 +323,501 @@ def _export_workbook(sheet_name: str, headers: list[str], rows: list[dict], file
     )
 
 
+def _report_label(value, fallback: str = "Unknown"):
+    text = str(value or "").strip()
+    return text if text else fallback
+
+
+def _report_key(value):
+    return _report_label(value).lower()
+
+
+def _report_percent(part: int, total: int):
+    return round((part / total) * 100) if total else 0
+
+
+def _report_increment(groups: dict, key, base: dict):
+    bucket = groups.setdefault(key, dict(base))
+    bucket["total"] = bucket.get("total", 0) + 1
+    return bucket
+
+
+def _report_filter_options(existing_values, fixed_values=()):
+    options = {}
+    for value in [*fixed_values, *existing_values]:
+        label = _report_label(value)
+        if label == "Unknown":
+            continue
+        options.setdefault(label.lower(), label)
+    return sorted(options.values(), key=str.lower)
+
+
+def _school_scope_filter(query, column, scope_school_ids):
+    if scope_school_ids is None:
+        return query
+    return query.filter(column.in_(scope_school_ids))
+
+
+def _matches_report_filters(row: dict, filters: dict):
+    for key, value in filters.items():
+        if not value or key not in row:
+            continue
+        row_value = str(row.get(key) or "").strip()
+        if row_value.lower() != str(value).strip().lower():
+            return False
+    return True
+
+
+def _date_in_report_range(value, start_date, end_date):
+    parsed = _parse_date(value)
+    if not parsed:
+        return True
+    if start_date and parsed < start_date:
+        return False
+    if end_date and parsed > end_date:
+        return False
+    return True
+
+
+REPORT_TABLE_COLUMNS = {
+    "school_summary": [
+        ("school", "School"), ("district", "District"), ("division", "Division"),
+        ("assigned_trainer", "Trainer"), ("registered_students", "Registered Students"),
+        ("reported_students", "Reported Students"), ("girls_reported", "Girls Reported"),
+    ],
+    "schools_by_district": [
+        ("state", "State"), ("division", "Division"), ("district", "District"), ("total", "Schools"),
+    ],
+    "student_school_summary": [
+        ("school", "School"), ("district", "District"), ("total", "Students"),
+        ("girls", "Girls"), ("boys", "Boys"), ("other_gender", "Other"),
+        ("apl", "APL"), ("bpl", "BPL"), ("physically_challenged_yes", "Physically Challenged"),
+    ],
+    "student_location_summary": [
+        ("state", "State"), ("district", "District"), ("taluk", "Taluk"),
+        ("village", "Village"), ("pincode", "Pincode"), ("total", "Students"),
+        ("girls", "Girls"), ("boys", "Boys"), ("apl", "APL"), ("bpl", "BPL"),
+    ],
+    "student_demographics": [
+        ("dimension", "Dimension"), ("value", "Value"), ("district", "District"),
+        ("total", "Students"),
+    ],
+    "student_gender_summary": [
+        ("school", "School"), ("district", "District"), ("gender", "Gender"), ("total", "Students"),
+    ],
+    "student_income_summary": [
+        ("school", "School"), ("district", "District"), ("income_status", "Income Status"), ("total", "Students"),
+    ],
+    "student_physical_summary": [
+        ("school", "School"), ("district", "District"), ("physically_challenged", "Physically Challenged"), ("total", "Students"),
+    ],
+    "student_medium_summary": [
+        ("school", "School"), ("district", "District"), ("medium", "Medium"), ("total", "Students"),
+    ],
+    "student_caste_category_summary": [
+        ("school", "School"), ("district", "District"), ("caste", "Caste"), ("category", "Category"), ("total", "Students"),
+    ],
+    "student_combination_summary": [
+        ("school", "School"), ("district", "District"), ("gender", "Gender"), ("income_status", "Income"),
+        ("physically_challenged", "Physically Challenged"), ("medium", "Medium"), ("urban_rural", "Urban/Rural"), ("total", "Students"),
+    ],
+    "trainer_summary": [
+        ("trainer", "Trainer"), ("email", "Email"), ("role", "Role"), ("division", "Division"),
+        ("districts", "Districts"), ("assigned_school_count", "Schools Assigned"), ("assigned_schools", "Assigned Schools"),
+    ],
+    "batch_summary": [
+        ("school", "School"), ("district", "District"), ("batch", "Batch"), ("trainer", "Trainer"),
+        ("start_date", "Start Date"), ("end_date", "End Date"),
+    ],
+    "enrollment_summary": [
+        ("school", "School"), ("district", "District"), ("course", "Course"), ("status", "Status"),
+        ("total", "Enrollments"), ("average_progress", "Avg Progress"),
+    ],
+    "attendance_summary": [
+        ("school", "School"), ("district", "District"), ("batch", "Batch"),
+        ("total", "Records"), ("present", "Present"), ("absent", "Absent"), ("present_percent", "Present %"),
+    ],
+    "performance_summary": [
+        ("school", "School"), ("district", "District"), ("batch", "Batch"), ("trainer", "Trainer"),
+        ("concept_understanding", "Concept"), ("project_understanding", "Project"),
+        ("design_thinking", "Design Thinking"), ("assessed_by", "Assessed By"),
+    ],
+}
+
+
+REPORT_TABLE_TITLES = {
+    "school_summary": "Registered Schools",
+    "schools_by_district": "Schools by District",
+    "student_school_summary": "Students by School",
+    "student_location_summary": "Students by Location",
+    "student_demographics": "Student Demographic Combinations",
+    "student_gender_summary": "Students by Gender",
+    "student_income_summary": "Students by APL/BPL",
+    "student_physical_summary": "Students by Physically Challenged Status",
+    "student_medium_summary": "Students by Medium",
+    "student_caste_category_summary": "Students by Caste and Category",
+    "student_combination_summary": "Student Detail Combination Report",
+    "trainer_summary": "Trainer Assignment Summary",
+    "batch_summary": "Batches by School and Trainer",
+    "enrollment_summary": "Enrollments by Course and Status",
+    "attendance_summary": "Attendance by School and Batch",
+    "performance_summary": "Performance by Batch",
+}
+
+
+def _build_reports_payload(db, current_account):
+    scope_school_ids = _trainer_school_scope_ids(db, current_account)
+    schools = _school_scope_filter(db.query(models.School), models.School.id, scope_school_ids).order_by(models.School.name).all()
+    school_by_id = {school.id: school for school in schools}
+    scoped_school_ids = set(school_by_id)
+
+    students_query = db.query(models.Student, models.School).outerjoin(models.School, models.School.id == models.Student.school_id)
+    if scope_school_ids is not None:
+        students_query = students_query.filter(models.Student.school_id.in_(scope_school_ids))
+    students = students_query.order_by(models.Student.name).all()
+
+    trainers_query = db.query(models.Trainer)
+    if current_account.get("role") == "trainer":
+        trainers_query = trainers_query.filter(func.lower(models.Trainer.email) == current_account.get("email", "").lower())
+    trainers = trainers_query.order_by(models.Trainer.name).all()
+
+    batches_query = db.query(models.Batch, models.School).join(models.School, models.School.id == models.Batch.school_id)
+    batches_query = _school_scope_filter(batches_query, models.Batch.school_id, scope_school_ids)
+    batches = batches_query.order_by(models.School.name, models.Batch.name).all()
+
+    enrollments_query = (
+        db.query(models.Enrollment, models.Student, models.Course, models.School)
+        .join(models.Student, models.Student.id == models.Enrollment.student_id)
+        .join(models.Course, models.Course.id == models.Enrollment.course_id)
+        .outerjoin(models.School, models.School.id == models.Student.school_id)
+    )
+    if scope_school_ids is not None:
+        enrollments_query = enrollments_query.filter(models.Student.school_id.in_(scope_school_ids))
+    enrollments = enrollments_query.all()
+
+    attendance_query = (
+        db.query(models.AttendanceRecord, models.Batch, models.Student, models.School)
+        .join(models.Batch, models.Batch.id == models.AttendanceRecord.batch_id)
+        .join(models.Student, models.Student.id == models.AttendanceRecord.student_id)
+        .join(models.School, models.School.id == models.Batch.school_id)
+    )
+    attendance_query = _school_scope_filter(attendance_query, models.Batch.school_id, scope_school_ids)
+    attendance_records = attendance_query.all()
+
+    assessments_query = (
+        db.query(models.BatchPerformanceAssessment, models.Batch, models.School)
+        .join(models.Batch, models.Batch.id == models.BatchPerformanceAssessment.batch_id)
+        .join(models.School, models.School.id == models.Batch.school_id)
+    )
+    assessments_query = _school_scope_filter(assessments_query, models.Batch.school_id, scope_school_ids)
+    assessments = assessments_query.all()
+
+    school_summary = [
+        {
+            "school_id": school.id,
+            "school": school.name,
+            "state": _report_label(school.state),
+            "district": _report_label(school.district),
+            "division": _report_label(school.division),
+            "assigned_trainer": _report_label(school.assigned_trainer),
+            "registered_students": sum(1 for student, _school in students if student.school_id == school.id),
+            "reported_students": school.current_students or 0,
+            "girls_reported": school.girls_count or 0,
+            "trainer": _report_label(school.assigned_trainer),
+        }
+        for school in schools
+    ]
+
+    schools_by_district_groups = {}
+    for school in schools:
+        key = (_report_key(school.state), _report_key(school.division), _report_key(school.district))
+        _report_increment(
+            schools_by_district_groups,
+            key,
+            {
+                "state": _report_label(school.state),
+                "division": _report_label(school.division),
+                "district": _report_label(school.district),
+            },
+        )
+    schools_by_district = list(schools_by_district_groups.values())
+
+    student_school_groups = {}
+    student_location_groups = {}
+    student_demographic_groups = {}
+    student_gender_groups = {}
+    student_income_groups = {}
+    student_physical_groups = {}
+    student_medium_groups = {}
+    student_caste_category_groups = {}
+    student_combination_groups = {}
+    for student, school in students:
+        school_name = school.name if school else "Unknown"
+        district = _report_label(student.district or (school.district if school else ""))
+        state = _report_label(student.state or (school.state if school else ""))
+        taluk = _report_label(student.taluk)
+        village = _report_label(student.village)
+        pincode = _report_label(student.pincode)
+        gender_label = _report_label(student.gender)
+        income_label = _report_label(student.income_status)
+        challenged_label = _report_label(student.physically_challenged)
+        medium_label = _report_label(student.medium)
+        caste_label = _report_label(student.caste)
+        category_label = _report_label(student.category)
+        urban_rural_label = _report_label(student.urban_rural)
+        gender = _report_key(student.gender)
+        income = _report_key(student.income_status)
+        challenged = _report_key(student.physically_challenged)
+
+        school_bucket = _report_increment(
+            student_school_groups,
+            student.school_id or "unknown",
+            {"school_id": student.school_id or "", "school": school_name, "district": district},
+        )
+        location_bucket = _report_increment(
+            student_location_groups,
+            (state.lower(), district.lower(), taluk.lower(), village.lower(), pincode.lower()),
+            {"state": state, "district": district, "taluk": taluk, "village": village, "pincode": pincode},
+        )
+        for bucket in (school_bucket, location_bucket):
+            if gender == "female":
+                bucket["girls"] = bucket.get("girls", 0) + 1
+            elif gender == "male":
+                bucket["boys"] = bucket.get("boys", 0) + 1
+            else:
+                bucket["other_gender"] = bucket.get("other_gender", 0) + 1
+            if income == "apl":
+                bucket["apl"] = bucket.get("apl", 0) + 1
+            elif income == "bpl":
+                bucket["bpl"] = bucket.get("bpl", 0) + 1
+            if challenged == "yes":
+                bucket["physically_challenged_yes"] = bucket.get("physically_challenged_yes", 0) + 1
+
+        for dimension, value in [
+            ("Gender", student.gender),
+            ("Income Status", student.income_status),
+            ("Physically Challenged", student.physically_challenged),
+            ("Urban/Rural", student.urban_rural),
+            ("Medium", student.medium),
+            ("Caste", student.caste),
+            ("Category", student.category),
+        ]:
+            _report_increment(
+                student_demographic_groups,
+                (dimension, _report_key(value), district.lower()),
+                {"dimension": dimension, "value": _report_label(value), "district": district},
+            )
+
+        _report_increment(
+            student_gender_groups,
+            (student.school_id or "unknown", district.lower(), _report_key(gender_label)),
+            {"school_id": student.school_id or "", "school": school_name, "district": district, "gender": gender_label},
+        )
+        _report_increment(
+            student_income_groups,
+            (student.school_id or "unknown", district.lower(), _report_key(income_label)),
+            {"school_id": student.school_id or "", "school": school_name, "district": district, "income_status": income_label},
+        )
+        _report_increment(
+            student_physical_groups,
+            (student.school_id or "unknown", district.lower(), _report_key(challenged_label)),
+            {"school_id": student.school_id or "", "school": school_name, "district": district, "physically_challenged": challenged_label},
+        )
+        _report_increment(
+            student_medium_groups,
+            (student.school_id or "unknown", district.lower(), _report_key(medium_label)),
+            {"school_id": student.school_id or "", "school": school_name, "district": district, "medium": medium_label},
+        )
+        _report_increment(
+            student_caste_category_groups,
+            (student.school_id or "unknown", district.lower(), _report_key(caste_label), _report_key(category_label)),
+            {"school_id": student.school_id or "", "school": school_name, "district": district, "caste": caste_label, "category": category_label},
+        )
+        _report_increment(
+            student_combination_groups,
+            (
+                student.school_id or "unknown",
+                district.lower(),
+                _report_key(gender_label),
+                _report_key(income_label),
+                _report_key(challenged_label),
+                _report_key(medium_label),
+                _report_key(urban_rural_label),
+            ),
+            {
+                "school_id": student.school_id or "",
+                "school": school_name,
+                "district": district,
+                "gender": gender_label,
+                "income_status": income_label,
+                "physically_challenged": challenged_label,
+                "medium": medium_label,
+                "urban_rural": urban_rural_label,
+            },
+        )
+
+    student_school_summary = list(student_school_groups.values())
+    student_location_summary = list(student_location_groups.values())
+    student_demographics = list(student_demographic_groups.values())
+    student_gender_summary = list(student_gender_groups.values())
+    student_income_summary = list(student_income_groups.values())
+    student_physical_summary = list(student_physical_groups.values())
+    student_medium_summary = list(student_medium_groups.values())
+    student_caste_category_summary = list(student_caste_category_groups.values())
+    student_combination_summary = list(student_combination_groups.values())
+
+    trainer_summary = [
+        {
+            "trainer": trainer.name,
+            "email": trainer.email,
+            "role": trainer.role,
+            "division": _report_label(trainer.division),
+            "districts": _report_label(trainer.districts),
+            "assigned_school_count": len(_split_assigned_schools(trainer.assigned_school)),
+            "assigned_schools": trainer.assigned_school or "",
+        }
+        for trainer in trainers
+    ]
+
+    batch_summary = [
+        {
+            "school_id": school.id,
+            "school": school.name,
+            "district": _report_label(school.district),
+            "batch": batch.name,
+            "trainer": _report_label(batch.trainer_name),
+            "start_date": batch.start_date.isoformat() if batch.start_date else "",
+            "end_date": batch.end_date.isoformat() if batch.end_date else "",
+        }
+        for batch, school in batches
+    ]
+
+    enrollment_groups = {}
+    for enrollment, _student, course, school in enrollments:
+        key = (school.id if school else "", course.id, enrollment.status)
+        bucket = _report_increment(
+            enrollment_groups,
+            key,
+            {
+                "school_id": school.id if school else "",
+                "school": school.name if school else "Unknown",
+                "district": _report_label(school.district if school else ""),
+                "course": course.title,
+                "status": enrollment.status,
+                "progress_total": 0,
+            },
+        )
+        bucket["progress_total"] += enrollment.progress or 0
+        bucket["average_progress"] = _report_percent(bucket["progress_total"], bucket["total"])
+    enrollment_summary = [
+        {key: value for key, value in row.items() if key != "progress_total"}
+        for row in enrollment_groups.values()
+    ]
+
+    attendance_groups = {}
+    for record, batch, _student, school in attendance_records:
+        key = (school.id, batch.id)
+        bucket = _report_increment(
+            attendance_groups,
+            key,
+            {
+                "school_id": school.id,
+                "school": school.name,
+                "district": _report_label(school.district),
+                "batch": batch.name,
+                "present": 0,
+                "absent": 0,
+            },
+        )
+        if record.status == "present":
+            bucket["present"] += 1
+        elif record.status == "absent":
+            bucket["absent"] += 1
+        bucket["present_percent"] = _report_percent(bucket["present"], bucket["total"])
+    attendance_summary = list(attendance_groups.values())
+
+    performance_summary = [
+        {
+            "school_id": school.id,
+            "school": school.name,
+            "district": _report_label(school.district),
+            "batch": batch.name,
+            "trainer": _report_label(batch.trainer_name),
+            "concept_understanding": assessment.concept_understanding,
+            "project_understanding": assessment.project_understanding,
+            "design_thinking": assessment.design_thinking,
+            "assessed_by": _report_label(assessment.assessed_by),
+        }
+        for assessment, batch, school in assessments
+    ]
+
+    tables = {
+        "school_summary": school_summary,
+        "schools_by_district": schools_by_district,
+        "student_school_summary": student_school_summary,
+        "student_gender_summary": student_gender_summary,
+        "student_income_summary": student_income_summary,
+        "student_physical_summary": student_physical_summary,
+        "student_medium_summary": student_medium_summary,
+        "student_caste_category_summary": student_caste_category_summary,
+        "student_combination_summary": student_combination_summary,
+        "student_location_summary": student_location_summary,
+        "student_demographics": student_demographics,
+        "trainer_summary": trainer_summary,
+        "batch_summary": batch_summary,
+        "enrollment_summary": enrollment_summary,
+        "attendance_summary": attendance_summary,
+        "performance_summary": performance_summary,
+    }
+
+    sections = [
+        {
+            "key": key,
+            "title": REPORT_TABLE_TITLES[key],
+            "columns": [{"key": column_key, "label": label} for column_key, label in REPORT_TABLE_COLUMNS[key]],
+            "rows": rows,
+        }
+        for key, rows in tables.items()
+    ]
+
+    girls = sum(1 for student, _school in students if _report_key(student.gender) == "female")
+    boys = sum(1 for student, _school in students if _report_key(student.gender) == "male")
+    challenged_yes = sum(1 for student, _school in students if _report_key(student.physically_challenged) == "yes")
+    apl = sum(1 for student, _school in students if _report_key(student.income_status) == "apl")
+    bpl = sum(1 for student, _school in students if _report_key(student.income_status) == "bpl")
+
+    return {
+        "kpis": {
+            "schools": len(schools),
+            "students": len(students),
+            "girls": girls,
+            "boys": boys,
+            "apl": apl,
+            "bpl": bpl,
+            "physically_challenged": challenged_yes,
+            "trainers": len(trainers),
+            "batches": len(batches),
+            "enrollments": len(enrollments),
+        },
+        "filters": {
+            "schools": [{"id": school.id, "name": school.name} for school in schools],
+            "districts": _report_filter_options((school.district for school in schools)),
+            "taluks": _report_filter_options((student.taluk for student, _school in students)),
+            "villages": _report_filter_options((student.village for student, _school in students)),
+            "trainers": _report_filter_options((school.assigned_trainer for school in schools)),
+            "mediums": _report_filter_options((student.medium for student, _school in students), ("Kannada", "English")),
+            "genders": _report_filter_options((student.gender for student, _school in students), ("Male", "Female", "Other")),
+            "income_statuses": _report_filter_options((student.income_status for student, _school in students), ("APL", "BPL")),
+            "physically_challenged": _report_filter_options((student.physically_challenged for student, _school in students), ("Yes", "No")),
+            "urban_rural": _report_filter_options((student.urban_rural for student, _school in students), ("Urban", "Rural")),
+            "castes": _report_filter_options((student.caste for student, _school in students)),
+            "categories": _report_filter_options((student.category for student, _school in students)),
+        },
+        "sections": sections,
+        "tables": tables,
+    }
+
+
 def _safe_upload_name(filename: str):
     stem = Path(filename).stem or "content"
     suffix = Path(filename).suffix.lower()
@@ -268,6 +831,8 @@ def _validate_content_upload(content_type: str, upload: UploadFile | None, resou
         "ppt": {".ppt", ".pptx"},
         "video_file": {".mp4", ".mov", ".webm", ".mkv"},
     }
+    if content_type == "article":
+        return
     if content_type == "video_link":
         _validate_video_link(resource_url)
         return
@@ -404,19 +969,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
 
 @app.get("/signup")
 async def signup_page(request: Request):
-    if _is_authenticated(request):
-        return RedirectResponse("/dashboard")
-    return templates.TemplateResponse(
-        request,
-        "signup.html",
-        {
-            "app_name": "GTTC Student Dashboard",
-            "error": None,
-            "name": "",
-            "email": "",
-            "role": "student",
-        },
-    )
+    return RedirectResponse("/login", status_code=303)
 
 
 @app.post("/signup")
@@ -428,53 +981,7 @@ async def signup(
     password: str = Form(...),
     confirm_password: str = Form(...),
 ):
-    normalized_email = email.strip().lower()
-    cleaned_name = name.strip()
-    allowed_roles = {"admin", "trainer", "school", "student"}
-    selected_role = role if role in allowed_roles else "student"
-
-    error = None
-    if len(cleaned_name) < 2:
-        error = "Please enter your full name."
-    elif "@" not in normalized_email:
-        error = "Please enter a valid email address."
-    elif len(password) < 6:
-        error = "Password must be at least 6 characters."
-    elif password != confirm_password:
-        error = "Passwords do not match."
-
-    with SessionLocal() as db:
-        exists = db.query(models.Account).filter(func.lower(models.Account.email) == normalized_email).first()
-        if exists and not error:
-            error = "An account with this email already exists."
-
-        if error:
-            return templates.TemplateResponse(
-                request,
-                "signup.html",
-                {
-                    "app_name": "GTTC Student Dashboard",
-                    "error": error,
-                    "name": cleaned_name,
-                    "email": normalized_email,
-                    "role": selected_role,
-                },
-                status_code=400,
-            )
-
-        account = models.Account(
-            name=cleaned_name,
-            email=normalized_email,
-            role=selected_role,
-            hashed_password=_hash_password(password),
-        )
-        db.add(account)
-        db.commit()
-        db.refresh(account)
-
-    response = RedirectResponse("/dashboard", status_code=303)
-    _set_session_cookie(response, f"account:{account.id}:{secrets.token_urlsafe(16)}")
-    return response
+    return RedirectResponse("/login", status_code=303)
 
 
 @app.get("/logout")
@@ -488,17 +995,20 @@ async def logout():
 async def bulk_template(record_type: str, request: Request):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if record_type in {"trainers", "schools"} and not _is_admin(request):
+        return _dashboard_redirect("Only admin can download trainer or school bulk templates.", "error")
 
     templates = {
         "trainers": {
             "sheet": "Trainers",
             "headers": [
                 "name", "email", "phone", "role", "gender", "caste",
-                "division", "districts", "assigned_school", "specialization",
+                "division", "districts", "assigned_school_1", "assigned_school_2", "assigned_school_3", "specialization",
             ],
             "sample": [
                 "Trainer Full Name", "trainer@example.com", "+91 9876543210", "atl_trainer",
-                "female", "cat_2a", "Bengaluru", "Bengaluru South", "GHS Jayanagar", "ATL trainer",
+                "female", "cat_2a", "Bengaluru", "Bengaluru South",
+                "GHS Jayanagar", "GHS Basavanagudi", "GHS Malleshwaram", "ATL trainer",
             ],
         },
         "schools": {
@@ -520,11 +1030,14 @@ async def bulk_template(record_type: str, request: Request):
             "sheet": "Students",
             "headers": [
                 "name", "email", "grade", "school_udise_code", "father_name", "mother_name",
-                "age", "gender", "caste", "category", "phone", "address",
+                "age", "gender", "caste", "category", "phone", "urban_rural", "income_status",
+                "physically_challenged", "medium", "state", "district", "taluk", "village", "pincode",
             ],
             "sample": [
                 "Student Full Name", "student@example.com", "8", "29XXXXXXXXX", "Father Name",
-                "Mother Name", "13", "female", "SC", "Category A", "+91 9876543210", "Student address",
+                "Mother Name", "13", "female", "SC", "Category A", "+91 9876543210", "rural",
+                "BPL", "no", "Kannada", "Karnataka", "Bengaluru Urban", "Bengaluru South",
+                "Jayanagar", "560011",
             ],
         },
     }
@@ -559,8 +1072,14 @@ async def export_records(record_type: str, request: Request):
     reverse = direction == "desc"
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         if record_type == "trainers":
-            headers = ["name", "email", "phone", "role", "division", "districts", "assigned_school", "specialization"]
+            if not _is_admin(request):
+                return _dashboard_redirect("Only admin can export trainer records.", "error")
+            headers = [
+                "name", "email", "phone", "role", "division", "districts",
+                "assigned_school_1", "assigned_school_2", "assigned_school_3", "specialization",
+            ]
             rows = [
                 {
                     "name": trainer.name,
@@ -569,7 +1088,9 @@ async def export_records(record_type: str, request: Request):
                     "role": trainer.role,
                     "division": trainer.division,
                     "districts": trainer.districts,
-                    "assigned_school": trainer.assigned_school,
+                    "assigned_school_1": (_split_assigned_schools(trainer.assigned_school) + ["", "", ""])[0],
+                    "assigned_school_2": (_split_assigned_schools(trainer.assigned_school) + ["", "", ""])[1],
+                    "assigned_school_3": (_split_assigned_schools(trainer.assigned_school) + ["", "", ""])[2],
                     "specialization": trainer.specialization,
                 }
                 for trainer in db.query(models.Trainer).all()
@@ -581,6 +1102,9 @@ async def export_records(record_type: str, request: Request):
                 "udise_code", "atl_lab_code", "name", "division", "district", "principal_name",
                 "assigned_trainer", "current_students", "girls_count",
             ]
+            school_query = db.query(models.School)
+            if scope_school_ids is not None:
+                school_query = school_query.filter(models.School.id.in_(scope_school_ids))
             rows = [
                 {
                     "udise_code": school.udise_code,
@@ -593,15 +1117,23 @@ async def export_records(record_type: str, request: Request):
                     "current_students": school.current_students,
                     "girls_count": school.girls_count,
                 }
-                for school in db.query(models.School).all()
+                for school in school_query.all()
             ]
             filename = "student_dashboard_schools.xlsx"
             sheet_name = "Schools"
         elif record_type == "students":
             headers = [
                 "name", "email", "grade", "school_name", "school_udise_code", "father_name",
-                "mother_name", "age", "gender", "caste", "category", "phone", "address",
+                "mother_name", "age", "gender", "caste", "category", "phone", "urban_rural",
+                "income_status", "physically_challenged", "medium", "state", "district",
+                "taluk", "village", "pincode", "address",
             ]
+            student_query = (
+                db.query(models.Student, models.School.name.label("school_name"), models.School.udise_code.label("school_udise_code"))
+                .outerjoin(models.School, models.School.id == models.Student.school_id)
+            )
+            if scope_school_ids is not None:
+                student_query = student_query.filter(models.Student.school_id.in_(scope_school_ids))
             rows = [
                 {
                     "name": student.name,
@@ -616,13 +1148,18 @@ async def export_records(record_type: str, request: Request):
                     "caste": student.caste,
                     "category": student.category,
                     "phone": student.phone,
+                    "urban_rural": student.urban_rural,
+                    "income_status": student.income_status,
+                    "physically_challenged": student.physically_challenged,
+                    "medium": student.medium,
+                    "state": student.state,
+                    "district": student.district,
+                    "taluk": student.taluk,
+                    "village": student.village,
+                    "pincode": student.pincode,
                     "address": student.address,
                 }
-                for student, school_name, school_udise_code in (
-                    db.query(models.Student, models.School.name.label("school_name"), models.School.udise_code.label("school_udise_code"))
-                    .outerjoin(models.School, models.School.id == models.Student.school_id)
-                    .all()
-                )
+                for student, school_name, school_udise_code in student_query.all()
             ]
             filename = "student_dashboard_students.xlsx"
             sheet_name = "Students"
@@ -646,28 +1183,64 @@ async def add_trainer(
     division: str = Form(""),
     districts: str = Form(""),
     assigned_school: str = Form(""),
+    assigned_school_1: str = Form(""),
+    assigned_school_2: str = Form(""),
+    assigned_school_3: str = Form(""),
     specialization: str = Form("ATL trainer"),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can add trainers and create trainer logins.", "error")
+
+    normalized_email = email.strip().lower()
+    cleaned_name = name.strip()
+    allowed_trainer_roles = {"atl_trainer", "master_trainer"}
+    selected_role = role if role in allowed_trainer_roles else "atl_trainer"
+    if len(cleaned_name) < 2:
+        return _dashboard_redirect("Trainer name is required.", "error")
+    if "@" not in normalized_email:
+        return _dashboard_redirect("Trainer email must be valid.", "error")
+    if len(password) < 6:
+        return _dashboard_redirect("Trainer login password must be at least 6 characters.", "error")
+    if password != confirm_password:
+        return _dashboard_redirect("Trainer login passwords do not match.", "error")
 
     with SessionLocal() as db:
-        if db.query(models.Trainer).filter(func.lower(models.Trainer.email) == email.strip().lower()).first():
+        if db.query(models.Trainer).filter(func.lower(models.Trainer.email) == normalized_email).first():
             return _dashboard_redirect(f"Trainer email already exists: {email}", "error")
+        if db.query(models.Account).filter(func.lower(models.Account.email) == normalized_email).first():
+            return _dashboard_redirect(f"A login account already exists for: {email}", "error")
+        assigned_schools = _join_assigned_schools(
+            assigned_school_1,
+            assigned_school_2,
+            assigned_school_3,
+            assigned_school,
+        )
         db.add(
             models.Trainer(
-                name=name.strip(),
-                email=email.strip().lower(),
+                name=cleaned_name,
+                email=normalized_email,
                 phone=phone.strip() or None,
-                role=role,
+                role=selected_role,
                 division=division.strip() or None,
                 districts=districts.strip() or None,
-                assigned_school=assigned_school.strip() or None,
+                assigned_school=assigned_schools,
                 specialization=specialization.strip() or None,
             )
         )
+        db.add(
+            models.Account(
+                name=cleaned_name,
+                email=normalized_email,
+                role="trainer",
+                hashed_password=_hash_password(password),
+            )
+        )
         db.commit()
-    return _dashboard_redirect("Trainer added successfully.")
+    return _dashboard_redirect("Trainer added successfully. Login credentials are ready.")
 
 
 @app.post("/manual/school")
@@ -686,6 +1259,8 @@ async def add_school(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can add schools.", "error")
 
     with SessionLocal() as db:
         if db.query(models.School).filter(models.School.udise_code == udise_code.strip()).first():
@@ -722,17 +1297,31 @@ async def add_student(
     caste: str = Form(""),
     category: str = Form(""),
     phone: str = Form(""),
+    urban_rural: str = Form(""),
+    income_status: str = Form(""),
+    physically_challenged: str = Form(""),
+    medium: str = Form(""),
+    state: str = Form(""),
+    district: str = Form(""),
+    taluk: str = Form(""),
+    village: str = Form(""),
+    pincode: str = Form(""),
     address: str = Form(""),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         school = None
         if school_udise_code.strip():
             school = db.query(models.School).filter(models.School.udise_code == school_udise_code.strip()).first()
             if not school:
                 return _dashboard_redirect(f"School UDISE not found: {school_udise_code}", "error")
+            if not _school_in_scope(scope_school_ids, school.id):
+                return _dashboard_redirect("You can add students only for your assigned schools.", "error")
+        elif scope_school_ids is not None:
+            return _dashboard_redirect("Trainer student records must be assigned to one of your schools.", "error")
         if email.strip() and db.query(models.Student).filter(func.lower(models.Student.email) == email.strip().lower()).first():
             return _dashboard_redirect(f"Student email already exists: {email}", "error")
         db.add(
@@ -747,7 +1336,16 @@ async def add_student(
                 caste=caste.strip() or None,
                 category=category.strip() or None,
                 phone=phone.strip() or None,
-                address=address.strip() or None,
+                urban_rural=urban_rural.strip() or None,
+                income_status=income_status.strip() or None,
+                physically_challenged=physically_challenged.strip() or None,
+                medium=medium.strip() or None,
+                state=state.strip() or None,
+                district=district.strip() or None,
+                taluk=taluk.strip() or None,
+                village=village.strip() or None,
+                pincode=pincode.strip() or None,
+                address=_compose_student_address(state, district, taluk, village, pincode, address),
                 school_id=school.id if school else None,
             )
         )
@@ -762,11 +1360,14 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
 
     if record_type not in {"trainers", "schools", "students"}:
         raise HTTPException(404, "Unknown bulk upload type")
+    if record_type in {"trainers", "schools"} and not _is_admin(request):
+        return _dashboard_redirect("Only admin can bulk upload trainer or school records.", "error")
 
     rows, col = _worksheet_rows(await file.read())
     success, failed, errors = 0, 0, []
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         for index, row in enumerate(rows, start=2):
             if not any(cell is not None and str(cell).strip() for cell in row):
                 continue
@@ -789,7 +1390,12 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                             caste=col(row, "caste") or col(row, "trainer_caste") or None,
                             division=col(row, "division") or None,
                             districts=col(row, "districts") or col(row, "district") or None,
-                            assigned_school=col(row, "assigned_school") or None,
+                            assigned_school=_join_assigned_schools(
+                                col(row, "assigned_school_1"),
+                                col(row, "assigned_school_2"),
+                                col(row, "assigned_school_3"),
+                                col(row, "assigned_school"),
+                            ),
                             specialization=col(row, "specialization") or "ATL trainer",
                         )
                     )
@@ -836,6 +1442,10 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                         school = db.query(models.School).filter(models.School.udise_code == school_udise).first()
                         if not school:
                             raise ValueError(f"school UDISE not found: {school_udise}")
+                        if not _school_in_scope(scope_school_ids, school.id):
+                            raise ValueError("student school is not assigned to this trainer")
+                    elif scope_school_ids is not None:
+                        raise ValueError("trainer student rows must include an assigned school UDISE")
                     if email and db.query(models.Student).filter(func.lower(models.Student.email) == email).first():
                         raise ValueError(f"student email already exists: {email}")
                     db.add(
@@ -850,7 +1460,23 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                             caste=col(row, "caste") or None,
                             category=col(row, "category") or None,
                             phone=col(row, "phone") or col(row, "phone_number") or None,
-                            address=col(row, "address") or None,
+                            urban_rural=col(row, "urban_rural") or None,
+                            income_status=col(row, "income_status") or None,
+                            physically_challenged=col(row, "physically_challenged") or None,
+                            medium=col(row, "medium") or col(row, "language_medium") or None,
+                            state=col(row, "state") or None,
+                            district=col(row, "district") or None,
+                            taluk=col(row, "taluk") or None,
+                            village=col(row, "village") or col(row, "ward") or None,
+                            pincode=col(row, "pincode") or col(row, "pin_code") or None,
+                            address=_compose_student_address(
+                                col(row, "state"),
+                                col(row, "district"),
+                                col(row, "taluk"),
+                                col(row, "village") or col(row, "ward"),
+                                col(row, "pincode") or col(row, "pin_code"),
+                                col(row, "address"),
+                            ),
                             school_id=school.id if school else None,
                         )
                     )
@@ -866,6 +1492,340 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
     if errors:
         message += " " + " | ".join(errors[:3])
     return _dashboard_redirect(message, "error" if failed else "success")
+
+
+@app.post("/courses/create")
+async def create_course(
+    request: Request,
+    title: str = Form(...),
+    level: str = Form(""),
+    sector: str = Form(""),
+    sub_sector: str = Form(""),
+    occupation: str = Form(""),
+    reference_id: str = Form(""),
+    description: str = Form(""),
+    pdf_file: UploadFile | None = File(None),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can add new courses.", "error")
+
+    cleaned_title = title.strip()
+    if not cleaned_title:
+        return _dashboard_redirect("Course title is required.", "error")
+    course_pdf_url = ""
+    if pdf_file and pdf_file.filename:
+        if Path(pdf_file.filename).suffix.lower() != ".pdf":
+            return _dashboard_redirect("Course PDF must be a .pdf file.", "error")
+        safe_name = _safe_upload_name(pdf_file.filename)
+        target = UPLOAD_DIR / safe_name
+        content = await pdf_file.read()
+        if not content:
+            return _dashboard_redirect("Course PDF file is empty.", "error")
+        target.write_bytes(content)
+        course_pdf_url = f"/static/uploads/lms/{safe_name}"
+    form = await request.form()
+    item_titles = [str(value).strip() for value in form.getlist("item_title")]
+    item_descriptions = [str(value).strip() for value in form.getlist("item_description")]
+    lesson_items = [
+        (item_title, item_descriptions[index] if index < len(item_descriptions) else "")
+        for index, item_title in enumerate(item_titles)
+        if item_title
+    ]
+    if not lesson_items:
+        lesson_items = [("Course Overview", "Add PDFs, PPTs, videos, or notes for this course from the Content Library.")]
+
+    with SessionLocal() as db:
+        exists = db.query(models.Course).filter(func.lower(models.Course.title) == cleaned_title.lower()).first()
+        if exists:
+            return _dashboard_redirect(f"Course already exists: {cleaned_title}", "error")
+        course = models.Course(
+            title=cleaned_title,
+            level=level.strip() or "Custom Course",
+            sector=sector.strip() or None,
+            sub_sector=sub_sector.strip() or None,
+            occupation=occupation.strip() or None,
+            reference_id=reference_id.strip() or None,
+            resource_url=course_pdf_url or None,
+            description=description.strip() or None,
+        )
+        db.add(course)
+        db.flush()
+        for index, (item_title, item_description) in enumerate(lesson_items, start=1):
+            db.add(
+                models.Lesson(
+                    course_id=course.id,
+                    title=item_title,
+                    content_type="article",
+                    content_body=item_description or "Add PDFs, PPTs, videos, or notes for this course from the Content Library.",
+                    sort_order=index,
+                )
+            )
+        db.commit()
+
+    return _dashboard_redirect("New course added successfully.")
+
+
+@app.post("/courses/{course_id}/pdf")
+async def upload_course_pdf(request: Request, course_id: int, pdf_file: UploadFile = File(...)):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can add course PDFs.", "error")
+    if not pdf_file or not pdf_file.filename:
+        return _dashboard_redirect("Choose a PDF file to upload.", "error")
+    if Path(pdf_file.filename).suffix.lower() != ".pdf":
+        return _dashboard_redirect("Course PDF must be a .pdf file.", "error")
+
+    content = await pdf_file.read()
+    if not content:
+        return _dashboard_redirect("Course PDF file is empty.", "error")
+
+    safe_name = _safe_upload_name(pdf_file.filename)
+    target = UPLOAD_DIR / safe_name
+    target.write_bytes(content)
+
+    with SessionLocal() as db:
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if not course:
+            return _dashboard_redirect("Selected course was not found.", "error")
+        course.resource_url = f"/static/uploads/lms/{safe_name}"
+        db.commit()
+
+    return _dashboard_redirect("Course PDF added successfully.")
+
+
+@app.post("/courses/{course_id}/delete")
+async def delete_course(request: Request, course_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can delete courses.", "error")
+
+    protected_titles = {"ATL Curriculum and Innovation Calendar 2026-27"}
+
+    with SessionLocal() as db:
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if not course:
+            return _dashboard_redirect("Selected course was not found.", "error")
+        if course.title in protected_titles or course.title.startswith("Experiment "):
+            return _dashboard_redirect("Built-in handbook and seed courses cannot be deleted.", "error")
+
+        lessons = db.query(models.Lesson).filter(models.Lesson.course_id == course.id).all()
+        for lesson in lessons:
+            db.query(models.LessonResource).filter(models.LessonResource.lesson_id == lesson.id).delete()
+            db.delete(lesson)
+        db.query(models.Enrollment).filter(models.Enrollment.course_id == course.id).delete()
+        db.delete(course)
+        db.commit()
+
+    return _dashboard_redirect("Course deleted successfully.")
+
+
+@app.post("/courses/{course_id}/update")
+async def update_course(
+    request: Request,
+    course_id: int,
+    title: str = Form(...),
+    level: str = Form(""),
+    sector: str = Form(""),
+    sub_sector: str = Form(""),
+    occupation: str = Form(""),
+    reference_id: str = Form(""),
+    description: str = Form(""),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can modify courses.", "error")
+
+    cleaned_title = title.strip()
+    if not cleaned_title:
+        return _dashboard_redirect("Course title is required.", "error")
+
+    with SessionLocal() as db:
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if not course:
+            return _dashboard_redirect("Selected course was not found.", "error")
+        duplicate = (
+            db.query(models.Course)
+            .filter(models.Course.id != course.id, func.lower(models.Course.title) == cleaned_title.lower())
+            .first()
+        )
+        if duplicate:
+            return _dashboard_redirect(f"Course already exists: {cleaned_title}", "error")
+        course.title = cleaned_title
+        course.level = level.strip() or "Custom Course"
+        course.sector = sector.strip() or None
+        course.sub_sector = sub_sector.strip() or None
+        course.occupation = occupation.strip() or None
+        course.reference_id = reference_id.strip() or None
+        course.description = description.strip() or None
+        db.commit()
+
+    return _dashboard_redirect("Course updated successfully.")
+
+
+@app.post("/courses/{course_id}/manage")
+async def manage_course(request: Request, course_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can modify courses.", "error")
+
+    form = await request.form()
+    cleaned_title = str(form.get("title") or "").strip()
+    if not cleaned_title:
+        return _dashboard_redirect("Course title is required.", "error")
+
+    with SessionLocal() as db:
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if not course:
+            return _dashboard_redirect("Selected course was not found.", "error")
+        duplicate = (
+            db.query(models.Course)
+            .filter(models.Course.id != course.id, func.lower(models.Course.title) == cleaned_title.lower())
+            .first()
+        )
+        if duplicate:
+            return _dashboard_redirect(f"Course already exists: {cleaned_title}", "error")
+
+        course.title = cleaned_title
+        course.level = str(form.get("level") or "").strip() or "Custom Course"
+        course.sector = str(form.get("sector") or "").strip() or None
+        course.sub_sector = str(form.get("sub_sector") or "").strip() or None
+        course.occupation = str(form.get("occupation") or "").strip() or None
+        course.reference_id = str(form.get("reference_id") or "").strip() or None
+        course.description = str(form.get("description") or "").strip() or None
+
+        delete_ids = {_parse_int(value) for value in form.getlist("delete_lesson_id")}
+        delete_ids.discard(None)
+        existing_ids = [_parse_int(value) for value in form.getlist("existing_lesson_id")]
+        existing_titles = [str(value).strip() for value in form.getlist("existing_item_title")]
+        existing_descriptions = [str(value).strip() for value in form.getlist("existing_item_description")]
+
+        for index, lesson_id in enumerate(existing_ids):
+            if not lesson_id:
+                continue
+            lesson = (
+                db.query(models.Lesson)
+                .filter(models.Lesson.id == lesson_id, models.Lesson.course_id == course.id)
+                .first()
+            )
+            if not lesson:
+                continue
+            if lesson_id in delete_ids:
+                db.query(models.LessonResource).filter(models.LessonResource.lesson_id == lesson.id).delete()
+                db.delete(lesson)
+                continue
+            title_value = existing_titles[index] if index < len(existing_titles) else ""
+            description_value = existing_descriptions[index] if index < len(existing_descriptions) else ""
+            if title_value:
+                lesson.title = title_value
+                lesson.content_body = description_value or None
+
+        max_sort = db.query(func.max(models.Lesson.sort_order)).filter(models.Lesson.course_id == course.id).scalar() or 0
+        new_titles = [str(value).strip() for value in form.getlist("new_item_title")]
+        new_descriptions = [str(value).strip() for value in form.getlist("new_item_description")]
+        for index, item_title in enumerate(new_titles):
+            if not item_title:
+                continue
+            max_sort += 1
+            item_description = new_descriptions[index] if index < len(new_descriptions) else ""
+            db.add(
+                models.Lesson(
+                    course_id=course.id,
+                    title=item_title,
+                    content_type="article",
+                    content_body=item_description or "Add PDFs, PPTs, videos, or notes for this item from the Content Library.",
+                    sort_order=max_sort,
+                )
+            )
+
+        db.commit()
+
+    return _dashboard_redirect("Course changes saved successfully.")
+
+
+@app.post("/courses/{course_id}/lessons/add")
+async def add_course_lesson(
+    request: Request,
+    course_id: int,
+    item_title: str = Form(...),
+    item_description: str = Form(""),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can add course items.", "error")
+
+    cleaned_title = item_title.strip()
+    if not cleaned_title:
+        return _dashboard_redirect("Item title is required.", "error")
+
+    with SessionLocal() as db:
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if not course:
+            return _dashboard_redirect("Selected course was not found.", "error")
+        max_sort = db.query(func.max(models.Lesson.sort_order)).filter(models.Lesson.course_id == course.id).scalar() or 0
+        db.add(
+            models.Lesson(
+                course_id=course.id,
+                title=cleaned_title,
+                content_type="article",
+                content_body=item_description.strip() or "Add PDFs, PPTs, videos, or notes for this item from the Content Library.",
+                sort_order=max_sort + 1,
+            )
+        )
+        db.commit()
+
+    return _dashboard_redirect("Course item added successfully.")
+
+
+@app.post("/lessons/{lesson_id}/update")
+async def update_lesson(
+    request: Request,
+    lesson_id: int,
+    item_title: str = Form(...),
+    item_description: str = Form(""),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can modify course items.", "error")
+
+    cleaned_title = item_title.strip()
+    if not cleaned_title:
+        return _dashboard_redirect("Item title is required.", "error")
+
+    with SessionLocal() as db:
+        lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+        if not lesson:
+            return _dashboard_redirect("Selected course item was not found.", "error")
+        lesson.title = cleaned_title
+        lesson.content_body = item_description.strip() or None
+        db.commit()
+
+    return _dashboard_redirect("Course item updated successfully.")
+
+
+@app.post("/lessons/{lesson_id}/delete")
+async def delete_lesson(request: Request, lesson_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can delete course items.", "error")
+
+    with SessionLocal() as db:
+        lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+        if not lesson:
+            return _dashboard_redirect("Selected course item was not found.", "error")
+        db.query(models.LessonResource).filter(models.LessonResource.lesson_id == lesson.id).delete()
+        db.delete(lesson)
+        db.commit()
+
+    return _dashboard_redirect("Course item deleted successfully.")
 
 
 @app.post("/content/upload")
@@ -1029,12 +1989,15 @@ async def create_enrollment(
         return RedirectResponse("/login")
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         student = db.query(models.Student).filter(models.Student.id == student_id).first()
         course = db.query(models.Course).filter(models.Course.id == course_id).first()
         if not student:
             return _dashboard_redirect("Selected student was not found.", "error")
         if not course:
             return _dashboard_redirect("Selected course was not found.", "error")
+        if not _school_in_scope(scope_school_ids, student.school_id):
+            return _dashboard_redirect("You can enroll students only from your assigned schools.", "error")
         existing = (
             db.query(models.Enrollment)
             .filter(models.Enrollment.student_id == student_id, models.Enrollment.course_id == course_id)
@@ -1071,9 +2034,13 @@ async def update_enrollment(
     cleaned_progress = max(0, min(100, progress))
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         enrollment = db.query(models.Enrollment).filter(models.Enrollment.id == enrollment_id).first()
         if not enrollment:
             return _dashboard_redirect("Enrollment was not found.", "error")
+        student = db.query(models.Student).filter(models.Student.id == enrollment.student_id).first()
+        if student and not _school_in_scope(scope_school_ids, student.school_id):
+            return _dashboard_redirect("You can update enrollments only for your assigned schools.", "error")
         enrollment.status = selected_status
         enrollment.progress = cleaned_progress
         if selected_status == "completed" and cleaned_progress < 100:
@@ -1104,11 +2071,16 @@ async def create_attendance_batch(
     parsed_end_date = _parse_date(end_date)
     if parsed_start_date and parsed_end_date and parsed_end_date < parsed_start_date:
         return _dashboard_redirect("Batch end date cannot be before start date.", "error")
+    current_account = _current_account(request) or {"name": "Trainer", "role": "trainer"}
+    saved_trainer_name = current_account["name"] if current_account.get("role") == "trainer" else (trainer_name.strip() or current_account["name"])
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         school = db.query(models.School).filter(models.School.id == school_id).first()
         if not school:
             return _dashboard_redirect("Selected school was not found.", "error")
+        if not _school_in_scope(scope_school_ids, school.id):
+            return _dashboard_redirect("You can create batches only for your assigned schools.", "error")
         exists = (
             db.query(models.Batch)
             .filter(models.Batch.school_id == school_id, func.lower(models.Batch.name) == cleaned_name.lower())
@@ -1120,7 +2092,7 @@ async def create_attendance_batch(
             models.Batch(
                 school_id=school_id,
                 name=cleaned_name,
-                trainer_name=trainer_name.strip() or None,
+                trainer_name=saved_trainer_name,
                 start_date=parsed_start_date,
                 end_date=parsed_end_date,
             )
@@ -1149,10 +2121,13 @@ async def mark_attendance(
     selected_status = status if status in {"present", "absent", "late", "excused"} else "present"
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
         student = db.query(models.Student).filter(models.Student.id == student_id).first()
         if not batch or not student:
             return _dashboard_redirect("Selected batch or student was not found.", "error")
+        if not _school_in_scope(scope_school_ids, batch.school_id):
+            return _dashboard_redirect("You can mark attendance only for your assigned schools.", "error")
         if student.school_id and student.school_id != batch.school_id:
             return _dashboard_redirect("Student does not belong to the selected batch school.", "error")
         record = (
@@ -1190,9 +2165,12 @@ async def mark_bulk_attendance(request: Request):
 
     saved_count = 0
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
         if not batch:
             return _dashboard_redirect("Selected batch was not found.", "error")
+        if not _school_in_scope(scope_school_ids, batch.school_id):
+            return _dashboard_redirect("You can mark attendance only for your assigned schools.", "error")
         students = db.query(models.Student).filter(models.Student.school_id == batch.school_id).order_by(models.Student.name).all()
         for student in students:
             selected_status = form.get(f"status_{student.id}")
@@ -1235,9 +2213,12 @@ async def save_batch_performance(
         return RedirectResponse("/login")
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
         if not batch:
             return _dashboard_redirect("Selected batch was not found.", "error")
+        if not _school_in_scope(scope_school_ids, batch.school_id):
+            return _dashboard_redirect("You can assess only batches from your assigned schools.", "error")
         assessment = (
             db.query(models.BatchPerformanceAssessment)
             .filter(models.BatchPerformanceAssessment.batch_id == batch.id)
@@ -1270,9 +2251,12 @@ async def save_teamwork_badges(request: Request):
         return _dashboard_redirect("Select a batch before assigning teamwork badges.", "error")
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
         batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
         if not batch:
             return _dashboard_redirect("Selected batch was not found.", "error")
+        if not _school_in_scope(scope_school_ids, batch.school_id):
+            return _dashboard_redirect("You can assign badges only for your assigned schools.", "error")
         saved_count = 0
         for badge_key in TEAMWORK_BADGES:
             student_id = _parse_int(form.get(f"badge_{badge_key}"))
@@ -1321,6 +2305,15 @@ async def export_attendance(
         return _dashboard_redirect("Select a date before downloading day-wise attendance.", "error")
 
     with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
+        if school_id and not _school_in_scope(scope_school_ids, school_id):
+            return _dashboard_redirect("You can export attendance only for your assigned schools.", "error")
+        if batch_id:
+            batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
+            if not batch:
+                return _dashboard_redirect("Selected batch was not found.", "error")
+            if not _school_in_scope(scope_school_ids, batch.school_id):
+                return _dashboard_redirect("You can export attendance only for your assigned schools.", "error")
         query = (
             db.query(models.AttendanceRecord, models.Batch, models.Student, models.School)
             .join(models.Batch, models.Batch.id == models.AttendanceRecord.batch_id)
@@ -1329,6 +2322,8 @@ async def export_attendance(
         )
         if school_id:
             query = query.filter(models.Batch.school_id == school_id)
+        elif scope_school_ids is not None:
+            query = query.filter(models.Batch.school_id.in_(scope_school_ids))
         if batch_id:
             query = query.filter(models.AttendanceRecord.batch_id == batch_id)
         if selected_date:
@@ -1408,6 +2403,59 @@ async def export_attendance(
     return _export_workbook("Individual Attendance", headers, rows, f"attendance-{scope}-individual.xlsx")
 
 
+@app.get("/reports/export/{report_type}")
+async def export_generated_report(
+    report_type: str,
+    request: Request,
+    school_id: str = "",
+    district: str = "",
+    taluk: str = "",
+    village: str = "",
+    trainer: str = "",
+    medium: str = "",
+    dimension: str = "",
+    start_date: str = "",
+    end_date: str = "",
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if report_type not in REPORT_TABLE_COLUMNS:
+        raise HTTPException(404, "Unknown report type")
+
+    filters = {
+        "school_id": school_id,
+        "district": district,
+        "taluk": taluk,
+        "village": village,
+        "trainer": trainer,
+        "medium": medium,
+        "dimension": dimension,
+        "gender": request.query_params.get("gender", ""),
+        "income_status": request.query_params.get("income_status", ""),
+        "physically_challenged": request.query_params.get("physically_challenged", ""),
+        "urban_rural": request.query_params.get("urban_rural", ""),
+        "caste": request.query_params.get("caste", ""),
+        "category": request.query_params.get("category", ""),
+    }
+    parsed_start = _parse_date(start_date)
+    parsed_end = _parse_date(end_date)
+
+    with SessionLocal() as db:
+        reports_data = _build_reports_payload(db, _current_account(request) or {"role": "student"})
+        rows = reports_data["tables"].get(report_type, [])
+
+    filtered_rows = [
+        row
+        for row in rows
+        if _matches_report_filters(row, filters)
+        and _date_in_report_range(row.get("start_date") or row.get("date"), parsed_start, parsed_end)
+    ]
+    headers = [key for key, _label in REPORT_TABLE_COLUMNS[report_type]]
+    sheet_name = REPORT_TABLE_TITLES[report_type][:31]
+    filename = f"report-{report_type}.xlsx"
+    return _export_workbook(sheet_name, headers, filtered_rows, filename)
+
+
 @app.get("/dashboard")
 async def dashboard(request: Request):
     if not _is_authenticated(request):
@@ -1417,14 +2465,20 @@ async def dashboard(request: Request):
     is_admin = current_account["role"] == "admin"
 
     with SessionLocal() as db:
-        trainers = db.query(models.Trainer).order_by(models.Trainer.role.desc(), models.Trainer.name).all()
-        schools = db.query(models.School).order_by(models.School.division, models.School.district, models.School.name).all()
-        students = (
+        trainers_query = db.query(models.Trainer)
+        if current_account.get("role") == "trainer":
+            trainers_query = trainers_query.filter(func.lower(models.Trainer.email) == current_account.get("email", "").lower())
+        trainers = trainers_query.order_by(models.Trainer.role.desc(), models.Trainer.name).all()
+        all_schools = db.query(models.School).order_by(models.School.division, models.School.district, models.School.name).all()
+        scope_school_ids = _trainer_school_scope_ids(db, current_account)
+        schools = [school for school in all_schools if _school_in_scope(scope_school_ids, school.id)]
+        students_query = (
             db.query(models.Student, models.School.name.label("school_name"), models.School.udise_code.label("school_udise_code"))
             .outerjoin(models.School, models.School.id == models.Student.school_id)
-            .order_by(models.Student.name)
-            .all()
         )
+        if scope_school_ids is not None:
+            students_query = students_query.filter(models.Student.school_id.in_(scope_school_ids))
+        students = students_query.order_by(models.Student.name).all()
         student_rows = [
             {
                 "id": student.id,
@@ -1438,6 +2492,15 @@ async def dashboard(request: Request):
                 "caste": student.caste,
                 "category": student.category,
                 "phone": student.phone,
+                "urban_rural": student.urban_rural,
+                "income_status": student.income_status,
+                "physically_challenged": student.physically_challenged,
+                "medium": student.medium,
+                "state": student.state,
+                "district": student.district,
+                "taluk": student.taluk,
+                "village": student.village,
+                "pincode": student.pincode,
                 "address": student.address,
                 "school_id": student.school_id,
                 "school_name": school_name,
@@ -1470,10 +2533,13 @@ async def dashboard(request: Request):
             for course in courses
         }
         volume_columns = []
+        handbook_titles = {volume["title"] for volume in VOLUME_COURSES}
+        course_by_id = {course.id: course for course in courses}
         for volume in VOLUME_COURSES:
             course = next((row for row in course_rows if row["title"] == volume["title"]), None)
             if not course:
                 continue
+            course_model = course_by_id.get(course["id"])
             lessons = (
                 db.query(models.Lesson)
                 .filter(models.Lesson.course_id == course["id"])
@@ -1482,13 +2548,56 @@ async def dashboard(request: Request):
             )
             volume_columns.append(
                 {
+                    "id": course["id"],
+                    "is_custom": False,
+                    "can_delete": True,
                     "title": volume["title"],
                     "level": volume["level"],
                     "description": volume["description"],
+                    "sector": course_model.sector if course_model else "",
+                    "sub_sector": course_model.sub_sector if course_model else "",
+                    "occupation": course_model.occupation if course_model else "",
+                    "reference_id": course_model.reference_id if course_model else "",
                     "resource_url": volume["resource_url"],
                     "lesson_count": len(lessons),
                     "lessons": [
                         {
+                            "id": lesson.id,
+                            "title": lesson.title,
+                            "content_type": lesson.content_type,
+                            "content_body": lesson.content_body,
+                            "resource_url": lesson.resource_url,
+                        }
+                        for lesson in lessons
+                    ],
+                }
+            )
+        for course in courses:
+            if course.title in handbook_titles or course.title.startswith("Experiment ") or course.title == "ATL Curriculum and Innovation Calendar 2026-27":
+                continue
+            lessons = (
+                db.query(models.Lesson)
+                .filter(models.Lesson.course_id == course.id)
+                .order_by(models.Lesson.sort_order, models.Lesson.id)
+                .all()
+            )
+            volume_columns.append(
+                {
+                    "id": course.id,
+                    "is_custom": True,
+                    "can_delete": True,
+                    "title": course.title,
+                    "level": course.level or "Custom Course",
+                    "description": course.description or "",
+                    "sector": course.sector or "",
+                    "sub_sector": course.sub_sector or "",
+                    "occupation": course.occupation or "",
+                    "reference_id": course.reference_id or "",
+                    "resource_url": course.resource_url or "",
+                    "lesson_count": len(lessons),
+                    "lessons": [
+                        {
+                            "id": lesson.id,
                             "title": lesson.title,
                             "content_type": lesson.content_type,
                             "content_body": lesson.content_body,
@@ -1559,14 +2668,15 @@ async def dashboard(request: Request):
             "experiments": sum(1 for row in content_rows if row["group"] == "experiments"),
             "curriculum": sum(1 for row in content_rows if row["group"] == "curriculum"),
         }
-        enrollments = (
+        enrollments_query = (
             db.query(models.Enrollment, models.Student, models.Course, models.School)
             .join(models.Student, models.Student.id == models.Enrollment.student_id)
             .join(models.Course, models.Course.id == models.Enrollment.course_id)
             .outerjoin(models.School, models.School.id == models.Student.school_id)
-            .order_by(models.Enrollment.assigned_at.desc())
-            .all()
         )
+        if scope_school_ids is not None:
+            enrollments_query = enrollments_query.filter(models.Student.school_id.in_(scope_school_ids))
+        enrollments = enrollments_query.order_by(models.Enrollment.assigned_at.desc()).all()
         enrollment_rows = [
             {
                 "id": enrollment.id,
@@ -1580,12 +2690,13 @@ async def dashboard(request: Request):
             }
             for enrollment, student, course, school in enrollments
         ]
-        batches = (
+        batches_query = (
             db.query(models.Batch, models.School)
             .join(models.School, models.School.id == models.Batch.school_id)
-            .order_by(models.School.name, models.Batch.name)
-            .all()
         )
+        if scope_school_ids is not None:
+            batches_query = batches_query.filter(models.Batch.school_id.in_(scope_school_ids))
+        batches = batches_query.order_by(models.School.name, models.Batch.name).all()
         batch_rows = [
             {
                 "id": batch.id,
@@ -1599,14 +2710,15 @@ async def dashboard(request: Request):
             }
             for batch, school in batches
         ]
-        attendance_records = (
+        attendance_query = (
             db.query(models.AttendanceRecord, models.Batch, models.Student, models.School)
             .join(models.Batch, models.Batch.id == models.AttendanceRecord.batch_id)
             .join(models.Student, models.Student.id == models.AttendanceRecord.student_id)
             .join(models.School, models.School.id == models.Batch.school_id)
-            .order_by(models.AttendanceRecord.attendance_date.desc(), models.School.name, models.Batch.name, models.Student.name)
-            .all()
         )
+        if scope_school_ids is not None:
+            attendance_query = attendance_query.filter(models.Batch.school_id.in_(scope_school_ids))
+        attendance_records = attendance_query.order_by(models.AttendanceRecord.attendance_date.desc(), models.School.name, models.Batch.name, models.Student.name).all()
         report_map = {}
         student_report_map = {}
         batch_performance_map = {}
@@ -1706,16 +2818,20 @@ async def dashboard(request: Request):
             }
             for batch_data in batch_performance_map.values()
         ]
-        batch_assessments = db.query(models.BatchPerformanceAssessment).all()
+        batch_assessments_query = db.query(models.BatchPerformanceAssessment).join(models.Batch, models.Batch.id == models.BatchPerformanceAssessment.batch_id)
+        if scope_school_ids is not None:
+            batch_assessments_query = batch_assessments_query.filter(models.Batch.school_id.in_(scope_school_ids))
+        batch_assessments = batch_assessments_query.all()
         batch_assessment_map = {assessment.batch_id: assessment for assessment in batch_assessments}
-        teamwork_badges = (
+        teamwork_badges_query = (
             db.query(models.StudentTeamworkBadge, models.Batch, models.Student, models.School)
             .join(models.Batch, models.Batch.id == models.StudentTeamworkBadge.batch_id)
             .join(models.Student, models.Student.id == models.StudentTeamworkBadge.student_id)
             .join(models.School, models.School.id == models.Batch.school_id)
-            .order_by(models.School.name, models.Batch.name, models.StudentTeamworkBadge.badge)
-            .all()
         )
+        if scope_school_ids is not None:
+            teamwork_badges_query = teamwork_badges_query.filter(models.Batch.school_id.in_(scope_school_ids))
+        teamwork_badges = teamwork_badges_query.order_by(models.School.name, models.Batch.name, models.StudentTeamworkBadge.badge).all()
         teamwork_badge_map = {
             f"{badge.batch_id}:{badge.badge}": badge.student_id
             for badge, _batch, _student, _school in teamwork_badges
@@ -1760,6 +2876,7 @@ async def dashboard(request: Request):
             for batch in batch_rows
         ]
         total_student_count = sum(school.current_students or 0 for school in schools)
+        reports_data = _build_reports_payload(db, current_account)
 
     return templates.TemplateResponse(
         request,
@@ -1801,6 +2918,7 @@ async def dashboard(request: Request):
             "batch_assessment_form_map": batch_assessment_form_map,
             "teamwork_badge_rows": teamwork_badge_rows,
             "performance_assessment_rows": performance_assessment_rows,
+            "reports_data": reports_data,
             "attendance_status_map": attendance_status_map,
             "today": date.today().isoformat(),
             "total_student_count": total_student_count,
