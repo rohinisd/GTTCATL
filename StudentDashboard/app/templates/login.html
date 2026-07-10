@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }} - Login</title>
+  <script>
+    (function(){
+      const theme = localStorage.getItem('gttc_lms_theme') || localStorage.getItem('gttc_theme') || 'light';
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260706-bulk">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <section class="login-brand">
+      <div class="login-brand-card">
+        <div class="login-logo-mark"><i class="ti ti-school"></i></div>
+        <div class="eyebrow">GTTC Portal Extension</div>
+        <h1>Student Dashboard & LMS</h1>
+        <p>Secure access for trainer, school, student, and ATL experiment content management.</p>
+        <div class="login-stats">
+          <span><i class="ti ti-user-star"></i> Trainers</span>
+          <span><i class="ti ti-building-community"></i> Schools</span>
+          <span><i class="ti ti-book-2"></i> LMS</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <form class="login-card" method="post" action="/login">
+        <button class="btn-theme-toggle login-theme" type="button" onclick="toggleLoginTheme()"><i class="ti ti-moon"></i> Dark</button>
+        <div class="eyebrow">Secure Sign In</div>
+        <h2>Welcome Back</h2>
+        <p class="login-sub">Enter your credentials to continue to the dashboard.</p>
+
+        {% if error %}
+        <div class="login-error"><i class="ti ti-alert-circle"></i>{{ error }}</div>
+        {% endif %}
+
+        <label class="login-field">
+          <span>Username</span>
+          <div>
+            <i class="ti ti-mail"></i>
+            <input name="username" type="text" value="{{ username }}" autocomplete="username" required>
+          </div>
+        </label>
+
+        <label class="login-field">
+          <span>Password</span>
+          <div>
+            <i class="ti ti-lock"></i>
+            <input name="password" type="password" autocomplete="current-password" required>
+          </div>
+        </label>
+
+        <button class="btn-primary login-submit" type="submit"><i class="ti ti-login-2"></i> Sign In</button>
+
+        <div class="login-hint">
+          <strong>Default login:</strong> admin@gttc.gov.in / Admin@123
+        </div>
+        <div class="auth-switch">
+          New to the LMS? <a href="/signup">Create an account</a>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    function toggleLoginTheme() {
+      const current = document.documentElement.dataset.theme || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('gttc_lms_theme', next);
+      document.querySelector('.login-theme').innerHTML = next === 'dark'
+        ? '<i class="ti ti-sun"></i> Light'
+        : '<i class="ti ti-moon"></i> Dark';
+    }
+  </script>
+</body>
+</html>

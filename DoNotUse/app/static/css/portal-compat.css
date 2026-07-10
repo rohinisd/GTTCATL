@@ -1,0 +1,1223 @@
+/* ═══════════════════════════════════════════════════════════════
+   PORTAL-COMPAT.CSS — Final UI design applied to existing
+   templates. All original IDs / classes / JS handlers stay
+   exactly the same — this file only restyles.
+
+   Load order in each template:
+     1. portal-theme.css         (Final-UI tokens: --bg, --surface…)
+     2. <style>… inline …</style>  (template's legacy CSS)
+     3. portal-compat.css        (THIS FILE — wins via source order)
+═══════════════════════════════════════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 1. LEGACY VARIABLE ALIASES                                   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+:root, html[data-theme="light"] {
+  --ink:   var(--bg);
+  --ink2:  var(--surface);
+  --ink3:  var(--surface2);
+  --line:  var(--border);
+  --line2: var(--border2);
+  --rl:  var(--r);
+  --rxl: var(--r-lg);
+  --display: 'Figtree', system-ui, sans-serif;
+  --font:    'Figtree', system-ui, sans-serif;
+  --mono:    'JetBrains Mono', monospace;
+
+  /* Brand semantic colors stay constant across modes */
+  --blue:   #2563EB;  --blue-bg:   rgba(37,99,235,.10);
+  --green:  #16A34A;  --green-bg:  rgba(22,163,74,.10);
+  --amber:  #D97706;  --amber-bg:  rgba(217,119,6,.10);
+  --red:    #DC2626;  --red-bg:    rgba(220,38,38,.10);
+  --purple: #7C3AED;  --purple-bg: rgba(124,58,237,.10);
+  --teal:   #0D9488;  --teal-bg:   rgba(13,148,136,.10);
+}
+html[data-theme="dark"] {
+  --ink:   var(--bg);
+  --ink2:  var(--surface);
+  --ink3:  var(--surface2);
+  --line:  var(--border);
+  --line2: var(--border2);
+  --rl:  var(--r);
+  --rxl: var(--r-lg);
+
+  --blue:   #60A5FA;  --blue-bg:   rgba(96,165,250,.15);
+  --green:  #4ADE80;  --green-bg:  rgba(74,222,128,.15);
+  --amber:  #FCD34D;  --amber-bg:  rgba(252,211,77,.15);
+  --red:    #F87171;  --red-bg:    rgba(248,113,113,.15);
+  --purple: #A78BFA;  --purple-bg: rgba(167,139,250,.15);
+  --teal:   #2DD4BF;  --teal-bg:   rgba(45,212,191,.15);
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 2. APP SHELL                                                 ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+html[data-theme="light"] body,
+html[data-theme="light"] #app,
+html[data-theme="light"] #main-layout,
+html[data-theme="light"] #content {
+  background: var(--bg) !important;
+  color: var(--text);
+}
+html[data-theme="dark"] body,
+html[data-theme="dark"] #app,
+html[data-theme="dark"] #main-layout,
+html[data-theme="dark"] #content {
+  background: var(--bg) !important;
+  color: var(--text);
+}
+
+/* Dark mode: ONE flat uniform background — no gradient blobs/patches */
+html[data-theme="dark"] body::after { display: none !important; }
+
+/* Top animated stripe (cleaner Final-UI palette) */
+body::before {
+  background: linear-gradient(90deg,#2563eb 0%,#7c3aed 25%,#0891b2 50%,#16a34a 75%,#2563eb 100%) !important;
+  height: 2px !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 3. SIDEBAR — Indigo Official (light) / Glass (dark)          ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+#sidebar {
+  width: 256px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 10;
+  transition: background .3s;
+}
+
+/* NOTE: admin uses #sidebar (id); division/master/trainer/principal use .sidebar (class).
+   :is() covers both so every dashboard gets the same treatment. */
+html[data-theme="light"] :is(#sidebar, .sidebar) {
+  background: linear-gradient(180deg,#1e3a8a 0%,#1e2d6b 55%,#151f52 100%) !important;
+  border-right: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: 2px 0 16px rgba(0,0,0,.18) !important;
+}
+html[data-theme="light"][data-role="master_trainer"] :is(#sidebar, .sidebar) {
+  background: linear-gradient(180deg,#4c1d95 0%,#3b0764 55%,#1d0849 100%) !important;
+}
+html[data-theme="light"][data-role="atl_trainer"] :is(#sidebar, .sidebar) {
+  background: linear-gradient(180deg,#134e4a 0%,#0d3b37 55%,#062726 100%) !important;
+}
+html[data-theme="light"][data-role="principal"] :is(#sidebar, .sidebar) {
+  background: linear-gradient(180deg,#14532d 0%,#0d3d20 55%,#052e16 100%) !important;
+}
+/* Dark = glass for ALL dashboards (overrides legacy rust/brown gradients) */
+html[data-theme="dark"] :is(#sidebar, .sidebar) {
+  background: rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+  border-right: 1px solid rgba(255,255,255,.09) !important;
+  box-shadow: none !important;
+}
+
+/* Sidebar sections */
+.nav-section { padding: 12px 10px 8px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.nav-section:last-child { border-bottom: none; }
+.nav-section-label {
+  font-size: 10.5px !important;
+  text-transform: uppercase;
+  letter-spacing: 1.2px !important;
+  color: rgba(255,255,255,.35) !important;
+  padding: 0 10px 4px !important;
+  font-weight: 700;
+}
+
+/* Nav items — gold accent active stripe (Final-UI signature) */
+.nav-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 14px !important;
+  margin: 2px 0 !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  color: rgba(255,255,255,.65) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  transition: all .13s cubic-bezier(.4,0,.2,1) !important;
+  position: relative;
+  border: 1px solid transparent;
+  text-shadow: none !important;
+  user-select: none;
+}
+.nav-item .icon,
+.nav-item i { font-size: 16px; width: 16px; text-align: center; flex-shrink: 0; opacity: 1; }
+.nav-item:hover {
+  background: rgba(255,255,255,.10) !important;
+  color: #fff !important;
+  padding-left: 14px !important;
+  transform: translateX(2px);
+  text-shadow: none !important;
+}
+html[data-theme="light"] .nav-item.active {
+  background: rgba(255,255,255,.18) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  box-shadow: inset 3px 0 0 #D97706 !important;
+  text-shadow: none !important;
+}
+html[data-theme="dark"] .nav-item.active {
+  background: rgba(255,255,255,.15) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18) !important;
+  border-color: rgba(255,255,255,.1) !important;
+}
+.nav-badge {
+  margin-left: auto;
+  background: #EF4444 !important;
+  color: #fff !important;
+  font-size: 10px;
+  padding: 1px 6px !important;
+  border-radius: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 4. TOPBAR                                                    ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+#topbar {
+  height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 22px !important;
+  gap: 14px !important;
+  flex-shrink: 0 !important;
+  transition: background .3s, border-color .3s;
+}
+html[data-theme="light"] #topbar {
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: 0 1px 0 var(--border) !important;
+}
+html[data-theme="dark"] #topbar {
+  background: rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: none !important;
+}
+
+.topbar-logo {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  letter-spacing: -.3px !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--text) !important;
+  color: var(--text) !important;
+  position: relative;
+  padding-left: 12px !important;
+}
+.topbar-logo::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 4px; height: 18px;
+  background: var(--accent, #2563EB);
+  border-radius: 2px;
+}
+
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px !important;
+  color: var(--text3) !important;
+  font-weight: 500 !important;
+  opacity: 1 !important;
+}
+.breadcrumb b {
+  color: var(--text) !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+.user-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 5px !important;
+  border-radius: 99px !important;
+  background: var(--surface2) !important;
+  border: 1px solid var(--border) !important;
+  cursor: pointer;
+  transition: all .15s !important;
+  box-shadow: none !important;
+}
+.user-pill:hover {
+  background: var(--accent-lt, var(--surface3)) !important;
+  border-color: var(--accent, var(--border2)) !important;
+}
+html[data-theme="dark"] .user-pill {
+  background: rgba(255,255,255,.06) !important;
+  border-color: rgba(255,255,255,.1) !important;
+  color: rgba(255,255,255,.85) !important;
+}
+.avatar {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9px !important;
+  background: var(--accent, #2563EB) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--accent-glow, rgba(37,99,235,.3)) !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 5. CONTENT AREA                                              ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+#content {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 22px 24px !important;
+  background: var(--bg) !important;
+  transition: background .3s;
+}
+html[data-theme="dark"] #content { background: transparent !important; }
+
+.page-hdr {
+  margin-bottom: 22px !important;
+  padding-bottom: 18px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.page-hdr h1 {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  letter-spacing: -.5px !important;
+  color: var(--text) !important;
+}
+.page-hdr p {
+  font-size: 14px !important;
+  color: var(--text3) !important;
+  margin-top: 4px !important;
+  font-weight: 500 !important;
+  opacity: 1 !important;
+}
+.sec-label {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--text3) !important;
+  text-transform: uppercase;
+  letter-spacing: 1px !important;
+  margin-bottom: 12px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid var(--border) !important;
+  opacity: 1 !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 6. KPI / STAT CARDS                                          ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.stat {
+  position: relative;
+  border-radius: var(--r) !important;
+  padding: 20px 22px 16px !important;
+  overflow: hidden;
+  transition: transform .2s, box-shadow .2s !important;
+}
+html[data-theme="light"] .stat {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-left: 4px solid var(--accent, #2563EB) !important;
+  box-shadow: var(--shadow) !important;
+}
+html[data-theme="light"] .stat:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+html[data-theme="dark"] .stat {
+  background: rgba(255,255,255,.09) !important;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,.14) !important;
+  box-shadow: var(--shadow) !important;
+}
+html[data-theme="dark"] .stat::before {
+  content:'';
+  position: absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, transparent, var(--accent,#60A5FA), transparent);
+}
+html[data-theme="dark"] .stat::after {
+  content:'';
+  position: absolute; top:-20px; right:-20px;
+  width:90px; height:90px; border-radius:50%;
+  background: radial-gradient(circle, var(--accent-glow, rgba(96,165,250,.35)) 0%, transparent 70%);
+  pointer-events: none;
+}
+.stat-label {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  color: var(--text3) !important;
+  text-transform: uppercase !important;
+  letter-spacing: .6px !important;
+  margin-bottom: 10px !important;
+  opacity: 1 !important;
+}
+.stat-val {
+  font-family: 'Figtree', system-ui, sans-serif !important;
+  font-size: 34px !important;
+  font-weight: 800 !important;
+  letter-spacing: -1.2px !important;
+  line-height: 1.1 !important;
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+  background: none !important;
+}
+.stat-sub {
+  font-size: 12px !important;
+  color: var(--text3) !important;
+  margin-top: 8px !important;
+  font-weight: 500 !important;
+  opacity: 1 !important;
+}
+.stat-delta-up { color: #16A34A !important; font-size: 12px !important; font-weight: 700 !important; }
+.stat-delta-dn { color: #DC2626 !important; font-size: 12px !important; font-weight: 700 !important; }
+html[data-theme="dark"] .stat-delta-up { color: #4ADE80 !important; }
+html[data-theme="dark"] .stat-delta-dn { color: #F87171 !important; }
+.stat-accent {
+  position: absolute;
+  top: 0; right: 0;
+  width: 80px; height: 80px;
+  border-radius: 0 12px 0 80px;
+  opacity: .08 !important;
+  background: var(--accent, #2563EB) !important;
+}
+html[data-theme="dark"] .stat-accent { display: none; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 7. CARDS                                                     ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.card, .card-sm {
+  border-radius: var(--r) !important;
+  transition: box-shadow .2s, transform .2s !important;
+}
+html[data-theme="light"] .card,
+html[data-theme="light"] .card-sm {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
+html[data-theme="light"] .card:hover,
+html[data-theme="light"] .card-sm:hover {
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-1px) !important;
+  border-color: var(--border2) !important;
+}
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .card-sm {
+  background: rgba(255,255,255,.08) !important;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,.12) !important;
+  box-shadow: var(--shadow) !important;
+}
+.card { padding: 20px !important; }
+.card-sm { padding: 14px !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 8. BUTTONS                                                   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 9px 18px !important;
+  border-radius: var(--r-sm) !important;
+  border: 1.5px solid var(--border) !important;
+  background: var(--surface2) !important;
+  color: var(--text2) !important;
+  font-size: 13px !important;
+  font-family: 'Figtree', system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: all .15s !important;
+  white-space: nowrap;
+  box-shadow: none !important;
+}
+.btn:hover {
+  background: var(--surface3) !important;
+  border-color: var(--text3) !important;
+  color: var(--text) !important;
+  transform: translateY(-1px);
+}
+.btn-primary {
+  background: var(--accent, #2563EB) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px var(--accent-glow, rgba(37,99,235,.3)) !important;
+}
+.btn-primary:hover {
+  background: var(--accent, #2563EB) !important;   /* keep colored bg on hover */
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px var(--accent-glow, rgba(37,99,235,.4)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+.btn-green {
+  background: #16A34A !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(22,163,74,.25) !important;
+}
+.btn-green:hover {
+  background: #15803D !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  filter: brightness(1.05);
+}
+.btn-ghost {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--text2) !important;
+  box-shadow: none !important;
+}
+.btn-ghost:hover {
+  background: var(--surface3) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.btn-danger {
+  background: var(--red-bg) !important;
+  color: var(--red) !important;
+  border-color: transparent !important;
+}
+.btn-sm { padding: 6px 13px !important; font-size: 12px !important; }
+.btn-xs { padding: 4px 10px !important; font-size: 11px !important; border-radius: 5px !important; }
+
+html[data-theme="dark"] .btn {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  color: rgba(255,255,255,.75) !important;
+}
+html[data-theme="dark"] .btn:hover {
+  background: rgba(255,255,255,.14) !important;
+  border-color: rgba(255,255,255,.2) !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .btn-primary:hover {
+  background: var(--accent, #60A5FA) !important;
+  color: #06091A !important;
+  border-color: transparent !important;
+}
+html[data-theme="dark"] .btn-primary:hover { filter: brightness(1.1); }
+html[data-theme="dark"] .btn-green,
+html[data-theme="dark"] .btn-green:hover {
+  background: #16A34A !important; color: #fff !important; border-color: transparent !important;
+}
+html[data-theme="dark"] .btn-ghost {
+  background: transparent !important;
+  color: rgba(255,255,255,.6) !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 9. INPUTS / FORMS                                            ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.input {
+  width: 100%;
+  padding: 10px 14px !important;
+  border-radius: var(--r-sm) !important;
+  border: 1.5px solid var(--border) !important;
+  background: var(--surface2) !important;
+  color: var(--text) !important;
+  font-size: 14px !important;
+  font-family: 'Figtree', system-ui, sans-serif !important;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s !important;
+}
+.input:focus {
+  border-color: var(--accent, #2563EB) !important;
+  background: var(--surface) !important;
+  box-shadow: 0 0 0 3px var(--accent-lt, rgba(37,99,235,.1)) !important;
+}
+.input::placeholder { color: var(--text3) !important; }
+
+html[data-theme="dark"] .input {
+  background: rgba(255,255,255,.07) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] .input::placeholder { color: rgba(255,255,255,.3) !important; }
+html[data-theme="dark"] .input:focus {
+  background: rgba(255,255,255,.1) !important;
+  border-color: var(--accent, #60A5FA) !important;
+  box-shadow: 0 0 0 3px var(--accent-lt, rgba(96,165,250,.18)) !important;
+}
+
+.form-label {
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--text2) !important;
+  margin-bottom: 6px !important;
+  text-transform: uppercase !important;
+  letter-spacing: .5px !important;
+  opacity: 1 !important;
+}
+.form-group { margin-bottom: 14px !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 10. TABLES                                                   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px !important;
+  font-family: 'Figtree', system-ui, sans-serif !important;
+}
+.tbl th {
+  padding: 10px 16px !important;
+  text-align: left;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--text3) !important;
+  text-transform: uppercase !important;
+  letter-spacing: .7px !important;
+  white-space: nowrap;
+  opacity: 1 !important;
+}
+html[data-theme="light"] .tbl th {
+  background: var(--surface2) !important;
+  border-bottom: 2px solid var(--border) !important;
+}
+html[data-theme="dark"] .tbl th {
+  background: rgba(255,255,255,.04) !important;
+  border-bottom: 1px solid rgba(255,255,255,.08) !important;
+}
+.tbl td {
+  padding: 12px 16px !important;
+  font-size: 13.5px !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+  vertical-align: middle;
+}
+html[data-theme="dark"] .tbl td { border-bottom-color: rgba(255,255,255,.06) !important; }
+.tbl tr:last-child td { border-bottom: none !important; }
+.tbl tbody tr { transition: background .1s !important; cursor: default; }
+.tbl tbody tr:nth-child(even) { background: transparent !important; }
+html[data-theme="light"] .tbl tbody tr:hover td { background: var(--surface2) !important; }
+html[data-theme="dark"] .tbl tbody tr:hover td { background: rgba(255,255,255,.04) !important; }
+html[data-theme="light"] .tbl tbody tr:hover td:first-child {
+  border-left: 3px solid var(--accent, #2563EB);
+  padding-left: 13px !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 11. BADGES                                                   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 3px 10px !important;
+  border-radius: 5px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+.badge-blue   { background: var(--blue-bg) !important;   color: var(--blue) !important; }
+.badge-green  { background: var(--green-bg) !important;  color: var(--green) !important; }
+.badge-amber  { background: var(--amber-bg) !important;  color: var(--amber) !important; }
+.badge-red    { background: var(--red-bg) !important;    color: var(--red) !important; }
+.badge-purple { background: var(--purple-bg) !important; color: var(--purple) !important; }
+.badge-teal   { background: var(--teal-bg) !important;   color: var(--teal) !important; }
+.badge-dim    { background: var(--surface2) !important;  color: var(--text2) !important; border: 1px solid var(--border); }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 12. TABS                                                     ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.tabs {
+  display: flex !important;
+  border-bottom: 2px solid var(--border) !important;
+  margin-bottom: 18px !important;
+  gap: 0;
+}
+.tab {
+  padding: 11px 20px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: var(--text3) !important;
+  cursor: pointer;
+  border-bottom: 3px solid transparent !important;
+  margin-bottom: -2px;
+  transition: .15s !important;
+}
+.tab:hover:not(.active) {
+  color: var(--text) !important;
+  background: var(--surface2) !important;
+}
+.tab.active {
+  color: var(--accent, #2563EB) !important;
+  border-bottom-color: var(--accent, #2563EB) !important;
+  font-weight: 700 !important;
+}
+html[data-theme="dark"] .tab.active {
+  color: var(--accent, #60A5FA) !important;
+  border-bottom-color: var(--accent, #60A5FA) !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 13. STEPPER (multi-step form)                                ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.stepper { display: flex; align-items: center; gap: 0; margin-bottom: 22px; }
+.step-item { display: flex; align-items: center; flex: 1; }
+.step-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 2px solid var(--border) !important;
+  background: var(--surface2) !important;
+  color: var(--text3) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: .2s;
+}
+.step-dot.done {
+  background: var(--accent, #2563EB) !important;
+  border-color: var(--accent, #2563EB) !important;
+  color: #fff !important;
+}
+.step-dot.active {
+  background: var(--accent, #2563EB) !important;
+  border-color: var(--accent, #2563EB) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 4px var(--accent-lt, rgba(37,99,235,.15)) !important;
+}
+.step-line { flex: 1; height: 1px; background: var(--border) !important; margin: 0 8px; }
+.step-line.done { background: var(--accent, #2563EB) !important; }
+.step-lbl {
+  font-size: 11px !important;
+  color: var(--text3) !important;
+  margin-top: 4px;
+  white-space: nowrap;
+  font-weight: 600 !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 14. MODAL                                                    ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(10,15,40,.55) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.modal {
+  width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+  padding: 24px !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  animation: fadeIn .2s ease;
+}
+html[data-theme="light"] .modal {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+}
+html[data-theme="dark"] .modal {
+  background: rgba(13,20,45,.9) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,.14) !important;
+}
+.modal-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.modal-hdr h2 {
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  letter-spacing: -.3px !important;
+  color: var(--text) !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 15. NOTICES                                                  ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.notice {
+  padding: 13px 16px !important;
+  border-radius: var(--r-sm) !important;
+  font-size: 13.5px !important;
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.notice-blue  { background: var(--blue-bg)  !important; border: 1px solid rgba(37,99,235,.22)  !important; color: var(--blue)  !important; }
+.notice-amber { background: var(--amber-bg) !important; border: 1px solid rgba(217,119,6,.22) !important; color: var(--amber) !important; }
+.notice-green { background: var(--green-bg) !important; border: 1px solid rgba(22,163,74,.22) !important; color: var(--green) !important; }
+.notice-red   { background: var(--red-bg)   !important; border: 1px solid rgba(220,38,38,.22) !important; color: var(--red)   !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 16. CHART BARS                                               ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.chart-wrap { border-bottom: 2px solid var(--border) !important; }
+.bar { opacity: .85 !important; border-radius: 4px 4px 0 0 !important; }
+.bar:hover { opacity: 1 !important; filter: brightness(1.08); }
+.bar-label { font-size: 10px !important; color: var(--text3) !important; font-weight: 500; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 17. DIVIDER / ACTIVITY ROW                                   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.divider { background: var(--border) !important; }
+.activity-row { border-bottom: 1px solid var(--border) !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 18. THEME TOGGLE                                             ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+#theme-toggle {
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid var(--border) !important;
+  background: var(--surface2) !important;
+  color: var(--text2) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  transition: .15s !important;
+}
+#theme-toggle:hover {
+  border-color: var(--accent, #2563EB) !important;
+  color: var(--accent, #2563EB) !important;
+  background: var(--accent-lt, var(--surface3)) !important;
+}
+html[data-theme="dark"] #theme-toggle {
+  background: rgba(255,255,255,.1) !important;
+  border-color: rgba(255,255,255,.18) !important;
+  color: rgba(255,255,255,.75) !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 19. GLOBAL SEARCH OVERLAY                                    ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+#gsearch-overlay {
+  background: rgba(10,15,40,.55) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+#gsearch-box {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+html[data-theme="dark"] #gsearch-box {
+  background: rgba(13,20,45,.9) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border-color: rgba(255,255,255,.14) !important;
+}
+#gsearch-input {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+.gsr-item:hover, .gsr-item.focused {
+  background: var(--accent-lt, var(--surface2)) !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 20. SCROLLBARS                                               ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border2) !important;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text3) !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 21. TRENDS                                                   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.trend-up   { color: #16A34A !important; font-size: 11px !important; font-weight: 700; }
+.trend-dn   { color: #DC2626 !important; font-size: 11px !important; font-weight: 700; }
+.trend-flat { color: var(--text3) !important; font-size: 11px !important; font-weight: 600; }
+html[data-theme="dark"] .trend-up { color: #4ADE80 !important; }
+html[data-theme="dark"] .trend-dn { color: #F87171 !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 22. NUKE the old dark-mode "rust/brown" theme                ║
+   ║    admin / division / master all shipped a rust dark theme.  ║
+   ║    Final UI dark = Glassmorphic with the ROLE accent:        ║
+   ║      admin/division=blue · master=violet · trainer=teal ·    ║
+   ║      principal=green  (accent vars come from portal-theme)   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+/* ONE uniform dark palette for every dashboard (no per-role bg tint) */
+html[data-theme="dark"] {
+  --bg:       #0B0F1C !important;   /* page background — one flat color */
+  --surface:  #151B2E !important;   /* every card/panel — one flat color */
+  --surface2: #11172A !important;
+  --surface3: #1A2138 !important;
+  --border:   rgba(255,255,255,.10) !important;
+  --border2:  rgba(255,255,255,.07) !important;
+  --ink3:     #1A2138 !important;
+  --blue:    var(--accent, #60A5FA) !important;
+  --blue-dk: var(--accent, #60A5FA) !important;
+  --blue-lt: var(--accent-lt, rgba(96,165,250,.18)) !important;
+  --blue-50: var(--accent-lt, rgba(96,165,250,.28)) !important;
+  --rust:    var(--accent, #60A5FA) !important;
+  --rust-lt: var(--accent-lt, rgba(96,165,250,.20)) !important;
+}
+
+/* Uniform background across the whole shell — kills the "turns black on scroll" patchiness */
+html[data-theme="dark"] body,
+html[data-theme="dark"] #app,
+html[data-theme="dark"] .main,
+html[data-theme="dark"] .page-content,
+html[data-theme="dark"] #content,
+html[data-theme="dark"] #main-layout {
+  background: var(--bg) !important;
+  background-image: none !important;
+}
+
+/* EVERY card type the same flat surface — no near-black vs glass mismatch */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .card-sm,
+html[data-theme="dark"] .kpi-card,
+html[data-theme="dark"] .chart-card,
+html[data-theme="dark"] .table-card,
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .kpi,
+html[data-theme="dark"] .modal {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.28) !important;   /* drop the white inset shadow */
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* Kill the per-KPI colored gradients (blue/rust/grey/indigo/orange) */
+html[data-theme="dark"] .kpi-card:nth-child(1),
+html[data-theme="dark"] .kpi-card:nth-child(2),
+html[data-theme="dark"] .kpi-card:nth-child(3),
+html[data-theme="dark"] .kpi-card:nth-child(4),
+html[data-theme="dark"] .kpi-card:nth-child(5) {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* KPI icon: small rounded badge, NOT a full-width dark bar */
+.kpi-card .icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 10px !important;
+  margin-bottom: 12px !important;
+  font-size: 18px !important;
+  opacity: 1 !important;
+}
+html[data-theme="light"] .kpi-card .icon {
+  background: var(--accent-lt, rgba(37,99,235,.1)) !important;
+  color: var(--accent, #2563EB) !important;
+}
+html[data-theme="dark"] .kpi-card .icon {
+  background: rgba(255,255,255,.08) !important;
+  color: var(--accent, #A78BFA) !important;
+}
+.kpi-card .icon i { color: inherit !important; }
+
+html[data-theme="dark"] .topbar-logo {
+  background: none !important;
+  -webkit-text-fill-color: #fff !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] :is(#topbar, .topbar) { background: rgba(255,255,255,.06) !important; }
+html[data-theme="dark"] .login-left { background: #08041A !important; }
+html[data-theme="dark"] .avatar {
+  background: var(--accent, #60A5FA) !important;
+  box-shadow: 0 2px 8px var(--accent-glow, rgba(96,165,250,.35)) !important;
+}
+
+/* Nav active → glass white (kills rust highlight) */
+html[data-theme="dark"] .nav-item.active {
+  background: rgba(255,255,255,.15) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18) !important;
+}
+html[data-theme="dark"] .nav-item:hover:not(.active) {
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+}
+
+/* Primary buttons & period toggles → role accent (not rust) */
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .period-btn.active {
+  background: var(--accent, #60A5FA) !important;
+  border-color: var(--accent, #60A5FA) !important;
+  color: #06091A !important;
+}
+
+/* KPI cards: drop the brown/grey nth-child gradients → uniform glass */
+html[data-theme="dark"] .kpi-card,
+html[data-theme="dark"] .kpi-card:nth-child(1),
+html[data-theme="dark"] .kpi-card:nth-child(2),
+html[data-theme="dark"] .kpi-card:nth-child(3),
+html[data-theme="dark"] .kpi-card:nth-child(4),
+html[data-theme="dark"] .kpi-card:nth-child(5) {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.13) !important;
+}
+html[data-theme="dark"] .kpi-card .icon,
+html[data-theme="dark"] .kpi-card:nth-child(2) .icon { color: var(--accent, #60A5FA) !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 24. HIDE legacy embedded login screens                       ║
+   ║    All dashboards now redirect to the standalone /login,     ║
+   ║    so the old in-page login markup must never flash.         ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+#login-screen, #loginScreen { display: none !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 23. NAV WHITE-TEXT POLISH                                    ║
+   ║    Remove the harsh glowing text-shadow from existing CSS    ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.nav-item,
+.nav-link,
+.nav-item *,
+.nav-link * { text-shadow: none !important; }
+.nav-item:hover,
+.nav-link:hover { text-shadow: none !important; }
+.nav-item.active,
+.nav-link.active { text-shadow: none !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 25. GALLERY (shared across all dashboards)                   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+.photo-preview img { box-shadow: var(--shadow); }
+.gfilter.active {
+  background: var(--accent, #2563EB) !important;
+  border-color: var(--accent, #2563EB) !important;
+  color: #fff !important;
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+.gallery-card {
+  border-radius: var(--r, 12px);
+  overflow: hidden;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--shadow) !important;
+  transition: transform .15s, box-shadow .15s;
+  display: flex; flex-direction: column;
+}
+.gallery-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md) !important; }
+.gallery-img {
+  width: 100%; height: 160px;
+  background-size: cover; background-position: center;
+  background-color: var(--surface2);
+  cursor: pointer;
+}
+.gallery-meta { padding: 12px 14px; display: flex; flex-direction: column; }
+.gallery-cat {
+  display: inline-block; align-self: flex-start;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+  padding: 2px 8px; border-radius: 5px; margin-bottom: 7px;
+  background: var(--accent-lt, rgba(37,99,235,.1)); color: var(--accent, #2563EB);
+}
+.gallery-cat.cat-industrial_visit { background: rgba(37,99,235,.12); color: #2563EB; }
+.gallery-cat.cat-group { background: rgba(124,58,237,.12); color: #7C3AED; }
+.gallery-cat.cat-lab   { background: rgba(13,148,136,.12); color: #0D9488; }
+.gallery-cat.cat-competition { background: rgba(217,119,6,.14); color: #D97706; }
+html[data-theme="dark"] .gallery-cat.cat-industrial_visit { background: rgba(96,165,250,.18); color: #93C5FD; }
+html[data-theme="dark"] .gallery-cat.cat-group { background: rgba(167,139,250,.18); color: #C4B5FD; }
+html[data-theme="dark"] .gallery-cat.cat-lab   { background: rgba(45,212,191,.18); color: #5EEAD4; }
+html[data-theme="dark"] .gallery-cat.cat-competition { background: rgba(251,191,36,.18); color: #FCD34D; }
+.gallery-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.gallery-desc  { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.5; }
+.gallery-sub   { font-size: 11px; color: var(--text3); margin-top: 6px; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 26. READABILITY — larger, clearer fonts across all dashboards ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+html, body { font-size: 16px !important; }
+
+/* KPI / stat cards */
+.stat-label, .kpi-card .label, .kpi-label {
+  font-size: 15px !important; opacity: 1 !important; color: var(--text2) !important;
+}
+.stat-val, .kpi-card .value, .kpi-value { font-size: 42px !important; }
+.stat-sub, .kpi-sub, .kpi-card .sub {
+  font-size: 15px !important; opacity: 1 !important; color: var(--text2) !important;
+}
+
+/* Section + page headings */
+.page-hdr h1 { font-size: 30px !important; }
+.page-hdr p  { font-size: 15px !important; color: var(--text2) !important; }
+.sec-label, .form-section-title, .card-title, .table-header h3, .card-header .card-title {
+  font-size: 15px !important;
+}
+
+/* Tables */
+.tbl th, table th { font-size: 12.5px !important; color: var(--text2) !important; }
+.tbl td, table td { font-size: 15px !important; }
+
+/* Buttons, badges, inputs, labels */
+.btn { font-size: 14.5px !important; }
+.btn-sm { font-size: 13px !important; }
+.btn-xs { font-size: 12px !important; }
+.badge { font-size: 12.5px !important; }
+.input, .form-group input, .form-group select, .form-group textarea,
+.fg input, .fg select, .fg textarea { font-size: 15px !important; }
+.form-label, .fg label, .form-group label { font-size: 12.5px !important; opacity: 1 !important; }
+
+/* Sidebar nav + topbar */
+.nav-item, .nav-link { font-size: 15px !important; }
+.nav-section-label { font-size: 11.5px !important; }
+.topbar-title, .topbar-logo { font-size: 19px !important; }
+.breadcrumb { font-size: 15px !important; }
+
+/* Gallery */
+.gallery-title { font-size: 15px !important; }
+.gallery-desc  { font-size: 13px !important; color: var(--text2) !important; }
+.gallery-sub   { font-size: 12px !important; }
+.gallery-cat   { font-size: 11px !important; }
+
+/* Notices */
+.notice { font-size: 14.5px !important; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 27. PARTNER LOGOS IN TOPBAR (all dashboards)                 ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+/* ── RESPONSIVE GRIDS — auto-fit to any display size ── */
+/* auto-fit reflows the number of columns based on available width:
+   wide screens show 4 across, laptops 2-3, phones 1 — no overflow. */
+.g4 { display:grid !important; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)) !important; gap:16px; }
+.g3 { display:grid !important; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)) !important; gap:16px; }
+.g2 { display:grid !important; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)) !important; gap:16px; }
+.kpi-grid { display:grid !important; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)) !important; gap:14px; }
+
+/* Never let the content area scroll sideways / overflow the viewport */
+#content, .page-content, .main, #main-layout { max-width:100%; min-width:0; }
+#content table, .page-content table, .tbl, .table-card table { max-width:100%; }
+.tbl-wrap, .table-card > div { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+img { max-width:100%; }
+
+/* Stack any hard-coded 2-column layouts on smaller screens */
+@media (max-width:900px){
+  [style*="grid-template-columns:1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="grid-template-columns:auto 1fr"],
+  [style*="grid-template-columns:1fr 280px"],
+  [style*="grid-template-columns:1fr 1fr 1fr"] { grid-template-columns:1fr !important; }
+}
+
+/* Narrower sidebar on small laptops so the content has more room */
+@media (max-width:1024px){
+  #sidebar, .sidebar { width:210px !important; }
+}
+
+.topbar-logos { display:flex; align-items:center; gap:8px; margin-left:14px; flex-shrink:0; }
+.topbar-logos img {
+  height:36px; background:#fff; border-radius:7px; padding:3px 6px;
+  object-fit:contain; box-shadow:0 1px 5px rgba(0,0,0,.15); display:block;
+}
+@media (max-width:1100px){ .topbar-logos{ display:none; } }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║ 28. UNIVERSAL DISPLAY FIT — scales every dashboard to any     ║
+   ║     screen: 4K monitors → laptops → tablets → phones.        ║
+   ║     Covers both shell conventions: #sidebar/#content (admin)  ║
+   ║     and .sidebar/.main (division/master/trainer/principal).  ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* The shell must always be exactly viewport-tall and never wider. */
+#app { max-width:100vw; }
+
+/* ── Large monitors / TVs: give content more breathing room so it
+      fills the screen instead of hugging the left edge. ── */
+@media (min-width:1700px){
+  #content { padding:34px 56px !important; }
+  .page, .page-content, .main > .content, .content-wrap { padding-left:40px !important; padding-right:40px !important; }
+}
+
+/* ── Small laptops & 125%/150% display scaling (the most common
+      "it doesn't fit" case): slim the sidebar, trim padding. ── */
+@media (max-width:1280px){
+  #sidebar, .sidebar { width:208px !important; }
+  #content { padding:22px 24px !important; }
+}
+@media (max-width:1100px){
+  #sidebar, .sidebar { width:192px !important; }
+  #content { padding:18px 20px !important; }
+}
+
+/* ── Tablets / phones: sidebar becomes a slide-in drawer so the
+      content gets the full width. Toggled by portal-responsive.js
+      which adds a hamburger button and the .nav-open class. ── */
+.nav-toggle { display:none; }
+.nav-backdrop { display:none; }
+
+@media (max-width:860px){
+  /* hamburger button (injected into the topbar) */
+  .nav-toggle{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:38px; height:38px; flex-shrink:0; margin-right:8px;
+    border-radius:9px; cursor:pointer; font-size:20px; line-height:1;
+    border:1px solid var(--border, var(--line, #e2e8f0));
+    background:var(--surface, var(--ink2, #fff));
+    color:var(--text, #0f172a);
+    box-shadow:0 1px 4px rgba(0,0,0,.08);
+  }
+  .nav-toggle:hover{ filter:brightness(.97); }
+
+  /* off-canvas sidebar */
+  #sidebar, .sidebar{
+    position:fixed !important; top:0; left:0;
+    height:100vh !important; width:264px !important;
+    z-index:1200 !important;
+    transform:translateX(-100%); transition:transform .28s ease;
+    box-shadow:4px 0 28px rgba(0,0,0,.30);
+  }
+  html.nav-open #sidebar, html.nav-open .sidebar{ transform:translateX(0) !important; }
+
+  /* dim backdrop behind the open drawer */
+  html.nav-open .nav-backdrop{
+    display:block; position:fixed; inset:0; z-index:1100;
+    background:rgba(0,0,0,.45); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);
+  }
+
+  /* content fills the width since the sidebar is now overlaid */
+  #content, .main, #main-layout > #content{ width:100% !important; }
+
+  #content{ padding:16px !important; }
+  .page, .page-content{ padding:16px !important; }
+}
+
+/* ── Phones: tighten typography and let flex toolbars wrap. ── */
+@media (max-width:768px){
+  .stat-val{ font-size:30px !important; }
+  .stat{ padding:16px 18px !important; }
+  .card{ padding:16px !important; }
+  .topbar, #topbar{ padding:0 12px !important; gap:10px !important; }
+  .topbar-title, .topbar-logo{ font-size:16px !important; }
+  /* common flex toolbars/headers should wrap instead of overflowing */
+  .flex.justify-between, .topbar-right, .filters, .toolbar, .page-head, .card-head{
+    flex-wrap:wrap !important; row-gap:8px;
+  }
+}
+
+@media (max-width:480px){
+  #content, .page, .page-content{ padding:12px !important; }
+  .stat-val{ font-size:26px !important; }
+  .btn{ padding:8px 12px !important; }
+}

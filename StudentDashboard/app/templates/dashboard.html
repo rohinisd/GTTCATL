@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }}</title>
+  <script>
+    (function(){
+      const theme = localStorage.getItem('gttc_lms_theme') || localStorage.getItem('gttc_theme') || 'light';
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260707-datelabels">
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-row">
+          <div class="sidebar-logo"><i class="ti ti-school"></i></div>
+          <div>
+            <div class="sidebar-brand-name">GTTC LMS</div>
+            <div class="sidebar-brand-sub">Student Dashboard</div>
+          </div>
+        </div>
+        <div class="sidebar-role-badge">
+          <span class="sidebar-role-dot"></span>
+          <div>
+            <div class="sidebar-role-label">Extension Module</div>
+            <div class="sidebar-role-sub">Separate database</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Overview</div>
+        <div class="nav-item active" data-page="dashboard"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></div>
+
+        <div class="nav-section-label">Directory</div>
+        <div class="nav-item" data-page="trainers"><i class="ti ti-user-star"></i><span>Trainers</span></div>
+        <div class="nav-item" data-page="schools"><i class="ti ti-building-community"></i><span>Schools</span></div>
+        <div class="nav-item" data-page="students"><i class="ti ti-users-group"></i><span>Students</span></div>
+
+        <div class="nav-section-label">Learning</div>
+        <div class="nav-item" data-page="courses"><i class="ti ti-book-2"></i><span>Courses</span></div>
+        <div class="nav-item" data-page="content"><i class="ti ti-file-pencil"></i><span>Content Library</span></div>
+        <div class="nav-item" data-page="enrollments"><i class="ti ti-certificate"></i><span>Enrollments</span></div>
+
+        <div class="nav-section-label">Insights</div>
+        <div class="nav-item" data-page="reports"><i class="ti ti-chart-bar"></i><span>Reports</span></div>
+        <div class="nav-item" data-page="performance"><i class="ti ti-chart-dots"></i><span>Performance</span></div>
+        <div class="nav-item" data-page="settings"><i class="ti ti-settings"></i><span>Settings</span></div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-avatar">AD</div>
+          <div>
+            <div class="sidebar-user-name">{{ current_account.name }}</div>
+            <div class="sidebar-user-role">{{ current_account.role|title }}</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="topbar-accent-bar"></div>
+          <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-search">
+            <i class="ti ti-search"></i>
+            <input type="search" placeholder="Search students, schools, courses">
+          </div>
+          <div class="topbar-date" id="topbarDate"></div>
+          <button class="btn-theme-toggle" type="button" onclick="toggleTheme()"><i class="ti ti-moon"></i> Dark</button>
+          <a class="btn-ghost" href="/logout"><i class="ti ti-logout"></i> Logout</a>
+          <div class="topbar-avatar">{{ current_account.name[:2]|upper }}</div>
+        </div>
+      </header>
+
+      <section class="content">
+        {% if notice %}
+        <div class="notice notice-{{ notice_kind }}">
+          <i class="ti {% if notice_kind == 'error' %}ti-alert-circle{% else %}ti-circle-check{% endif %}"></i>
+          {{ notice }}
+        </div>
+        {% endif %}
+
+        <section class="page-section active" id="page-dashboard">
+          <div class="hero-card">
+            <div class="eyebrow">GTTC Portal Extension</div>
+            <h1 class="hero-title">{{ module_name }}</h1>
+            <p class="hero-desc">
+              A separate LMS workspace for trainer, school, and student records. This starter keeps the same GTTC
+              portal experience while giving us a clean place to build course content, enrollments, and progress.
+            </p>
+            <div class="hero-actions">
+              <button class="btn-primary" type="button" onclick="setActivePage('content')"><i class="ti ti-plus"></i> Add Content</button>
+              <button class="btn-ghost" type="button" onclick="setActivePage('students')"><i class="ti ti-users"></i> View Students</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-user-star"></i></div>
+              <div class="label">Trainers</div>
+              <div class="value">{{ trainers_count }}</div>
+              <div class="sub">4 master + 8 ATL trainers</div>
+            </div>
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-building-community"></i></div>
+              <div class="label">Schools</div>
+              <div class="value">{{ schools_count }}</div>
+              <div class="sub">Copied from DoNotUse seed</div>
+            </div>
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-users-group"></i></div>
+              <div class="label">Reported Students</div>
+              <div class="value">{{ total_student_count }}</div>
+              <div class="sub">From school report totals</div>
+            </div>
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-book-2"></i></div>
+              <div class="label">Courses</div>
+              <div class="value">{{ courses_count }}</div>
+              <div class="sub">{{ lessons_count }} imported lessons</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="table-card">
+              <div class="table-header">
+                <h3>Seeded Schools Preview</h3>
+                <span class="badge badge-info">{{ schools_count }} Schools</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>School</th>
+                    <th>District</th>
+                    <th>Trainer</th>
+                    <th>Reported Students</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for school in schools[:5] %}
+                  <tr>
+                    <td>{{ school.name }}</td>
+                    <td>{{ school.district }}</td>
+                    <td>{{ school.assigned_trainer }}</td>
+                    <td>{{ school.current_students }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="card">
+              <h3>Build Roadmap</h3>
+              <p>Phase 1: basic layout and separate DB.</p>
+              <p>Phase 2: CRUD for trainers, schools, and students.</p>
+              <p>Phase 3: LMS course builder with lessons, files, links, and publishing.</p>
+              <p>Phase 4: enrollments, progress, reports, and role-based access.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-trainers">
+          <div class="bulk-grid">
+            <div class="card">
+              <h3>Bulk Upload Trainers</h3>
+              <p>Download the Excel template, fill trainer rows, then upload it back here.</p>
+              <div class="bulk-actions">
+                <a class="btn-ghost" href="/bulk-template/trainers"><i class="ti ti-download"></i> Download Template</a>
+              </div>
+              <form class="inline-upload" method="post" action="/bulk-upload/trainers" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".xlsx" required>
+                <button class="btn-primary" type="submit"><i class="ti ti-upload"></i> Upload Excel</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Add Single Trainer</h3>
+              <form class="compact-form" method="post" action="/manual/trainer">
+                <input name="name" placeholder="Trainer name" required>
+                <input name="email" type="email" placeholder="Email" required>
+                <input name="phone" placeholder="Phone">
+                <select name="role">
+                  <option value="atl_trainer">ATL Trainer</option>
+                  <option value="master_trainer">Master Trainer</option>
+                </select>
+                <input name="division" placeholder="Division">
+                <input name="districts" placeholder="Districts / District">
+                <input name="assigned_school" placeholder="Assigned school">
+                <input name="specialization" placeholder="Specialization" value="ATL trainer">
+                <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Trainer</button>
+              </form>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Trainer Details from DoNotUse</h3>
+              <span class="badge badge-info">{{ trainers_count }} Trainers</span>
+            </div>
+            <div class="table-tools" data-table-tools="trainers">
+              <input type="search" placeholder="Search trainers..." data-table-search="trainers">
+              <select data-table-sort="trainers">
+                <option value="name">Sort by Name</option>
+                <option value="email">Sort by Email</option>
+                <option value="role">Sort by Role</option>
+                <option value="division">Sort by Division</option>
+                <option value="districts">Sort by District</option>
+                <option value="assigned_school">Sort by School</option>
+              </select>
+              <select data-table-direction="trainers">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+              <a class="btn-ghost" href="/export/trainers" data-table-export="trainers"><i class="ti ti-file-spreadsheet"></i> Download Excel</a>
+            </div>
+            <table class="managed-table" data-table="trainers">
+              <thead>
+                <tr>
+                  <th data-sort-key="name">Name</th>
+                  <th data-sort-key="email">Email</th>
+                  <th data-sort-key="role">Role</th>
+                  <th data-sort-key="division">Division</th>
+                  <th data-sort-key="districts">Districts / District</th>
+                  <th data-sort-key="assigned_school">Assigned School</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for trainer in trainers %}
+                <tr>
+                  <td>{{ trainer.name }}</td>
+                  <td>{{ trainer.email }}</td>
+                  <td>
+                    {% if trainer.role == 'master_trainer' %}
+                    <span class="badge badge-info">Master Trainer</span>
+                    {% else %}
+                    <span class="badge badge-success">ATL Trainer</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ trainer.division or '-' }}</td>
+                  <td>{{ trainer.districts or '-' }}</td>
+                  <td>{{ trainer.assigned_school or '-' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-schools">
+          <div class="bulk-grid">
+            <div class="card">
+              <h3>Bulk Upload Schools</h3>
+              <p>Use the school Excel template to import many schools with principal and trainer mapping details.</p>
+              <div class="bulk-actions">
+                <a class="btn-ghost" href="/bulk-template/schools"><i class="ti ti-download"></i> Download Template</a>
+              </div>
+              <form class="inline-upload" method="post" action="/bulk-upload/schools" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".xlsx" required>
+                <button class="btn-primary" type="submit"><i class="ti ti-upload"></i> Upload Excel</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Add Single School</h3>
+              <form class="compact-form" method="post" action="/manual/school">
+                <input name="udise_code" placeholder="UDISE code" required>
+                <input name="atl_lab_code" placeholder="ATL lab code">
+                <input name="name" placeholder="School name" required>
+                <input name="district" placeholder="District">
+                <input name="division" placeholder="Division">
+                <input name="pin_code" placeholder="PIN code">
+                <input name="principal_name" placeholder="Principal name">
+                <input name="assigned_trainer" placeholder="Assigned trainer">
+                <input name="current_students" type="number" min="0" placeholder="Students">
+                <input name="girls_count" type="number" min="0" placeholder="Girls">
+                <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add School</button>
+              </form>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <h3>School Details from DoNotUse</h3>
+              <span class="badge badge-info">{{ schools_count }} Schools</span>
+            </div>
+            <div class="table-tools" data-table-tools="schools">
+              <input type="search" placeholder="Search schools..." data-table-search="schools">
+              <select data-table-sort="schools">
+                <option value="name">Sort by School</option>
+                <option value="udise_code">Sort by UDISE</option>
+                <option value="atl_lab_code">Sort by ATL Code</option>
+                <option value="division">Sort by Division</option>
+                <option value="district">Sort by District</option>
+                <option value="principal_name">Sort by Principal</option>
+                <option value="assigned_trainer">Sort by Trainer</option>
+                <option value="current_students">Sort by Students</option>
+              </select>
+              <select data-table-direction="schools">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+              <a class="btn-ghost" href="/export/schools" data-table-export="schools"><i class="ti ti-file-spreadsheet"></i> Download Excel</a>
+            </div>
+            <table class="managed-table" data-table="schools">
+              <thead>
+                <tr>
+                  <th data-sort-key="udise_code">UDISE</th>
+                  <th data-sort-key="atl_lab_code">ATL Code</th>
+                  <th data-sort-key="name">School</th>
+                  <th data-sort-key="division">Division</th>
+                  <th data-sort-key="district">District</th>
+                  <th data-sort-key="principal_name">Principal</th>
+                  <th data-sort-key="assigned_trainer">Trainer</th>
+                  <th data-sort-key="current_students">Students</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for school in schools %}
+                <tr>
+                  <td>{{ school.udise_code }}</td>
+                  <td>{{ school.atl_lab_code }}</td>
+                  <td>{{ school.name }}</td>
+                  <td>{{ school.division }}</td>
+                  <td>{{ school.district }}</td>
+                  <td>{{ school.principal_name }}</td>
+                  <td>{{ school.assigned_trainer }}</td>
+                  <td>{{ school.current_students }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-students">
+          <div class="bulk-grid">
+            <div class="card">
+              <h3>Bulk Upload Students</h3>
+              <p>Download the student template and map students to schools by UDISE code.</p>
+              <div class="bulk-actions">
+                <a class="btn-ghost" href="/bulk-template/students"><i class="ti ti-download"></i> Download Template</a>
+              </div>
+              <form class="inline-upload" method="post" action="/bulk-upload/students" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".xlsx" required>
+                <button class="btn-primary" type="submit"><i class="ti ti-upload"></i> Upload Excel</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Add Single Student</h3>
+              <form class="compact-form" method="post" action="/manual/student">
+                <input name="name" placeholder="Student name" required>
+                <input name="email" type="email" placeholder="Email">
+                <input name="grade" placeholder="Grade / Class">
+                <input name="school_udise_code" placeholder="School UDISE code">
+                <input name="father_name" placeholder="Father's name">
+                <input name="mother_name" placeholder="Mother's name">
+                <input name="age" type="number" min="1" max="100" placeholder="Age">
+                <select name="gender">
+                  <option value="">Gender</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="other">Other</option>
+                </select>
+                <input name="caste" placeholder="Caste">
+                <input name="category" placeholder="Category">
+                <input name="phone" placeholder="Phone number">
+                <textarea name="address" placeholder="Address"></textarea>
+                <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Student</button>
+              </form>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Student Details</h3>
+              <span class="badge badge-info">{{ students_count }} Students</span>
+            </div>
+            <div class="table-tools" data-table-tools="students">
+              <input type="search" placeholder="Search students..." data-table-search="students">
+              <select data-table-sort="students">
+                <option value="name">Sort by Name</option>
+                <option value="email">Sort by Email</option>
+                <option value="grade">Sort by Grade</option>
+                <option value="father_name">Sort by Father</option>
+                <option value="gender">Sort by Gender</option>
+                <option value="category">Sort by Category</option>
+                <option value="school_name">Sort by School</option>
+                <option value="school_udise_code">Sort by UDISE</option>
+              </select>
+              <select data-table-direction="students">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+              <a class="btn-ghost" href="/export/students" data-table-export="students"><i class="ti ti-file-spreadsheet"></i> Download Excel</a>
+            </div>
+            <table class="managed-table" data-table="students">
+              <thead>
+                <tr>
+                  <th data-sort-key="name">Name</th>
+                  <th data-sort-key="email">Email</th>
+                  <th data-sort-key="grade">Grade</th>
+                  <th data-sort-key="father_name">Father</th>
+                  <th>Mother</th>
+                  <th>Age</th>
+                  <th data-sort-key="gender">Gender</th>
+                  <th>Caste</th>
+                  <th data-sort-key="category">Category</th>
+                  <th>Phone</th>
+                  <th>Address</th>
+                  <th data-sort-key="school_name">School</th>
+                  <th data-sort-key="school_udise_code">UDISE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for student in students %}
+                <tr>
+                  <td>{{ student.name }}</td>
+                  <td>{{ student.email or '-' }}</td>
+                  <td>{{ student.grade or '-' }}</td>
+                  <td>{{ student.father_name or '-' }}</td>
+                  <td>{{ student.mother_name or '-' }}</td>
+                  <td>{{ student.age or '-' }}</td>
+                  <td>{{ student.gender or '-' }}</td>
+                  <td>{{ student.caste or '-' }}</td>
+                  <td>{{ student.category or '-' }}</td>
+                  <td>{{ student.phone or '-' }}</td>
+                  <td>{{ student.address or '-' }}</td>
+                  <td>{{ student.school_name or '-' }}</td>
+                  <td>{{ student.school_udise_code or '-' }}</td>
+                </tr>
+                {% endfor %}
+                {% if not students %}
+                <tr>
+                  <td colspan="13">No individual student records yet. Add one manually or upload an Excel sheet.</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-courses">
+          <div class="hero-card">
+            <div class="eyebrow">Handbook-Based Courses</div>
+            <h1 class="hero-title">ATL Handbook Volumes</h1>
+            <p class="hero-desc">
+              Courses are reconstructed into three handbook columns. Each column links to the source PDF and lists the activity/case-study content inside that volume.
+            </p>
+          </div>
+          <div class="volume-grid">
+            {% for volume in volume_columns %}
+            <div class="volume-card">
+              <div class="volume-head">
+                <div>
+                  <div class="eyebrow">{{ volume.level }}</div>
+                  <h3>{{ volume.title }}</h3>
+                  <p>{{ volume.description }}</p>
+                </div>
+                <a class="btn-ghost" href="{{ volume.resource_url }}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i> PDF</a>
+              </div>
+              <div class="volume-meta">
+                <span class="badge badge-info">{{ volume.lesson_count }} Items</span>
+              </div>
+              <div class="volume-lessons">
+                {% for lesson in volume.lessons %}
+                <article class="volume-lesson">
+                  <div class="lesson-index">{{ loop.index }}</div>
+                  <div>
+                    <h4>{{ lesson.title }}</h4>
+                    <p>{{ lesson.content_body[:180] }}{% if lesson.content_body|length > 180 %}...{% endif %}</p>
+                    {% if loop.first and lesson.resource_url %}
+                    <a class="resource-link" href="{{ lesson.resource_url }}" target="_blank" rel="noopener">Open source</a>
+                    {% endif %}
+                  </div>
+                </article>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="page-section" id="page-content">
+          {% if is_admin %}
+          <div class="card">
+            <h3>Upload Course Content</h3>
+            <p>Trainers can select the course, choose the exact lesson/activity, then upload a PDF, PPT/PPTX, video file, or YouTube/video link.</p>
+            <form class="content-upload-form" method="post" action="/content/upload" enctype="multipart/form-data">
+              <select name="course_id" data-course-select required>
+                {% for course in courses %}
+                <option value="{{ course.id }}">{{ course.title }}</option>
+                {% endfor %}
+              </select>
+              <select name="lesson_id" data-lesson-select required>
+                <option value="">Select lesson / activity</option>
+              </select>
+              <input name="title" placeholder="Content title, e.g. Lesson 1 PPT or Sensor demo video">
+              <select name="content_type" required>
+                <option value="pdf">PDF Document</option>
+                <option value="ppt">PPT / PPTX Presentation</option>
+                <option value="video_link">YouTube / Video Link</option>
+                <option value="video_file">Upload Video File</option>
+              </select>
+              <input name="resource_url" placeholder="YouTube or video URL, if using link">
+              <input name="file" type="file" accept=".pdf,.ppt,.pptx,.mp4,.mov,.webm,.mkv">
+              <textarea name="content_body" placeholder="Short description or instructions for students"></textarea>
+              <script type="application/json" id="lessonOptionsData">{{ lesson_options_by_course|tojson }}</script>
+              <button class="btn-primary" type="submit"><i class="ti ti-cloud-upload"></i> Upload Content</button>
+            </form>
+          </div>
+          {% else %}
+          <div class="notice notice-error">
+            <i class="ti ti-lock"></i>
+            Content Library uploads and edits are admin-only. Trainers can view materials but cannot modify LMS content.
+          </div>
+          {% endif %}
+          <div class="table-card">
+            <div class="table-header">
+              <h3>LMS Content Library</h3>
+              <span class="badge badge-info">{{ lessons_count }} Lessons</span>
+            </div>
+            <div class="content-tabs">
+              <button class="content-tab active" type="button" data-content-filter="all">All <span>{{ content_counts.all }}</span></button>
+              <button class="content-tab" type="button" data-content-filter="volume-1">Volume I <span>{{ content_counts['volume-1'] }}</span></button>
+              <button class="content-tab" type="button" data-content-filter="volume-2">Volume II <span>{{ content_counts['volume-2'] }}</span></button>
+              <button class="content-tab" type="button" data-content-filter="volume-3">Volume III <span>{{ content_counts['volume-3'] }}</span></button>
+              <button class="content-tab" type="button" data-content-filter="uploaded">Uploaded by Trainer <span>{{ content_counts.uploaded }}</span></button>
+              <button class="content-tab" type="button" data-content-filter="experiments">Old Experiment Courses <span>{{ content_counts.experiments }}</span></button>
+              <button class="content-tab" type="button" data-content-filter="curriculum">Calendar Plan <span>{{ content_counts.curriculum }}</span></button>
+            </div>
+            <div class="content-search">
+              <i class="ti ti-search"></i>
+              <input type="search" data-content-search placeholder="Search lesson, course, type, or content preview">
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Course</th>
+                  <th>Lesson</th>
+                  <th>Content</th>
+                  <th>Type</th>
+                  <th>Resource</th>
+                  <th>Content Preview</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for content in content_rows %}
+                <tr class="content-row"
+                    data-content-id="{{ content.id }}"
+                    data-content-kind="{{ content.kind }}"
+                    data-content-group="{{ content.group }}"
+                    data-content-title="{{ content.content_title|e }}"
+                    data-content-lesson="{{ content.lesson_title|e }}"
+                    data-content-course="{{ content.course_title|e }}"
+                    data-content-type="{{ content.content_type|e }}"
+                    data-content-url="{{ (content.resource_url or '')|e }}"
+                    data-content-body="{{ content.content_body|e }}"
+                    data-content-resources='{{ content.resources|tojson|e }}'>
+                  <td>{{ content.course_title }}</td>
+                  <td>{{ content.lesson_title }}</td>
+                  <td>{{ content.content_title }}</td>
+                  <td><span class="badge badge-warn">{{ content.content_type }}</span></td>
+                  <td>
+                    {% if content.resource_url %}
+                    <a class="resource-link" href="{{ content.resource_url }}" target="_blank" rel="noopener">Open</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                  </td>
+                  <td class="content-preview">{{ content.content_body[:220] }}{% if content.content_body|length > 220 %}...{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="content-viewer" data-content-viewer hidden>
+            <div class="content-viewer-card">
+              <button class="content-viewer-close" type="button" data-content-viewer-close aria-label="Close content preview">
+                <i class="ti ti-x"></i>
+              </button>
+              <div class="content-viewer-head">
+                <span class="badge badge-info" data-content-viewer-type>Content</span>
+                <h3 data-content-viewer-title>Select a lesson</h3>
+                <p data-content-viewer-course></p>
+              </div>
+              <div class="content-resource-picker">
+                <label for="contentResourceSelect">Select content to view</label>
+                <select id="contentResourceSelect" data-content-resource-select></select>
+              </div>
+              <div class="content-viewer-body" data-content-viewer-body></div>
+              <div class="content-viewer-frame" data-content-viewer-frame></div>
+              <div class="content-preview-grid" data-content-preview-grid></div>
+              <a class="btn-primary content-viewer-open" data-content-viewer-open href="#" target="_blank" rel="noopener">
+                <i class="ti ti-external-link"></i> Open resource
+              </a>
+              {% if is_admin %}
+              <div class="content-editor">
+                <h4>Modify or Add Content</h4>
+                <p class="form-hint">Keeping the same type updates this item. Choosing another type adds it to the lesson without removing existing PDF, PPT, or video content.</p>
+                <form class="content-edit-form" method="post" enctype="multipart/form-data" data-content-edit-form>
+                  <input name="title" data-content-edit-title placeholder="Lesson title" required>
+                  <select name="content_type" data-content-edit-type required>
+                    <option value="article">Article / Text</option>
+                    <option value="pdf">PDF Document</option>
+                    <option value="ppt">PPT / PPTX Presentation</option>
+                    <option value="video_link">YouTube / Video Link</option>
+                    <option value="video_file">Upload Video File</option>
+                  </select>
+                  <input name="resource_url" data-content-edit-url placeholder="Existing resource URL or video link">
+                  <input name="file" type="file" accept=".pdf,.ppt,.pptx,.mp4,.mov,.webm,.mkv">
+                  <textarea name="content_body" data-content-edit-body placeholder="Description or instructions"></textarea>
+                  <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
+                </form>
+                <form method="post" data-content-delete-form>
+                  <button class="btn-danger" type="submit" data-content-delete-button>
+                    <i class="ti ti-trash"></i> Delete This Content
+                  </button>
+                </form>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-enrollments">
+          <div class="bulk-grid">
+            <div class="card">
+              <h3>Assign Student to Course</h3>
+              <p>Use this to enroll one student into one LMS course. Duplicate student-course enrollments are blocked.</p>
+              <form class="compact-form" method="post" action="/enrollments/create">
+                <select name="student_id" required>
+                  {% for student in students %}
+                  <option value="{{ student.id }}">{{ student.name }}{% if student.school_name %} - {{ student.school_name }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <select name="course_id" required>
+                  {% for course in courses %}
+                  <option value="{{ course.id }}">{{ course.title }}</option>
+                  {% endfor %}
+                </select>
+                <input name="assigned_by" placeholder="Assigned by" value="Trainer">
+                <button class="btn-primary" type="submit"><i class="ti ti-user-check"></i> Enroll Student</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Enrollment Summary</h3>
+              <p><strong>{{ enrollments_count }}</strong> active enrollment records in this LMS workspace.</p>
+              <p>Status options: Assigned, In Progress, Completed, Dropped.</p>
+              <p>Progress is tracked from 0 to 100 percent.</p>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Course Enrollments</h3>
+              <span class="badge badge-info">{{ enrollments_count }} Enrollments</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>School</th>
+                  <th>Course</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Assigned By</th>
+                  <th>Update</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for enrollment in enrollments %}
+                <tr>
+                  <td>{{ enrollment.student_name }}</td>
+                  <td>{{ enrollment.school_name or '-' }}</td>
+                  <td>{{ enrollment.course_title }}</td>
+                  <td><span class="badge badge-info">{{ enrollment.status }}</span></td>
+                  <td>
+                    <div class="progress-cell">
+                      <div class="progress-track"><span style="width: {{ enrollment.progress }}%"></span></div>
+                      <strong>{{ enrollment.progress }}%</strong>
+                    </div>
+                  </td>
+                  <td>{{ enrollment.assigned_by or '-' }}</td>
+                  <td>
+                    <form class="row-update-form" method="post" action="/enrollments/update">
+                      <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                      <select name="status">
+                        <option value="assigned" {% if enrollment.status == 'assigned' %}selected{% endif %}>Assigned</option>
+                        <option value="in_progress" {% if enrollment.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                        <option value="completed" {% if enrollment.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="dropped" {% if enrollment.status == 'dropped' %}selected{% endif %}>Dropped</option>
+                      </select>
+                      <input name="progress" type="number" min="0" max="100" value="{{ enrollment.progress }}">
+                      <button class="btn-ghost" type="submit">Save</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+                {% if not enrollments %}
+                <tr>
+                  <td colspan="7">No enrollments yet. Add students first, then assign them to courses.</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-reports">
+          <div class="hero-card">
+            <div class="eyebrow">Attendance Reports</div>
+            <h2>School-wise and Batch-wise Attendance</h2>
+            <p>Trainers can create school batches and mark attendance. Reports are grouped by school first, then by batch.</p>
+          </div>
+
+          <div class="bulk-grid">
+            <div class="card">
+              <h3>Create School Batch</h3>
+              <form class="compact-form" method="post" action="/attendance/batches/create">
+                <select name="school_id" required>
+                  {% for school in schools %}
+                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <input name="name" placeholder="Batch name, e.g. Batch A / Grade 8 Robotics" required>
+                <input name="trainer_name" placeholder="Trainer name">
+                <label class="form-field-label">
+                  <span>Training Start Date</span>
+                  <input name="start_date" type="date" aria-label="Training start date">
+                </label>
+                <label class="form-field-label">
+                  <span>Training End Date</span>
+                  <input name="end_date" type="date" aria-label="Training end date">
+                </label>
+                <button class="btn-primary" type="submit"><i class="ti ti-users-plus"></i> Create Batch</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Mark Attendance</h3>
+              <form class="compact-form attendance-bulk-form" method="post" action="/attendance/mark-bulk">
+                <select data-attendance-school-select required>
+                  {% for school in schools %}
+                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <select name="batch_id" data-attendance-batch required>
+                  {% for batch in batches %}
+                  <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
+                    {{ batch.school_name }} - {{ batch.name }}{% if batch.start_date or batch.end_date %} ({{ batch.start_date or 'Start?' }} to {{ batch.end_date or 'End?' }}){% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+                <input name="attendance_date" type="date" value="{{ today }}" data-attendance-date required>
+                <input name="marked_by" placeholder="Marked by" value="{{ current_account.name }}">
+                <textarea name="remarks" placeholder="Remarks, if any"></textarea>
+                <div class="attendance-student-list">
+                  <div class="attendance-list-head">
+                    <span>Student</span>
+                    <span>P</span>
+                    <span>A</span>
+                  </div>
+                  {% for student in students %}
+                  <div class="attendance-student-row" data-attendance-school="{{ student.school_id or '' }}" data-attendance-student="{{ student.id }}">
+                    <span>{{ student.name }}{% if student.grade %} - Grade {{ student.grade }}{% endif %}</span>
+                    <label><input type="radio" name="status_{{ student.id }}" value="present" checked> P</label>
+                    <label><input type="radio" name="status_{{ student.id }}" value="absent"> A</label>
+                  </div>
+                  {% endfor %}
+                  <div class="attendance-empty" data-attendance-empty>No students found for the selected batch school.</div>
+                </div>
+                <div class="attendance-downloads">
+                  <a class="btn-ghost" data-attendance-export="day-individual" href="/attendance/export?scope=day&group=individual">Download Day Individual</a>
+                  <a class="btn-ghost" data-attendance-export="day-batch" href="/attendance/export?scope=day&group=batch">Download Day Batch</a>
+                  <a class="btn-ghost" data-attendance-export="full-individual" href="/attendance/export?scope=full&group=individual">Download Full Individual</a>
+                  <a class="btn-ghost" data-attendance-export="full-batch" href="/attendance/export?scope=full&group=batch">Download Full Batch</a>
+                </div>
+                <script type="application/json" id="attendanceStatusData">{{ attendance_status_map|tojson }}</script>
+                <button class="btn-primary" type="submit"><i class="ti ti-calendar-check"></i> Save Attendance</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card report-filter-card">
+            <h3>Report Filters</h3>
+            <p>Select school and batch to filter all report tables below.</p>
+            <div class="report-filter-controls">
+              <select data-report-school>
+                <option value="">All Schools</option>
+                {% for school in schools %}
+                <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                {% endfor %}
+              </select>
+              <select data-report-batch>
+                <option value="">All Batches</option>
+                {% for batch in batches %}
+                <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
+                  {{ batch.school_name }} - {{ batch.name }}{% if batch.start_date or batch.end_date %} ({{ batch.start_date or 'Start?' }} to {{ batch.end_date or 'End?' }}){% endif %}
+                </option>
+                {% endfor %}
+              </select>
+              <a class="btn-ghost" data-report-export="day-individual" href="/attendance/export?scope=day&group=individual">Day Individual</a>
+              <a class="btn-ghost" data-report-export="day-batch" href="/attendance/export?scope=day&group=batch">Day Batch</a>
+              <a class="btn-ghost" data-report-export="full-individual" href="/attendance/export?scope=full&group=individual">Full Individual</a>
+              <a class="btn-ghost" data-report-export="full-batch" href="/attendance/export?scope=full&group=batch">Full Batch</a>
+            </div>
+          </div>
+
+          <div class="attendance-report-grid">
+            {% for school in attendance_report %}
+            <div class="table-card" data-report-school-card data-school-id="{{ school.school_id }}">
+              <div class="table-header">
+                <h3>{{ school.school_name }}</h3>
+                <span class="badge badge-info">{{ school.total }} Records</span>
+              </div>
+              <div class="attendance-summary">
+                <span>Present: <strong>{{ school.present }}</strong></span>
+                <span>Absent: <strong>{{ school.absent }}</strong></span>
+                <span>Late: <strong>{{ school.late }}</strong></span>
+                <span>Excused: <strong>{{ school.excused }}</strong></span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Batch</th>
+                    <th>Trainer</th>
+                    <th>Total</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                    <th>Late</th>
+                    <th>Days Marked</th>
+                    <th>Present %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for batch in school.batches %}
+                  <tr data-report-row data-school-id="{{ school.school_id }}" data-batch-id="{{ batch.batch_id }}">
+                    <td>{{ batch.batch_name }}</td>
+                    <td>{{ batch.trainer_name or '-' }}</td>
+                    <td>{{ batch.total }}</td>
+                    <td>{{ batch.present }}</td>
+                    <td>{{ batch.absent }}</td>
+                    <td>{{ batch.late }}</td>
+                    <td>{{ batch.days_marked }}</td>
+                    <td>{{ batch.present_percent }}%</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endfor %}
+            {% if not attendance_report %}
+            <div class="placeholder">
+              <div>
+                <i class="ti ti-calendar-stats"></i>
+                <h2>No Attendance Yet</h2>
+                <p>Create a batch and mark student attendance to see school-wise and batch-wise reports here.</p>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="grid-2">
+            <div class="table-card">
+              <div class="table-header">
+                <h3>Individual Attendance Report</h3>
+                <span class="badge badge-info">{{ individual_attendance_report|length }} Students</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>School</th>
+                    <th>Batch</th>
+                    <th>Total</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                    <th>Present %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in individual_attendance_report %}
+                  <tr data-report-row data-school-id="{{ row.school_id }}" data-batch-id="{{ row.batch_id }}">
+                    <td>{{ row.student_name }}</td>
+                    <td>{{ row.school_name }}</td>
+                    <td>{{ row.batch_name }}</td>
+                    <td>{{ row.total }}</td>
+                    <td>{{ row.present }}</td>
+                    <td>{{ row.absent }}</td>
+                    <td>{{ row.present_percent }}%</td>
+                  </tr>
+                  {% endfor %}
+                  {% if not individual_attendance_report %}
+                  <tr><td colspan="7">No individual attendance report yet.</td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-card">
+              <div class="table-header">
+                <h3>Batch Attendance Performance</h3>
+                <span class="badge badge-info">{{ batch_performance_report|length }} Batches</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>School</th>
+                    <th>Batch</th>
+                    <th>Days</th>
+                    <th>Total</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                    <th>Present %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in batch_performance_report %}
+                  <tr data-report-row data-school-id="{{ row.school_id }}" data-batch-id="{{ row.batch_id }}">
+                    <td>{{ row.school_name }}</td>
+                    <td>{{ row.batch_name }}</td>
+                    <td>{{ row.days_marked }}</td>
+                    <td>{{ row.total }}</td>
+                    <td>{{ row.present }}</td>
+                    <td>{{ row.absent }}</td>
+                    <td>{{ row.present_percent }}%</td>
+                  </tr>
+                  {% endfor %}
+                  {% if not batch_performance_report %}
+                  <tr><td colspan="7">No batch performance report yet.</td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Recent Attendance Entries</h3>
+              <span class="badge badge-info">{{ attendance_rows|length }} Latest</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>School</th>
+                  <th>Batch</th>
+                  <th>Student</th>
+                  <th>Status</th>
+                  <th>Marked By</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in attendance_rows %}
+                <tr data-report-row data-school-id="{{ row.school_id }}" data-batch-id="{{ row.batch_id }}">
+                  <td>{{ row.date }}</td>
+                  <td>{{ row.school_name }}</td>
+                  <td>{{ row.batch_name }}</td>
+                  <td>{{ row.student_name }}</td>
+                  <td><span class="badge badge-success">{{ row.status }}</span></td>
+                  <td>{{ row.marked_by or '-' }}</td>
+                  <td>{{ row.remarks or '-' }}</td>
+                </tr>
+                {% endfor %}
+                {% if not attendance_rows %}
+                <tr>
+                  <td colspan="7">No attendance records yet.</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-performance">
+          <div class="hero-card">
+            <div class="eyebrow">Rubric Performance</div>
+            <h2>Student Performance</h2>
+            <p>Use this page to track the ATL handbook assessment areas for each student, batch, and school. The PDFs use observation-based assessment and teamwork badges rather than a fixed numeric scale.</p>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-list-check"></i></div>
+              <div class="label">Assessment Areas</div>
+              <div class="value">4</div>
+              <div class="sub">From ATL handbooks</div>
+            </div>
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-target-arrow"></i></div>
+              <div class="label">Team Rubric</div>
+              <div class="value">Badges</div>
+              <div class="sub">Ideator, Goal Getter, Co-Creator, Questioner</div>
+            </div>
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-school"></i></div>
+              <div class="label">Grouping</div>
+              <div class="value">Batch</div>
+              <div class="sub">School and student wise</div>
+            </div>
+            <div class="kpi">
+              <div class="icon"><i class="ti ti-report-analytics"></i></div>
+              <div class="label">Evaluation</div>
+              <div class="value">Monthly</div>
+              <div class="sub">Calendar marks evaluation days</div>
+            </div>
+          </div>
+
+          <div class="bulk-grid">
+            <div class="card">
+              <h3>Assess Whole Batch</h3>
+              <p class="form-hint">Concept Understanding, Project Understanding, and Design Thinking / Extensions are assessed once for the selected batch.</p>
+              <form class="compact-form" method="post" action="/performance/batch-assessment" data-performance-batch-form>
+                <select data-performance-school-select required>
+                  {% for school in schools %}
+                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <select name="batch_id" data-performance-batch-select required>
+                  {% for batch in batches %}
+                  <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
+                    {{ batch.school_name }} - {{ batch.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <label class="form-field-label">
+                  <span>Concept Understanding</span>
+                  <select name="concept_understanding" data-performance-field="concept_understanding">
+                    {% for value, label in performance_levels %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Project Understanding</span>
+                  <select name="project_understanding" data-performance-field="project_understanding">
+                    {% for value, label in performance_levels %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Design Thinking / Extensions</span>
+                  <select name="design_thinking" data-performance-field="design_thinking">
+                    {% for value, label in performance_levels %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <input name="assessed_by" data-performance-field="assessed_by" placeholder="Assessed by" value="{{ current_account.name }}">
+                <textarea name="remarks" data-performance-field="remarks" placeholder="Batch remarks, if any"></textarea>
+                <script type="application/json" id="batchPerformanceData">{{ batch_assessment_form_map|tojson }}</script>
+                <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Batch Assessment</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Assign Teamwork Badges</h3>
+              <p class="form-hint">Assign each teamwork badge to one student from the selected batch's school.</p>
+              <form class="compact-form" method="post" action="/performance/teamwork-badges" data-teamwork-badge-form>
+                <select data-teamwork-school-select required>
+                  {% for school in schools %}
+                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <select name="batch_id" data-teamwork-batch-select required>
+                  {% for batch in batches %}
+                  <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
+                    {{ batch.school_name }} - {{ batch.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+                {% for badge_key, badge_label in teamwork_badges.items() %}
+                <label class="form-field-label">
+                  <span>{{ badge_label }}</span>
+                  <select name="badge_{{ badge_key }}" data-teamwork-badge="{{ badge_key }}">
+                    <option value="">Select student</option>
+                    {% for student in students %}
+                    <option value="{{ student.id }}" data-school-id="{{ student.school_id or '' }}">
+                      {{ student.name }}{% if student.grade %} - Grade {{ student.grade }}{% endif %}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                {% endfor %}
+                <input name="assigned_by" placeholder="Assigned by" value="{{ current_account.name }}">
+                <textarea name="remarks" placeholder="Badge remarks, if any"></textarea>
+                <script type="application/json" id="teamworkBadgeData">{{ teamwork_badge_map|tojson }}</script>
+                <button class="btn-primary" type="submit"><i class="ti ti-award"></i> Save Teamwork Badges</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="table-card">
+              <div class="table-header">
+                <h3>Batch Assessment Report</h3>
+                <span class="badge badge-info">{{ performance_assessment_rows|length }} Batches</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>School</th>
+                    <th>Batch</th>
+                    <th>Concept</th>
+                    <th>Project</th>
+                    <th>Design</th>
+                    <th>Assessed By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in performance_assessment_rows %}
+                  <tr>
+                    <td>{{ row.school_name }}</td>
+                    <td>{{ row.batch_name }}</td>
+                    <td>{{ row.concept_understanding|replace('_', ' ')|title }}</td>
+                    <td>{{ row.project_understanding|replace('_', ' ')|title }}</td>
+                    <td>{{ row.design_thinking|replace('_', ' ')|title }}</td>
+                    <td>{{ row.assessed_by or '-' }}</td>
+                  </tr>
+                  {% endfor %}
+                  {% if not performance_assessment_rows %}
+                  <tr><td colspan="6">No batches available for assessment yet.</td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-card">
+              <div class="table-header">
+                <h3>Teamwork Badge Assignments</h3>
+                <span class="badge badge-info">{{ teamwork_badge_rows|length }} Badges</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>School</th>
+                    <th>Batch</th>
+                    <th>Badge</th>
+                    <th>Student</th>
+                    <th>Assigned By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in teamwork_badge_rows %}
+                  <tr>
+                    <td>{{ row.school_name }}</td>
+                    <td>{{ row.batch_name }}</td>
+                    <td>{{ row.badge_label }}</td>
+                    <td>{{ row.student_name }}</td>
+                    <td>{{ row.assigned_by or '-' }}</td>
+                  </tr>
+                  {% endfor %}
+                  {% if not teamwork_badge_rows %}
+                  <tr><td colspan="5">No teamwork badges assigned yet.</td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-settings">
+          <div class="placeholder">
+            <div>
+              <i class="ti ti-settings"></i>
+              <h2>Settings</h2>
+              <p>Starter page for academic year, LMS categories, roles, permissions, and import/export preferences.</p>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/js/portal.js?v=20260708-fresh-refresh"></script>
+</body>
+</html>

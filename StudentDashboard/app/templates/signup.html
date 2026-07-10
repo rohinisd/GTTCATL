@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }} - Sign Up</title>
+  <script>
+    (function(){
+      const theme = localStorage.getItem('gttc_lms_theme') || localStorage.getItem('gttc_theme') || 'light';
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260706-bulk">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <section class="login-brand">
+      <div class="login-brand-card">
+        <div class="login-logo-mark"><i class="ti ti-user-plus"></i></div>
+        <div class="eyebrow">GTTC LMS Access</div>
+        <h1>Create Your Account</h1>
+        <p>Sign up to access student records, school data, trainer details, and ATL experiment learning content.</p>
+        <div class="login-stats">
+          <span><i class="ti ti-shield-lock"></i> Local Account</span>
+          <span><i class="ti ti-users"></i> Role Ready</span>
+          <span><i class="ti ti-book-2"></i> LMS Access</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <form class="login-card" method="post" action="/signup">
+        <button class="btn-theme-toggle login-theme" type="button" onclick="toggleLoginTheme()"><i class="ti ti-moon"></i> Dark</button>
+        <div class="eyebrow">Create Account</div>
+        <h2>Sign Up</h2>
+        <p class="login-sub">Create a local account for this StudentDashboard app.</p>
+
+        {% if error %}
+        <div class="login-error"><i class="ti ti-alert-circle"></i>{{ error }}</div>
+        {% endif %}
+
+        <label class="login-field">
+          <span>Full Name</span>
+          <div>
+            <i class="ti ti-user"></i>
+            <input name="name" type="text" value="{{ name }}" autocomplete="name" required>
+          </div>
+        </label>
+
+        <label class="login-field">
+          <span>Email</span>
+          <div>
+            <i class="ti ti-mail"></i>
+            <input name="email" type="email" value="{{ email }}" autocomplete="email" required>
+          </div>
+        </label>
+
+        <label class="login-field">
+          <span>Role</span>
+          <div>
+            <i class="ti ti-id-badge-2"></i>
+            <select name="role" required>
+              <option value="student" {% if role == 'student' %}selected{% endif %}>Student</option>
+              <option value="trainer" {% if role == 'trainer' %}selected{% endif %}>Trainer</option>
+              <option value="school" {% if role == 'school' %}selected{% endif %}>School</option>
+              <option value="admin" {% if role == 'admin' %}selected{% endif %}>Admin</option>
+            </select>
+          </div>
+        </label>
+
+        <label class="login-field">
+          <span>Password</span>
+          <div>
+            <i class="ti ti-lock"></i>
+            <input name="password" type="password" autocomplete="new-password" required>
+          </div>
+        </label>
+
+        <label class="login-field">
+          <span>Confirm Password</span>
+          <div>
+            <i class="ti ti-lock-check"></i>
+            <input name="confirm_password" type="password" autocomplete="new-password" required>
+          </div>
+        </label>
+
+        <button class="btn-primary login-submit" type="submit"><i class="ti ti-user-plus"></i> Create Account</button>
+
+        <div class="auth-switch">
+          Already have an account? <a href="/login">Sign in</a>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    function toggleLoginTheme() {
+      const current = document.documentElement.dataset.theme || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('gttc_lms_theme', next);
+      document.querySelector('.login-theme').innerHTML = next === 'dark'
+        ? '<i class="ti ti-sun"></i> Light'
+        : '<i class="ti ti-moon"></i> Dark';
+    }
+  </script>
+</body>
+</html>

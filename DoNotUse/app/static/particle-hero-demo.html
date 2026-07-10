@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTTC Portal — Particle Hero Preview</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- Import map lets the ES module use the bare specifier `import ... from 'three'`
+     with no bundler. Pin the version for reproducibility. -->
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Figtree',sans-serif;
+    background:#0b1437; color:#f8fafc; overflow:hidden;
+  }
+  #hero{ position:relative; width:100vw; height:100vh; }
+  #hero-canvas{ position:absolute; inset:0; }
+
+  /* Overlay copy — government-appropriate, calm, no emojis */
+  .overlay{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    pointer-events:none; padding:24px;
+    /* soft scrim keeps the headline crisp over the particles */
+    background:radial-gradient(42% 46% at 50% 48%, rgba(11,20,55,0.55), transparent 72%);
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:13px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+    color:rgba(255,255,255,.65); margin-bottom:18px;
+    padding:6px 14px; border:1px solid rgba(255,255,255,.14); border-radius:999px;
+    background:rgba(255,255,255,.04); backdrop-filter:blur(6px);
+  }
+  .eyebrow i{ color:#2563eb; font-size:16px }
+  h1{
+    font-family:'Plus Jakarta Sans',sans-serif; font-weight:800;
+    font-size:clamp(32px, 6vw, 68px); line-height:1.05; letter-spacing:-1.5px;
+    background:linear-gradient(100deg,#ffffff 0%,#cdd9ff 45%,#a5f3eb 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    max-width:14ch;
+  }
+  p.sub{
+    margin-top:18px; font-size:clamp(15px,2.2vw,19px); color:rgba(248,250,252,.72);
+    max-width:54ch; line-height:1.6;
+  }
+  .hint{
+    position:absolute; bottom:22px; left:0; right:0; text-align:center;
+    font-size:12px; color:rgba(255,255,255,.45); letter-spacing:.5px;
+  }
+</style>
+</head>
+<body>
+  <section id="hero">
+    <div id="hero-canvas"></div>
+    <div class="overlay">
+      <span class="eyebrow"><i class="ti ti-cpu"></i> GTTC · Atal Tinkering Labs</span>
+      <h1>Building Karnataka's Young Innovators</h1>
+      <p class="sub">A unified platform tracking robotics training, student innovation and
+        ATL lab activity across 200+ schools — from the workshop floor to the state dashboard.</p>
+    </div>
+    <div class="hint">Move your cursor across the scene · particles morph: network → robotic arm → Karnataka</div>
+  </section>
+
+  <script type="module">
+    import { initParticleHero } from '/static/js/particle-hero.js';
+    const hero = initParticleHero(document.getElementById('hero-canvas'));
+    // hero.destroy() when navigating away in a SPA context.
+  </script>
+</body>
+</html>

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>GTTC Pro · Project Hub</title>
+  <!-- Tabler Icons (clean) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --gttc-deep: #0A2540;
+      --gttc-navy: #0E2C6E;
+      --gttc-accent: #2B5F8A;
+      --gttc-soft-bg: #F8F7F4;
+      --gttc-card: #FFFFFF;
+      --gttc-muted: #5B6E8C;
+      --gttc-border: #E8E5DF;
+      --shadow-card: 0 20px 35px -12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    body {
+      background: var(--gttc-soft-bg);
+      font-family: 'Inter', sans-serif;
+      color: var(--gttc-deep);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Two-column split — full viewport */
+    .split-layout {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* LEFT SIDE: GTTC Logo full immersive — DEEP NAVY, NO WHITE BG ON LOGO */
+    .gttc-brand {
+      flex: 1.2;
+      background: linear-gradient(135deg, #0A2540 0%, #0E2C6E 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* subtle pattern overlay (only geometric, no white overlay) */
+    .gttc-brand::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+    .logo-container {
+      text-align: center;
+      z-index: 2;
+      padding: 32px;
+      animation: fadeScale 0.6s ease-out;
+    }
+    /* Logo wrapper — glass effect but no white background block */
+    .gttc-logo-wrapper {
+      background: transparent;  /* was rgba(255,255,255,0.08) causing white-ish tint? removed */
+      border-radius: 0;
+      padding: 0;
+      backdrop-filter: none;
+      display: inline-block;
+      margin-bottom: 28px;
+      border: none;
+    }
+    /* Logo image style: pure, no white box, fully visible on navy */
+    .gttc-logo-wrapper img {
+      width: 200px;
+      height: auto;
+      max-width: 280px;
+      display: block;
+      filter: brightness(0) invert(1);  /* makes any dark logo white to match navy background perfectly */
+      transition: transform 0.2s;
+    }
+    /* optional fallback: ensure no background */
+    .brand-tagline {
+      color: rgba(240,233,221,0.85);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-top: 20px;
+    }
+    .brand-tagline i {
+      margin-right: 6px;
+      font-size: 14px;
+    }
+    .brand-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      margin-top: 16px;
+      line-height: 1.2;
+    }
+    .brand-sub {
+      color: rgba(255,255,255,0.65);
+      font-size: 0.9rem;
+      margin-top: 12px;
+    }
+
+    /* RIGHT SIDE: Projects section — cards area */
+    .projects-area {
+      flex: 1;
+      background: var(--gttc-soft-bg);
+      overflow-y: auto;
+      padding: 108px 40px;
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: thin;
+    }
+    .projects-header {
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+    }
+    .projects-header .eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      color: var(--gttc-accent);
+      background: rgba(43,95,138,0.08);
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 60px;
+      margin-bottom: 18px;
+    }
+    .projects-header h2 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.8px;
+      color: var(--gttc-deep);
+      line-height: 1.2;
+    }
+    .projects-header p {
+      color: var(--gttc-muted);
+      margin-top: 10px;
+      max-width: 400px;
+      font-size: 0.9rem;
+    }
+
+    /* Cards grid — currently only one active project, future ready */
+    .projects-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      max-width: 560px;
+    }
+
+    /* ATL Project Card */
+    .project-card {
+      background: var(--gttc-card);
+      border-radius: 32px;
+      border: 1px solid var(--gttc-border);
+      box-shadow: var(--shadow-card);
+      transition: all 0.25s ease;
+      overflow: hidden;
+      animation: slideUp 0.5s ease-out;
+    }
+    .project-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 24px 42px -18px rgba(0,0,0,0.12);
+    }
+    .card-content {
+      padding: 32px 32px 36px 32px;
+    }
+    .card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #EFF4FA;
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: monospace;
+      color: var(--gttc-navy);
+      margin-bottom: 20px;
+    }
+    .card-badge i {
+      font-size: 13px;
+    }
+    .logo-row-inline {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      flex-direction: column;
+    }
+    .atl-logo-mini {
+      background: transparent;  /* no white background card */
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .atl-logo-mini img {
+      width: 100%;
+      height: auto;
+      max-height: 52px;
+      object-fit: contain;
+      filter: none; /* keep original ATL logo colors */
+    }
+    .card-title h3 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      color: var(--gttc-deep);
+    }
+    .programme-ref {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      background: #F1EFEA;
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 30px;
+      margin: 12px 0 16px;
+      color: var(--gttc-navy);
+    }
+    .desc {
+      color: var(--gttc-muted);
+      line-height: 1.5;
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+    .metric-group {
+      display: flex;
+      gap: 28px;
+      margin: 18px 0 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--gttc-border);
+      justify-content: center;
+    }
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .metric-num {
+      font-weight: 800;
+      font-size: 1.4rem;
+      color: var(--gttc-navy);
+      letter-spacing: -0.3px;
+    }
+    .metric-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--gttc-muted);
+    }
+    .card-action {
+      margin-top: 12px;
+      display: flex;
+      justify-content: center;
+    }
+    .btn-access {
+      background: var(--gttc-navy);
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 48px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn-access:hover {
+      background: #081f4a;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(14,44,110,0.15);
+    }
+
+    /* future placeholder — minimal empty state (more projects soon) */
+    .future-placeholder {
+      margin-top: 20px;
+      padding: 16px 0 8px;
+      border-top: 1px dashed var(--gttc-border);
+      text-align: left;
+    }
+    .future-message {
+      font-size: 0.75rem;
+      color: var(--gttc-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      padding: 6px 12px;
+      border-radius: 40px;
+    }
+    .future-message i {
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    @keyframes fadeScale {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* scroll custom */
+    .projects-area::-webkit-scrollbar {
+      width: 4px;
+    }
+    .projects-area::-webkit-scrollbar-track {
+      background: #E8E5DF;
+      border-radius: 4px;
+    }
+    .projects-area::-webkit-scrollbar-thumb {
+      background: var(--gttc-navy);
+      border-radius: 4px;
+    }
+
+    @media (max-width: 900px) {
+      .split-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+      }
+      .gttc-brand {
+        padding: 60px 20px;
+        min-height: 380px;
+      }
+      .projects-area {
+        overflow-y: visible;
+        padding: 40px 24px;
+      }
+      .projects-grid {
+        max-width: 100%;
+      }
+      body {
+        overflow: auto;
+      }
+      .gttc-logo-wrapper img {
+        width: 160px;
+      }
+    }
+    @media (max-width: 550px) {
+      .card-content {
+        padding: 24px;
+      }
+      .metric-group {
+        gap: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="split-layout">
+  <!-- LEFT SIDE: Full GTTC branding, logo without white background -->
+  <div class="gttc-brand">
+    <div class="logo-container">
+      <div class="gttc-logo-wrapper">
+        <!-- GTTC official logo (from /static/img/gttc-logo.png) no white background, filter makes it white on navy -->
+        <img src="/static/img/gttc.png" alt="Government Tool Room & Training Centre" id="mainGttcLogo">
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDE: Project cards (only active ATL now) -->
+  <div class="projects-area">
+    <div class="projects-header">
+      <h2>Ongoing Projects</h2>
+      <p>Currently managing the ATL programme across Karnataka.</p>
+    </div>
+
+    <div class="projects-grid">
+      <!-- ATL CARD (the only active project) -->
+      <div class="project-card">
+        <div class="card-content">
+          <div class="logo-row-inline">
+            <div class="atl-logo-mini">
+              <!-- ATL Logo: /static/img/aim-niti.png (Atal Innovation Mission) -->
+              <img src="/static/img/aim.png" alt="ATL Logo" id="atlCardLogo">
+            </div>
+            <div class="card-title">
+              <h3>Atal Tinkering Labs</h3>
+            </div>
+          </div>
+          <p class="desc">
+            Unified platform for 194 ATL labs across Karnataka. Enables monthly reporting, equipment tracking, trainer attendance, student innovations & competition dashboards. Managed under Samagra Shikshana Karnataka & GTTC.
+          </p>
+          <div class="metric-group">
+            <div class="metric-item">
+              <div class="metric-num">194</div>
+              <div class="metric-label">ATL Schools</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-num">12</div>
+              <div class="metric-label">Districts</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-num">5</div>
+              <div class="metric-label">Role Levels</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-num">4</div>
+              <div class="metric-label">Divisions</div>
+            </div>
+          </div>
+          <div class="card-action">
+            <a href="/login" class="btn-access" id="portalAccessLink">
+              <i class="ti ti-door-enter"></i> Access Portal
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // Fix white background issue on left side logo:
+    // The logo wrapper had no background now, also the image is forced to use filter: brightness(0) invert(1)
+    // to make any logo appear white on navy background. However, if the GTTC logo is already white or has transparent bg,
+    // we still ensure no white bounding box.
+    const mainLogo = document.getElementById('mainGttcLogo');
+    const atlLogo = document.getElementById('atlCardLogo');
+    
+    // Ensure that GTTC logo src is correctly set. Also if image fails, fallback without white block.
+    if (mainLogo) {
+      mainLogo.src = '/static/img/gttc.png';
+      // Remove any default background that might appear due to broken image style
+      mainLogo.style.background = 'transparent';
+      mainLogo.style.objectFit = 'contain';
+      // In case the original GTTC logo has white background we use "filter: brightness(0) invert(1)" already in CSS.
+      // if the loaded image has a white rectangle, the filter makes it disappear because it inverts white to dark? 
+      // Actually brightness(0) makes it black, invert(1) makes it white. Perfect to turn any dark/colored logo into white.
+      // But if GTTC logo already mostly white, it remains visible. No white bg.
+      mainLogo.onerror = function() {
+        // fallback: show a clean text icon if logo fails
+        this.style.display = 'none';
+        const parent = this.parentElement;
+        if (parent && !parent.querySelector('.fallback-icon')) {
+          const fallback = document.createElement('div');
+          fallback.className = 'fallback-icon';
+          fallback.innerHTML = '<i class="ti ti-building" style="font-size: 64px; color: white;"></i>';
+          fallback.style.background = 'transparent';
+          parent.appendChild(fallback);
+        }
+      };
+    }
+    
+    if (atlLogo) {
+      atlLogo.src = '/static/img/aim.png';
+      atlLogo.style.background = 'transparent';
+      atlLogo.onerror = function() {
+        this.style.display = 'none';
+        const parent = this.parentElement;
+        if (parent && !parent.querySelector('.atl-fallback')) {
+          const fallbackIcon = document.createElement('i');
+          fallbackIcon.className = 'ti ti-microscope';
+          fallbackIcon.style.fontSize = '36px';
+          fallbackIcon.style.color = 'var(--gttc-navy)';
+          parent.appendChild(fallbackIcon);
+        }
+      };
+    }
+    
+    // Portal access link: navigate to /login
+    const portalLink = document.getElementById('portalAccessLink');
+    if (portalLink) {
+      portalLink.addEventListener('click', (e) => {
+        // standard redirect, no extra decoration needed
+        console.log('Redirect to GTTC Pro login');
+      });
+    }
+
+    // Additional sanity: remove any residual white background on left container if any element accidentally adds
+    const leftBrand = document.querySelector('.gttc-brand');
+    if (leftBrand) {
+      // ensures that any descendant with white background is overridden (just in case)
+      const allChildren = leftBrand.querySelectorAll('*');
+      allChildren.forEach(el => {
+        const bg = window.getComputedStyle(el).backgroundColor;
+        if (bg === 'rgb(255, 255, 255)' || bg === 'white' || bg === '#ffffff') {
+          el.style.backgroundColor = 'transparent';
+        }
+      });
+    }
+  })();
+</script>
+</body>
+</html>

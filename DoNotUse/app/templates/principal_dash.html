@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTTC | Principal Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>
+// Apply theme + role before render to avoid flash
+(function(){
+  var t = localStorage.getItem('gttc_theme') || 'light';
+  document.documentElement.dataset.theme = t;
+  document.documentElement.dataset.role  = 'principal';
+})();
+</script>
+<link rel="stylesheet" href="/static/css/portal-theme.css?v=16">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Figtree',sans-serif;font-variant-numeric:lining-nums tabular-nums;background:#f0fdf4;color:#1a1a2e;min-height:100vh;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+:root{
+  --primary:#16a34a;--primary-dark:#15803d;--primary-light:#dcfce7;
+  --sidebar:#0f1f0f;--sidebar-text:#FFF6F6;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04),0 2px 6px rgba(0,0,0,.04);
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.07);
+  --shadow-md:0 2px 8px rgba(0,0,0,.08),0 12px 32px rgba(0,0,0,.09);
+  --shadow-lg:0 8px 24px rgba(0,0,0,.12),0 24px 64px rgba(0,0,0,.12);
+}
+/* ── SCROLLBARS ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page-content>*{animation:fadeIn .22s ease}
+
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f1f0f 0%,#16a34a 100%)}
+.login-card{background:#fff;border-radius:16px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 25px 50px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo h1{font-size:1.5rem;font-weight:700;color:#0f1f0f;margin-top:10px}
+.login-logo p{color:#64748b;font-size:.85rem;margin-top:4px}
+.login-badge{display:inline-block;background:#dcfce7;color:#15803d;font-size:.73rem;font-weight:700;padding:4px 12px;border-radius:20px;margin-top:8px;letter-spacing:.5px}
+.fg{margin-bottom:18px}
+.fg label{display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px}
+.fg input,.fg select,.fg textarea{width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.9rem;transition:border-color .2s}
+.fg input:focus,.fg select:focus{outline:none;border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.1)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 22px;border:none;border-radius:8px;font-size:.96rem;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm)}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(22,163,74,.3)}
+.btn-primary:hover{background:var(--primary-dark);box-shadow:0 4px 16px rgba(22,163,74,.35)}
+.btn-block{width:100%;padding:13px}
+.btn-sm{padding:6px 14px;font-size:.8rem}
+.btn-ghost{background:transparent;color:#64748b;border:1.5px solid #e2e8f0}
+.btn-ghost:hover{background:#f8fafc}
+
+#app{display:none;height:100vh;overflow:hidden;flex-direction:row}
+.sidebar{width:230px;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;box-shadow:2px 0 16px rgba(0,0,0,.2)}
+.sidebar-brand{padding:22px 18px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sidebar-brand h2{color:#f1f5f9;font-size:1rem;font-weight:700}
+.sidebar-brand p{color:var(--sidebar-text);font-size:.72rem;margin-top:2px}
+.school-badge{margin-top:8px;background:rgba(22,163,74,.25);color:#86efac;font-size:.7rem;font-weight:600;padding:3px 10px;border-radius:10px;display:inline-block;word-break:break-word;line-height:1.4}
+.udise-badge{margin-top:4px;background:rgba(255,255,255,.08);color:#86efac;font-size:.68rem;padding:2px 8px;border-radius:8px;display:inline-block}
+.nav-section{padding:8px 0}
+.nav-label{padding:8px 18px 4px;font-size:.66rem;font-weight:700;color:#334155;letter-spacing:1px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 20px;color:var(--sidebar-text);cursor:pointer;transition:all .15s cubic-bezier(.4,0,.2,1);font-size:.98rem;font-weight:500;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#f1f5f9;padding-left:22px}
+.nav-item.active{background:rgba(22,163,74,.22);color:#86efac;border-left-color:#16a34a;font-weight:700}
+.nav-item svg{width:17px;height:17px;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:14px 18px;border-top:1px solid rgba(255,255,255,.07)}
+.side-user{display:flex;align-items:center;gap:9px}
+.side-avatar{width:32px;height:32px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0}
+.side-user-info p{color:#f1f5f9;font-size:.8rem;font-weight:600}
+.side-user-info span{color:var(--sidebar-text);font-size:.7rem}
+.logout-btn{margin-top:10px;width:100%;background:rgba(220,38,38,.15);color:#f87171;border:none;padding:7px;border-radius:6px;cursor:pointer;font-size:.8rem;font-weight:600;transition:.2s}
+.logout-btn:hover{background:rgba(220,38,38,.3)}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:var(--shadow-sm)}
+.topbar-title{font-size:1.1rem;font-weight:800;color:#1e293b;letter-spacing:-.2px}
+.readonly-badge{background:#dcfce7;color:#15803d;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid #bbf7d0}
+.page-content{flex:1;overflow-y:auto;padding:24px}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:20px}
+.kpi{background:#fff;border-radius:12px;padding:18px;box-shadow:var(--shadow);border:1px solid #e2e8f0;border-top:3px solid var(--primary);transition:all .2s}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.kpi .icon{font-size:1.5rem;margin-bottom:8px}
+.kpi .label{font-size:.82rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.8px;opacity:.8}
+.kpi .value{font-size:2.4rem;font-weight:800;color:#1e293b;margin-top:6px;letter-spacing:-1px}
+.kpi .sub{font-size:.85rem;color:#94a3b8;margin-top:6px;font-weight:500}
+.kpi.blue{border-top-color:#2563eb}
+.kpi.orange{border-top-color:#d97706}
+.kpi.red{border-top-color:#dc2626}
+
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:var(--shadow);border:1px solid #e2e8f0;margin-bottom:20px;transition:box-shadow .2s}
+.card:hover{box-shadow:var(--shadow-md)}
+.card h3{font-size:1.05rem;font-weight:800;color:#1e293b;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #f1f5f9;letter-spacing:-.1px}
+.table-card{background:#fff;border-radius:12px;box-shadow:var(--shadow);border:1px solid #e2e8f0;overflow:hidden;margin-bottom:20px;transition:box-shadow .2s}
+.table-card:hover{box-shadow:var(--shadow-md)}
+.table-header{padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.table-header h3{font-size:1.05rem;font-weight:800;color:#1e293b;letter-spacing:-.1px}
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;padding:12px 15px;font-size:.78rem;font-weight:800;text-align:left;color:#64748b;opacity:.7;text-transform:uppercase;letter-spacing:.8px;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+td{padding:14px 15px;font-size:.95rem;color:#374151;border-bottom:1px solid #f1f5f9;vertical-align:middle;transition:background .1s}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:all .12s}
+tbody tr:hover td{background:rgba(22,163,74,.05)}
+tbody tr:hover td:first-child{border-left:3px solid var(--primary);padding-left:10px}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700}
+.badge-success{background:#dcfce7;color:#15803d}
+.badge-warn{background:#fef3c7;color:#92400e}
+.badge-gray{background:#f1f5f9;color:#475569}
+.badge-info{background:#e0f2fe;color:#0e7490}
+
+.info-section{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #f1f5f9;margin-bottom:16px}
+.info-section h4{font-size:.82rem;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.info-section h4::before{content:'';display:block;width:4px;height:16px;background:#16a34a;border-radius:2px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f8fafc;font-size:.84rem}
+.info-row:last-child{border-bottom:none}
+.info-row .lbl{color:#64748b;font-size:.8rem}
+.info-row .val{font-weight:600;color:#1e293b;text-align:right}
+.val.na{color:#cbd5e1;font-weight:400}
+
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:fadeIn .2s ease}
+.modal-head{padding:18px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{font-size:.95rem;font-weight:700;color:#1e293b}
+.modal-close{background:none;border:none;font-size:1.4rem;color:#94a3b8;cursor:pointer;padding:2px 6px;border-radius:4px}
+.modal-close:hover{background:#f1f5f9}
+.modal-body{padding:22px}
+.modal-footer{padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end}
+
+#toast{position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{padding:12px 18px;border-radius:10px;font-size:.85rem;font-weight:600;color:#fff;box-shadow:var(--shadow-md);animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:none;opacity:1}}
+.toast-success{background:#16a34a}.toast-error{background:#dc2626}.toast-info{background:#0891b2}
+.skeleton{background:linear-gradient(90deg,var(--surface2,#f0f0f0) 25%,var(--border,#e8f0e8) 50%,var(--surface2,#f0f0f0) 75%);background-size:400px 100%;animation:shimmer 1.3s ease-in-out infinite;border-radius:6px;height:40px}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.ro-notice{background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:.82rem;color:#15803d;display:flex;align-items:center;gap:8px;margin-bottom:16px}
+/* ── Polish additions ── */
+.card{transition:box-shadow .2s,transform .2s}
+.card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+tbody tr:nth-child(even) td{background:var(--surface2,rgba(248,252,248,.5))}
+.trend-up{color:#16a34a;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:2px}
+.trend-dn{color:#dc2626;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:2px}
+.trend-flat{color:var(--text3);font-size:11px;font-weight:600}
+@media(max-width:768px){.info-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}}
+/* === GTTC PREMIUM - Principal === */
+:root{--role-color:#16a34a;--role-color-rgb:22,163,74}
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#2563eb 0%,#7c3aed 25%,#0891b2 50%,#16a34a 75%,#2563eb 100%);background-size:200% 100%;animation:gttcBar 4s linear infinite;z-index:9999;pointer-events:none}
+@keyframes gttcBar{0%{background-position:0% 0%}100%{background-position:200% 0%}}
+html,body{background:#f8fafc!important}
+.sidebar{position:relative;background:linear-gradient(180deg,#052e16 0%,#14532d 40%,#166534 100%)!important;border-right:1px solid rgba(255,255,255,.08)!important;box-shadow:2px 0 20px rgba(0,0,0,.18)!important}
+
+.nav-link.active,.nav-item.active{background:rgba(255,255,255,.18)!important;box-shadow:inset 3px 0 0 rgba(255,255,255,.85)!important;color:#fff!important}
+.topbar{background:#fff!important;border-bottom:1px solid #e2e8f0!important;box-shadow:0 1px 6px rgba(0,0,0,.06)!important}
+.card{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:20px!important;box-shadow:0 1px 4px rgba(0,0,0,.04),0 6px 22px rgba(0,0,0,.07)!important;position:relative;overflow:hidden;transition:box-shadow .22s ease,transform .22s ease!important}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.07),0 18px 48px rgba(0,0,0,.10)!important;transform:translateY(-2px)!important}
+.kpi{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:16px!important;box-shadow:0 1px 4px rgba(0,0,0,.04),0 6px 22px rgba(0,0,0,.07)!important;transition:box-shadow .22s ease,transform .22s ease!important}
+.kpi:hover{box-shadow:0 4px 12px rgba(0,0,0,.07),0 18px 48px rgba(0,0,0,.10)!important;transform:translateY(-2px)!important}
+.table-card{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:20px!important;box-shadow:0 1px 4px rgba(0,0,0,.04),0 6px 22px rgba(0,0,0,.07)!important;transition:box-shadow .22s ease,transform .22s ease!important}
+.kpi .value{font-family:'Plus Jakarta Sans',sans-serif!important;font-size:2.8rem!important;font-weight:800!important;letter-spacing:-1.5px!important;line-height:1!important;color:#334155!important;-webkit-text-fill-color:#334155!important}
+.btn-primary{background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)!important;border-color:transparent!important;box-shadow:0 2px 10px rgba(37,99,235,.32)!important;transition:all .2s ease!important}
+.btn-primary:hover{background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%)!important;box-shadow:0 4px 20px rgba(37,99,235,.44)!important;transform:translateY(-1px)!important}
+.btn-primary:active{transform:translateY(0)!important}
+.modal-overlay{backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;background:rgba(0,0,0,.48)!important}
+.modal{background:#fff!important;border-radius:20px!important;border:1px solid #e2e8f0!important;box-shadow:0 24px 64px rgba(0,0,0,.16),0 4px 16px rgba(0,0,0,.08)!important}
+h1,h2,h3,h4,.page-title,.section-title,.modal-title,.kpi .label,.card-title,.table-card h3{font-family:'Plus Jakarta Sans',sans-serif!important;letter-spacing:-.3px}
+@keyframes gttcSlideUp{0%{opacity:0;transform:translateY(20px) scale(.97)}65%{opacity:1;transform:translateY(-3px) scale(1.003)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.stagger-in{opacity:0;animation:gttcSlideUp .5s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes ripple{to{transform:scale(1);opacity:0}}
+/* === GTTC ENHANCE === */
+
+/* Subtle dot-grid page background */
+html,body{background-color:#f8fafc!important;background-image:radial-gradient(#d1d5db 1px,transparent 1px)!important;background-size:24px 24px!important}
+html[data-theme="dark"],html[data-theme="dark"] body{background-color:var(--ink)!important;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1px)!important;background-size:24px 24px!important}
+#content{background-color:#f8fafc!important;background-image:radial-gradient(#d1d5db 1px,transparent 1px)!important;background-size:24px 24px!important}
+html[data-theme="dark"] #content{background-color:var(--ink)!important;background-image:none!important}
+
+/* Cards — inner top highlight for depth */
+.card,.stat,.kpi,.table-card{box-shadow:0 0 0 1px rgba(255,255,255,.9) inset,0 1px 4px rgba(0,0,0,.04),0 6px 24px rgba(0,0,0,.07)!important}
+.card:hover,.stat:hover,.kpi:hover{box-shadow:0 0 0 1px rgba(255,255,255,.9) inset,0 4px 16px rgba(0,0,0,.08),0 20px 52px rgba(0,0,0,.12)!important}
+html[data-theme="dark"] .card,html[data-theme="dark"] .stat,html[data-theme="dark"] .kpi{box-shadow:0 0 0 1px rgba(255,255,255,.05) inset,0 4px 24px rgba(0,0,0,.28)!important}
+
+/* Nav items — pill style, tighter margins */
+.nav-item{border-radius:10px!important;margin:1px 8px!important}
+.nav-item.active{border-radius:10px!important;margin:1px 8px!important}
+.nav-item:hover{border-radius:10px!important;margin:1px 8px!important;transform:none!important}
+
+/* Page heading gradient text */
+.page-hdr h1{background:linear-gradient(135deg,#0f172a 0%,#1e40af 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:28px!important;font-weight:800!important}
+html[data-theme="dark"] .page-hdr h1{background:none!important;-webkit-text-fill-color:var(--text)!important}
+
+/* Topbar logo - keep crisp */
+.topbar-logo{font-family:'Plus Jakarta Sans',sans-serif!important;font-weight:800!important;font-size:17px!important;letter-spacing:-.5px!important}
+
+/* Progress bars — gradient */
+.progress-bar{background:linear-gradient(90deg,#2563eb,#7c3aed)!important;border-radius:99px!important}
+
+/* Table — tighter, cleaner */
+.tbl th{font-family:'Plus Jakarta Sans',sans-serif!important;font-size:11px!important;font-weight:700!important;letter-spacing:.8px!important}
+.tbl tbody tr:hover td{background:rgba(37,99,235,.04)!important}
+
+/* Avatar gradient pop */
+.avatar{box-shadow:0 2px 8px rgba(37,99,235,.28)!important}
+
+/* Stat label */
+.stat-label{font-family:'Plus Jakarta Sans',sans-serif!important;font-size:11px!important;font-weight:700!important;letter-spacing:.9px!important;opacity:.6!important}
+
+/* Section label */
+.sec-label{font-family:'Plus Jakarta Sans',sans-serif!important;font-size:10px!important;font-weight:800!important;letter-spacing:1.2px!important}
+
+/* Modal header */
+.modal-hdr h2{font-family:'Plus Jakarta Sans',sans-serif!important;font-weight:800!important;letter-spacing:-.4px!important}
+
+/* Badge — sharper radius */
+.badge{border-radius:8px!important;font-family:'Plus Jakarta Sans',sans-serif!important;font-size:11px!important;font-weight:700!important}
+
+/* Topbar search / user pill */
+.user-pill{border-radius:99px!important;font-family:'Plus Jakarta Sans',sans-serif!important;font-size:13px!important;font-weight:600!important}
+
+/* Breadcrumb */
+.breadcrumb{font-family:'Plus Jakarta Sans',sans-serif!important;font-size:13px!important}
+
+/* Input focus ring */
+.input:focus{box-shadow:0 0 0 3px rgba(37,99,235,.12)!important;border-color:#2563eb!important}
+
+/* Tabs — sharper active indicator */
+.tab.active{font-family:'Plus Jakarta Sans',sans-serif!important;font-weight:700!important}
+.tab{font-family:'Plus Jakarta Sans',sans-serif!important}
+
+
+/* === GTTC ULTRA === */
+
+/* 1. KPI gradient numbers */
+.kpi .value{background:linear-gradient(135deg,#052e16 0%,#16a34a 100%)!important;-webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;background-clip:text!important}
+html[data-theme="dark"] .kpi .value{background:none!important;-webkit-text-fill-color:var(--text,var(--t1))!important}
+
+/* 2. Glass sidebar */
+.sidebar{backdrop-filter:blur(20px) saturate(160%)!important;-webkit-backdrop-filter:blur(20px) saturate(160%)!important}
+
+/* 3. Sidebar role accent strip */
+.sidebar::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,rgba(255,255,255,.0) 0%,rgba(255,255,255,.7) 50%,rgba(255,255,255,.0) 100%),linear-gradient(90deg,#16a34a,#16a34a);animation:gttcBar 3s linear infinite;z-index:10}
+
+/* 4. Card top accent on hover */
+.card,.stat,.kpi,.kpi-card,.table-card{position:relative}
+.card::before,.stat::before,.kpi::before,.kpi-card::before,.table-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,#16a34a 50%,transparent 100%);opacity:0;transition:opacity .3s ease;z-index:2;pointer-events:none}
+.card:hover::before,.stat:hover::before,.kpi:hover::before,.kpi-card:hover::before,.table-card:hover::before{opacity:1}
+
+/* 5. Card shimmer on hover */
+.card::after,.stat::after,.kpi::after,.kpi-card::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.0) 0%,rgba(255,255,255,.18) 40%,rgba(255,255,255,.0) 100%);opacity:0;transition:opacity .3s ease;pointer-events:none;border-radius:inherit;z-index:1}
+.card:hover::after,.stat:hover::after,.kpi:hover::after,.kpi-card:hover::after{opacity:1}
+
+/* 6. Card elevated hover glow */
+.card:hover,.stat:hover{box-shadow:0 0 0 1px rgba(255,255,255,.9) inset,0 4px 16px rgba(0,0,0,.08),0 24px 56px rgba(0,0,0,.13),0 0 40px rgba(22,163,74,.08)!important}
+
+/* 7. Glass topbar */
+#topbar,.topbar{backdrop-filter:blur(12px) saturate(150%)!important;-webkit-backdrop-filter:blur(12px) saturate(150%)!important}
+
+/* 8. Button glow on hover */
+.btn-primary:hover{box-shadow:0 8px 28px rgba(22,163,74,.50),0 1px 0 rgba(255,255,255,.22) inset,0 0 0 1px rgba(22,163,74,.1)!important}
+
+/* 9. KPI number hover scale */
+.kpi .value:hover{transform:scale(1.04);display:inline-block}
+
+/* 10. Topbar border bottom role accent */
+#topbar,.topbar{border-bottom:1.5px solid rgba(22,163,74,.18)!important}
+
+
+/* === GTTC AMBIENT === */
+
+/* Scrollbar — thin + role-colored thumb */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(22,163,74,.35);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:rgba(22,163,74,.6)}
+
+/* Ambient background gradient orb */
+body::after{
+  content:'';position:fixed;
+  width:700px;height:700px;
+  border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(22,163,74,.07) 0%,transparent 70%);
+  top:-200px;right:-150px;
+  pointer-events:none;z-index:0;
+  animation:ambientFloat 12s ease-in-out infinite alternate;
+}
+@keyframes ambientFloat{
+  0%{transform:translate(0,0) scale(1)}
+  100%{transform:translate(-60px,80px) scale(1.1)}
+}
+
+/* Input / select premium focus ring */
+input:focus,select:focus,textarea:focus{
+  outline:none!important;
+  border-color:#16a34a!important;
+  box-shadow:0 0 0 3px rgba(22,163,74,.15)!important;
+}
+
+/* Sidebar nav section labels */
+.nav-section{
+  font-family:'Plus Jakarta Sans',sans-serif!important;
+  font-size:9px!important;font-weight:800!important;
+  letter-spacing:1.5px!important;opacity:.45!important;
+  padding-left:16px!important;margin-top:12px!important
+}
+
+/* Link text in sidebar */
+.sidebar a,.nav-link{
+  font-family:'Plus Jakarta Sans',sans-serif!important;
+  font-weight:600!important;font-size:13.5px!important
+}
+
+/* Table header — uppercase micro labels */
+th{
+  font-family:'Plus Jakarta Sans',sans-serif!important;
+  font-size:10.5px!important;font-weight:800!important;
+  letter-spacing:1px!important;text-transform:uppercase!important;
+  color:rgba(15,23,42,.5)!important
+}
+html[data-theme="dark"] th{color:rgba(255,255,255,.4)!important}
+
+/* Smooth page transitions for content area */
+#content,main,.content{transition:opacity .2s ease}
+
+/* Form labels — premium weight */
+label,.label{
+  font-family:'Plus Jakarta Sans',sans-serif!important;
+  font-size:11px!important;font-weight:700!important;
+  letter-spacing:.5px!important
+}
+
+
+/* === NAV FONT FORCE WHITE === */
+.nav-item,.nav-link,.nav-item *{color:#FFFFFF!important;text-shadow:0 0 12px rgba(255,255,255,.55),0 0 24px rgba(255,255,255,.25)!important}
+.nav-item:hover,.nav-link:hover{color:#FFFFFF!important;opacity:1!important;text-shadow:0 0 16px rgba(255,255,255,.80),0 0 32px rgba(255,255,255,.35)!important}
+.nav-item.active,.nav-link.active{color:#FFFFFF!important;opacity:1!important;text-shadow:0 0 18px rgba(255,255,255,.90),0 0 36px rgba(255,255,255,.45)!important}
+.nav-section-label{opacity:.55!important}
+</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/portal-compat.css?v=17">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div style="font-size:2.4rem"><i class="ti ti-building"></i></div>
+      <h1>Principal Portal</h1>
+      <p>GTTC Robotics Training Dashboard</p>
+      <span class="login-badge">SCHOOL PRINCIPAL</span>
+    </div>
+    <div class="fg">
+      <label>Login ID (Email)</label>
+      <input type="email" id="loginEmail" placeholder="principal@school.edu" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="fg">
+      <label>Password</label>
+      <input type="password" id="loginPwd" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doLogin()" id="loginBtn">Sign In</button>
+    <p id="loginErr" style="color:#dc2626;font-size:.82rem;margin-top:10px;text-align:center;display:none"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2><i class="ti ti-building"></i> Principal Portal</h2>
+      <p>School View — Read Only</p>
+      <div class="school-badge" id="schoolBadge">Loading…</div>
+      <div class="udise-badge" id="udiseBadge">UDISE: —</div>
+    </div>
+    <nav class="nav-section">
+      <div class="nav-label">Navigation</div>
+      <div class="nav-item active" onclick="navigate('home')" id="nav-home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="navigate('reports')" id="nav-reports">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Monthly Reports
+      </div>
+      <div class="nav-item" onclick="navigate('school')" id="nav-school">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        School Profile
+      </div>
+      <div class="nav-item" onclick="navigate('gallery')" id="nav-gallery">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+        Gallery
+      </div>
+      <div class="nav-item" onclick="navigate('notifications')" id="nav-notifications" style="position:relative">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Notifications
+        <span id="nav-notif-dot" style="display:none;width:8px;height:8px;background:#dc2626;border-radius:50%;position:absolute;right:14px;top:50%;transform:translateY(-50%)"></span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="side-user">
+        <div class="side-avatar" id="sideAvatar">PR</div>
+        <div class="side-user-info">
+          <p id="sideName">Principal</p>
+          <span>School Principal</span>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-logos">
+        <img src="/static/img/samagra-shikshana.png" alt="Samagra Shikshana" onerror="this.style.display='none'">
+        <img src="/static/img/gttc-logo.png" alt="GTTC" onerror="this.style.display='none'">
+        <img src="/static/img/aim-niti.png" alt="NITI Aayog / AIM" onerror="this.style.display='none'">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="readonly-badge"><i class="ti ti-eye"></i> View Only — No Edit Access</span>
+        <button onclick="navigate('notifications')" title="Notifications" style="position:relative;background:none;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:5px 9px;color:#64748b;display:flex;align-items:center">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notif-badge" style="display:none;position:absolute;top:2px;right:2px;font-size:9px;min-width:14px;height:14px;line-height:14px;text-align:center;padding:0 3px;border-radius:7px;background:#dc2626;color:#fff;font-weight:700"></span>
+        </button>
+        <span id="topbarDate" style="font-size:.8rem;color:#64748b"></span>
+      </div>
+    </div>
+    <div class="page-content" id="pageContent"></div>
+  </div>
+</div>
+
+<!-- View Report Modal -->
+<div class="modal-bg" id="viewModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="viewModalTitle">Report Details</h3>
+      <button class="modal-close" onclick="closeModal('viewModal')">×</button>
+    </div>
+    <div class="modal-body" id="viewModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('viewModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const STATE = { token: null, me: null, school: null, reports: null };
+const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ── API ──────────────────────────────────────────────────
+async function api(url, opts = {}) {
+  const h = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (STATE.token) h['Authorization'] = 'Bearer ' + STATE.token;
+  const res = await fetch(url, { ...opts, headers: h });
+  if (res.status === 401) { doLogout(); throw new Error('Session expired'); }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e||{}).detail || `HTTP ${res.status}`); }
+  return res.json();
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast-item toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); }));
+
+// ── AUTH ─────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pwd   = document.getElementById('loginPwd').value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn');
+  errEl.style.display = 'none';
+  if (!email || !pwd) { errEl.textContent = 'Enter email and password.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const body = new URLSearchParams({ username: email, password: pwd });
+    const res  = await fetch('/api/auth/token', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Invalid credentials'); }
+    const data = await res.json();
+    if (data.role !== 'principal') throw new Error('This portal is for School Principals only.');
+    STATE.token = data.access_token;
+    STATE.me = await api('/api/auth/me');
+    localStorage.setItem('gttc_principal_token', STATE.token);
+    startApp();
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  } finally { btn.disabled = false; btn.textContent = 'Sign In'; }
+}
+
+function doLogout() {
+  localStorage.removeItem('gttc_principal_token');
+  localStorage.removeItem('gttc_token');
+  localStorage.removeItem('gttc_role');
+  localStorage.removeItem('gttc_name');
+  STATE.token = null; STATE.me = null; STATE.school = null; STATE.reports = null;
+  window.location.replace('/login');
+}
+
+// ── Utility: count-up animation ──────────────────────────────
+function countUp(el, target, duration = 650) {
+  if (!el || isNaN(target)) return;
+  const start = Date.now();
+  const step = () => {
+    const p = Math.min((Date.now() - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(ease * target).toLocaleString('en-IN');
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = target.toLocaleString('en-IN');
+  };
+  requestAnimationFrame(step);
+}
+
+// ── Utility: SVG ring progress ───────────────────────────────
+function mkRing(pct, labelTop, labelBot, color='#16a34a') {
+  const r = 38, circ = 2 * Math.PI * r;
+  const dash = circ * Math.min(Math.max(pct, 0), 1);
+  return `<svg viewBox="0 0 100 100" style="width:100px;height:100px">
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--border,#e2e8f0)" stroke-width="9"/>
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="9"
+      stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round"
+      transform="rotate(-90 50 50)" style="transition:stroke-dasharray .8s ease"/>
+    <text x="50" y="46" text-anchor="middle" font-size="15" font-weight="800" fill="var(--text,#0f172a)">${labelTop}</text>
+    <text x="50" y="60" text-anchor="middle" font-size="8" fill="var(--text3,#94a3b8)">${labelBot}</text>
+  </svg>`;
+}
+
+// ── Utility: mini SVG bars ────────────────────────────────────
+function mkMiniChart(vals, labels, color) {
+  const max = Math.max(...vals, 1);
+  const bW = 26, gap = 8, h = 52;
+  const svgW = vals.length * (bW + gap) - gap;
+  const bars = vals.map((v, i) => {
+    const bH = Math.max(3, Math.round((v / max) * h));
+    const x = i * (bW + gap);
+    return `<rect x="${x}" y="${h - bH}" width="${bW}" height="${bH}" rx="3" fill="${color}" opacity="${v === 0 ? .18 : .8}"/>
+      <text x="${x + bW/2}" y="${h + 12}" text-anchor="middle" font-size="8" fill="var(--text3,#94a3b8)">${labels[i]||''}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${svgW} ${h + 16}" style="width:100%;height:auto;display:block;overflow:visible">${bars}</svg>`;
+}
+
+// ── APP START ────────────────────────────────────────────
+async function startApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+
+  const name = STATE.me.name || 'Principal';
+  document.getElementById('sideName').textContent = name;
+  document.getElementById('sideAvatar').textContent = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  try {
+    const schools = await api('/api/admin/schools?limit=5');
+    STATE.school = schools[0] || null;
+    if (STATE.school) {
+      document.getElementById('schoolBadge').textContent = STATE.school.name;
+      document.getElementById('udiseBadge').textContent  = 'UDISE: ' + (STATE.school.udise_code || '—');
+    } else {
+      document.getElementById('schoolBadge').textContent = 'No school assigned';
+      document.getElementById('udiseBadge').textContent  = 'UDISE: —';
+    }
+  } catch (e) { document.getElementById('schoolBadge').textContent = 'Error loading school'; }
+
+  navigate('home');
+  refreshPrincipalNotifBadge();
+  setInterval(refreshPrincipalNotifBadge, 60000);
+}
+
+// ── NAVIGATION ───────────────────────────────────────────
+const PAGE_TITLES = { home: 'Dashboard', reports: 'Monthly Reports', school: 'School Profile', gallery: 'Gallery', notifications: 'Notifications' };
+
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+  document.getElementById('topbarTitle').textContent = PAGE_TITLES[page] || page;
+  const pc = document.getElementById('pageContent');
+  ({ home: pageHome, reports: pageReports, school: pageSchool, gallery: pagePrincipalGallery, notifications: pagePrincipalNotifications })[page]?.(pc);
+}
+
+// ── GALLERY (read-only) ──────────────────────────────────
+const GAL_CAT = { industrial_visit:'Industrial Visit', group:'Group Photo', lab:'Lab', competition:'Competition' };
+const GAL_MON = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function pagePrincipalGallery(el){
+  el.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-sm gfilter active" onclick="pFilterGallery(this,'')">All</button>
+      <button class="btn btn-sm gfilter" onclick="pFilterGallery(this,'industrial_visit')">Industrial Visits</button>
+      <button class="btn btn-sm gfilter" onclick="pFilterGallery(this,'group')">Group Photos</button>
+      <button class="btn btn-sm gfilter" onclick="pFilterGallery(this,'lab')">Lab</button>
+      <button class="btn btn-sm gfilter" onclick="pFilterGallery(this,'competition')">Competitions</button>
+    </div>
+    <div id="galleryGrid"><div class="skeleton" style="height:120px;border-radius:12px"></div></div>`;
+  pLoadGallery('');
+}
+async function pLoadGallery(cat){
+  const grid = document.getElementById('galleryGrid');
+  if(!grid) return;
+  try {
+    const imgs = await api('/api/gallery' + (cat ? `?category=${cat}` : ''));
+    if(!imgs.length){ grid.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">No images yet.</div>'; return; }
+    grid.innerHTML = `<div class="gallery-grid">${imgs.map(pGalleryCard).join('')}</div>`;
+  } catch(e){ grid.innerHTML = `<div class="notice" style="color:#dc2626">${e.message}</div>`; }
+}
+function pFilterGallery(btn,cat){ document.querySelectorAll('.gfilter').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); pLoadGallery(cat); }
+function pGalleryCard(g){
+  const esc = s => (s||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const date = g.report_month ? `${GAL_MON[g.report_month]} ${g.report_year}` : (g.created_at?new Date(g.created_at).toLocaleDateString():'');
+  return `<div class="gallery-card">
+    <div class="gallery-img" style="background-image:url('${g.image_url}')" onclick="window.open('${g.image_url}','_blank')" title="Click to view full size"></div>
+    <div class="gallery-meta">
+      <span class="gallery-cat cat-${g.category}">${GAL_CAT[g.category]||g.category}</span>
+      <div class="gallery-title">${esc(g.title||GAL_CAT[g.category])}</div>
+      ${g.description?`<div class="gallery-desc">${esc(g.description)}</div>`:''}
+      <div class="gallery-sub">${esc(g.school_name)}${date?' · '+date:''}</div>
+      <a class="btn btn-sm btn-ghost" href="${g.image_url}" download style="margin-top:10px;width:100%;justify-content:center"><i class="ti ti-download"></i> Download</a>
+    </div></div>`;
+}
+
+// ── STANDARD 12 KPI CARDS (role-scoped) ──────────────────
+const STD_KPI_CARDS = `
+  <div class="g4" style="margin-bottom:16px">
+    <div class="stat"><div class="stat-accent" style="background:var(--blue)"></div>
+      <div class="stat-label">Total Schools</div>
+      <div class="stat-val" style="color:var(--blue)" id="kc-schools">—</div>
+      <div class="stat-sub" id="kc-schools-sub">loading</div></div>
+    <div class="stat"><div class="stat-accent" style="background:#7c3aed"></div>
+      <div class="stat-label">Active ATL Labs</div>
+      <div class="stat-val" style="color:#7c3aed" id="kc-labs">—</div>
+      <div class="stat-sub">Continuously reporting</div></div>
+    <div class="stat"><div class="stat-accent" style="background:var(--green)"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="stat-label">Students Used ATL</div>
+          <div class="stat-val" style="color:var(--green)" id="kc-students">—</div>
+          <div class="stat-sub">School + community</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px;text-align:right">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">Gender</div>
+          <div style="font-size:13px;color:var(--text2)"><span style="font-size:15px;font-weight:700;color:#e91e8c" id="kc-girls">—</span> Girls</div>
+          <div style="font-size:13px;color:var(--text2)"><span style="font-size:15px;font-weight:700;color:var(--blue)" id="kc-boys">—</span> Boys</div>
+        </div>
+      </div></div>
+    <div class="stat"><div class="stat-accent" style="background:var(--purple)"></div>
+      <div class="stat-label">ATL Workshops</div>
+      <div class="stat-val" style="color:var(--purple)" id="kc-workshops">—</div>
+      <div class="stat-sub">Total conducted</div></div>
+  </div>
+  <div class="g4" style="margin-bottom:16px">
+    <div class="stat"><div class="stat-accent" style="background:#0891b2"></div>
+      <div class="stat-label">ATL Mentoring Sessions</div>
+      <div class="stat-val" style="color:#0891b2" id="kc-mentoring">—</div>
+      <div class="stat-sub">Sessions by Mentors of Change</div></div>
+    <div class="stat"><div class="stat-accent" style="background:var(--amber)"></div>
+      <div class="stat-label">Innovation Projects</div>
+      <div class="stat-val" style="color:var(--amber)" id="kc-projects">—</div>
+      <div class="stat-sub">Neoteric Innovations</div></div>
+    <div class="stat"><div class="stat-accent" style="background:#0f766e"></div>
+      <div class="stat-label">IP Filed</div>
+      <div class="stat-val" style="color:#0f766e" id="kc-ipfiled">—</div>
+      <div class="stat-sub">Patents/Copyrights filed</div></div>
+    <div class="stat"><div class="stat-accent" style="background:#be185d"></div>
+      <div class="stat-label">IP Granted</div>
+      <div class="stat-val" style="color:#be185d" id="kc-ipgranted">—</div>
+      <div class="stat-sub">Patents/Copyrights granted</div></div>
+  </div>
+  <div class="g4" style="margin-bottom:24px">
+    <div class="stat"><div class="stat-accent" style="background:var(--teal)"></div>
+      <div class="stat-label">ATL Competitions</div>
+      <div class="stat-val" style="color:var(--teal)" id="kc-atlevents">—</div>
+      <div class="stat-sub">Events conducted</div></div>
+    <div class="stat"><div class="stat-accent" style="background:#d97706"></div>
+      <div class="stat-label">Teams in ATL Competitions</div>
+      <div class="stat-val" style="color:#d97706" id="kc-atlpart">—</div>
+      <div class="stat-sub">ATL teams participated</div></div>
+    <div class="stat"><div class="stat-accent" style="background:#059669"></div>
+      <div class="stat-label">Teams in Other Competitions</div>
+      <div class="stat-val" style="color:#059669" id="kc-otherpart">—</div>
+      <div class="stat-sub">Other Competitions</div></div>
+    <div class="stat"><div class="stat-accent" style="background:#dc2626"></div>
+      <div class="stat-label">Industrial Visits</div>
+      <div class="stat-val" style="color:#dc2626" id="kc-industrial">—</div>
+      <div class="stat-sub">Enterpreneurial Thinking</div></div>
+  </div>`;
+
+async function loadStdKpis() {
+  try {
+    const k = await api('/api/analytics/kpis');
+    const fmt = n => (n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'K' : String(n||0));
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    set('kc-schools', k.total_schools||0);
+    set('kc-schools-sub', (k.submitted_schools||0) + ' submitted');
+    set('kc-labs', k.active_labs||0);
+    set('kc-students', fmt(k.total_students||0));
+    set('kc-girls', fmt(k.total_girls||0));
+    set('kc-boys', fmt(k.total_boys||0));
+    set('kc-workshops', fmt(k.total_workshops||0));
+    set('kc-mentoring', fmt(k.total_mentoring||0));
+    set('kc-projects', fmt(k.total_projects||0));
+    set('kc-ipfiled', fmt(k.total_ip_filed||0));
+    set('kc-ipgranted', fmt(k.total_ip_granted||0));
+    set('kc-atlevents', k.atl_competition_events||0);
+    set('kc-atlpart', fmt(k.atl_participants||0));
+    set('kc-otherpart', fmt(k.other_participants||0));
+    set('kc-industrial', fmt(k.industrial_visits||0));
+  } catch (e) {}
+}
+
+// ── DASHBOARD ────────────────────────────────────────────
+async function pageHome(el) {
+  const sc = STATE.school || {};
+  const now = new Date();
+  el.innerHTML = `
+    <div class="ro-notice"><i class="ti ti-eye"></i> You have view-only access. Reports are submitted by your ATL Trainer. Contact your Division Master (SPM GTTC) for any changes.</div>
+
+    ${STD_KPI_CARDS}
+
+    <!-- Annual progress + monthly bars -->
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:20px;align-items:center">
+      <div class="card" style="margin:0;display:flex;align-items:center;gap:18px;padding:18px 22px;min-width:260px">
+        <div id="pr-annual-ring"><div class="skeleton" style="width:100px;height:100px;border-radius:50%"></div></div>
+        <div>
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Annual Submissions</div>
+          <div id="pr-annual-label" style="font-size:22px;font-weight:800;margin-top:4px">—/12</div>
+          <div id="pr-annual-status" style="font-size:12px;margin-top:4px;color:var(--text3)">Loading…</div>
+        </div>
+      </div>
+      <div class="card" style="margin:0;padding:18px 22px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Students Per Month (This Year)</span>
+        </div>
+        <div id="pr-monthly-bars" style="min-height:70px"><div class="skeleton" style="height:68px"></div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="card" style="margin:0">
+        <h3>School Info</h3>
+        ${infoRow('UDISE Code', sc.udise_code)}
+        ${infoRow('ATL Lab Code', sc.atl_lab_code)}
+        ${infoRow('District', sc.district)}
+        ${infoRow('Lab Type', sc.lab_type ? sc.lab_type.toUpperCase() : null)}
+        ${infoRow('School Type', sc.school_type ? cap(sc.school_type) : null)}
+        ${infoRow('Max Grade', sc.max_grade ? 'Grade ' + sc.max_grade : null)}
+      </div>
+      <div class="card" style="margin:0">
+        <h3>Quick Links</h3>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-primary" style="justify-content:flex-start" onclick="navigate('reports')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            View All Monthly Reports
+          </button>
+          <button class="btn btn-ghost" style="justify-content:flex-start" onclick="navigate('school')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            View School Profile
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><h3>Recent Monthly Reports</h3><button class="btn btn-sm btn-ghost" onclick="navigate('reports')">View All →</button></div>
+      <div style="overflow-x:auto">
+        <table><thead><tr><th>Month</th><th>Year</th><th>School Students</th><th>Community</th><th>Workshops</th><th>Mentoring</th><th>Projects</th><th>Won</th><th>Status</th><th></th></tr></thead>
+        <tbody id="homeRecentTb"><tr><td colspan="10"><div class="skeleton"></div></td></tr></tbody></table>
+      </div>
+    </div>`;
+  loadStdKpis();   // standard 12 KPI cards (scoped to this school)
+  loadHomeData();  // annual ring, monthly bars, recent reports
+}
+
+function infoRow(label, value) {
+  return `<div class="info-row"><span class="lbl">${label}</span><span class="val ${!value ? 'na' : ''}">${value || 'Not set'}</span></div>`;
+}
+
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : null; }
+
+async function getGlobalYear() {
+  if (!STATE.acadYear) {
+    try { STATE.acadYear = (await api('/api/dashboard/current-year')).academic_year; } catch (_) {}
+  }
+  return STATE.acadYear;
+}
+
+async function loadHomeData() {
+  try {
+    if (!STATE.reports) STATE.reports = await api('/api/reports?limit=300');
+    const reports = STATE.reports;
+    const now = new Date();
+    const nowAcYear = now.getMonth() + 1 >= 6 ? `${now.getFullYear()}-${String(now.getFullYear()+1).slice(2)}` : `${now.getFullYear()-1}-${String(now.getFullYear()).slice(2)}`;
+    // Scope all dashboard data to the admin-set global academic year.
+    const acYear = (await getGlobalYear()) || nowAcYear;
+    const thisYear = reports.filter(r => r.academic_year === acYear);
+
+    const sumF = (f) => thisYear.reduce((a, r) => a + (r[f] || 0), 0);
+    const totalStu = sumF('students_school') + sumF('students_community');
+    const totalWs  = sumF('workshops_count');
+    const totalWon = sumF('atl_competitions_won') + sumF('other_competitions_won');
+    const totalPr  = sumF('innovation_projects');
+    countUp(document.getElementById('hKpiStudents'), totalStu);
+    countUp(document.getElementById('hKpiWorkshops'), totalWs);
+    countUp(document.getElementById('hKpiWon'), totalWon);
+    countUp(document.getElementById('hKpiProjects'), totalPr);
+
+    // Annual progress ring
+    const submittedMonths = new Set(thisYear.filter(r => r.status === 'submitted').map(r => r.report_month));
+    const submitted12 = submittedMonths.size;
+    const ringEl = document.getElementById('pr-annual-ring');
+    const ringLbl = document.getElementById('pr-annual-label');
+    const ringStatus = document.getElementById('pr-annual-status');
+    // How many months should have been submitted by now in the academic year (April=1, May=2 ...)
+    const curM = now.getMonth() + 1, curY2 = now.getFullYear();
+    const acStart = now.getMonth() + 1 >= 4 ? 4 : 4;  // April = start
+    const acStartY = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+    const monthsElapsed = Math.max(1, ((curY2 - acStartY) * 12 + curM) - (acStartY * 12 + 3)); // months since April
+    const pct = Math.min(submitted12 / 12, 1);
+    const ringColor = pct >= 0.7 ? '#16a34a' : pct >= 0.4 ? '#d97706' : '#dc2626';
+    if (ringEl) ringEl.innerHTML = mkRing(pct, `${submitted12}/12`, 'months', ringColor);
+    if (ringLbl) ringLbl.textContent = `${submitted12} of 12 months`;
+    if (ringStatus) {
+      const overdue = Math.max(0, monthsElapsed - submitted12);
+      ringStatus.textContent = overdue > 0 ? `⚠ ${overdue} month${overdue > 1 ? 's' : ''} overdue` : '✅ On track';
+      ringStatus.style.color = overdue > 0 ? '#dc2626' : '#16a34a';
+    }
+
+    // Monthly student bars (12 months, Indian academic year June → May)
+    const MABB = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const acMonths = [6,7,8,9,10,11,12,1,2,3,4,5];
+    const barStartY = parseInt(acYear.split('-')[0], 10);
+    const acVals = acMonths.map(m => {
+      const y = m >= 6 ? barStartY : barStartY + 1;
+      const r = reports.find(rr => rr.report_year === y && rr.report_month === m);
+      return r ? (r.students_school || 0) + (r.students_community || 0) : 0;
+    });
+    const barsEl = document.getElementById('pr-monthly-bars');
+    if (barsEl) barsEl.innerHTML = mkMiniChart(acVals, acMonths.map(m => MABB[m]), '#16a34a');
+
+    const thisMonth = reports.find(r => r.report_year === now.getFullYear() && r.report_month === now.getMonth() + 1);
+    const statusEl = document.getElementById('hKpiStatus');
+    if (statusEl) {
+      if (!thisMonth) { statusEl.textContent = 'Not Submitted'; statusEl.style.color = '#dc2626'; }
+      else if (thisMonth.status === 'submitted') { statusEl.textContent = 'Submitted'; statusEl.style.color = '#16a34a'; }
+      else { statusEl.textContent = 'Draft'; statusEl.style.color = '#d97706'; }
+    }
+
+    const recent = [...reports].sort((a, b) => b.report_year * 100 + b.report_month - (a.report_year * 100 + a.report_month)).slice(0, 6);
+    document.getElementById('homeRecentTb').innerHTML = recent.map(r => `
+      <tr>
+        <td>${MONTHS[r.report_month]}</td><td>${r.report_year}</td>
+        <td>${r.students_school || 0}</td><td>${r.students_community || 0}</td>
+        <td>${r.workshops_count || 0}</td><td>${r.mentoring_sessions || 0}</td>
+        <td>${r.innovation_projects || 0}</td>
+        <td>${(r.atl_competitions_won || 0) + (r.other_competitions_won || 0)}</td>
+        <td>${r.status === 'submitted' ? '<span class="badge badge-success">Submitted</span>' : '<span class="badge badge-warn">Draft</span>'}</td>
+        <td><button class="btn btn-sm btn-ghost" onclick="viewReport(${r.id})">View</button></td>
+      </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:32px">No reports found</td></tr>';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── MONTHLY REPORTS ──────────────────────────────────────
+function pageReports(el) {
+  el.innerHTML = `
+    <div class="ro-notice"><i class="ti ti-eye"></i> Read-only view. Only your ATL Trainer can submit or edit reports.</div>
+    <div class="table-card">
+      <div class="table-header">
+        <h3>All Monthly Reports — ${STATE.school ? STATE.school.name : 'My School'}</h3>
+        <span style="font-size:.78rem;color:#64748b">UDISE: ${STATE.school ? STATE.school.udise_code : '—'}</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Month</th><th>Year</th><th>Acad. Year</th>
+            <th>Sch. Students</th><th>Comm. Students</th><th>Girls</th>
+            <th>Workshops (S)</th><th>Workshops (C)</th>
+            <th>Mentoring (S)</th><th>Mentoring (C)</th>
+            <th>Projects (S)</th><th>Projects (C)</th>
+            <th>Patents (S)</th><th>Patents (C)</th>
+            <th>ATL Won</th><th>Other Won</th>
+            <th>Status</th><th>Submitted</th><th></th>
+          </tr></thead>
+          <tbody id="reportsTb"><tr><td colspan="19"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  loadReports();
+}
+
+async function loadReports() {
+  try {
+    STATE.reports = await api('/api/reports?limit=300');
+    const sorted = [...STATE.reports].sort((a, b) => b.report_year * 100 + b.report_month - (a.report_year * 100 + a.report_month));
+    const tb = document.getElementById('reportsTb');
+    if (!tb) return;
+    tb.innerHTML = sorted.map(r => `<tr>
+      <td><strong>${MONTHS[r.report_month]}</strong></td>
+      <td>${r.report_year}</td>
+      <td style="font-size:.75rem;color:#64748b">${r.academic_year}</td>
+      <td style="text-align:center">${r.students_school || 0}</td>
+      <td style="text-align:center">${r.students_community || 0}</td>
+      <td style="text-align:center">${r.students_girls || 0}</td>
+      <td style="text-align:center">${r.workshops_school || 0}</td>
+      <td style="text-align:center">${r.workshops_community || 0}</td>
+      <td style="text-align:center">${r.mentoring_school || 0}</td>
+      <td style="text-align:center">${r.mentoring_community || 0}</td>
+      <td style="text-align:center">${r.innovation_school || 0}</td>
+      <td style="text-align:center">${r.innovation_community || 0}</td>
+      <td style="text-align:center">${r.patents_school || 0}</td>
+      <td style="text-align:center">${r.patents_community || 0}</td>
+      <td style="text-align:center">${r.atl_competitions_won || 0}</td>
+      <td style="text-align:center">${r.other_competitions_won || 0}</td>
+      <td>${r.status === 'submitted' ? '<span class="badge badge-success">Submitted</span>' : '<span class="badge badge-warn">Draft</span>'}</td>
+      <td style="font-size:.75rem">${r.submitted_at ? new Date(r.submitted_at).toLocaleDateString('en-IN') : '—'}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="viewReport(${r.id})">View</button></td>
+    </tr>`).join('') || '<tr><td colspan="19" style="text-align:center;color:#94a3b8;padding:32px">No reports submitted yet for your school.</td></tr>';
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── VIEW REPORT MODAL ────────────────────────────────────
+async function viewReport(id) {
+  try {
+    const r = await api(`/api/reports/${id}`);
+    document.getElementById('viewModalTitle').textContent = `${MONTHS[r.report_month]} ${r.report_year} — ${r.school_name || STATE.school?.name || ''}`;
+    document.getElementById('viewModalBody').innerHTML = `
+      <div class="ro-notice" style="margin-bottom:12px"><i class="ti ti-eye"></i> View only — contact your Division Master (SPM GTTC) for edits</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.85rem;margin-bottom:16px">
+        ${vRow('Academic Year', r.academic_year)}
+        ${vRow('Status', r.status === 'submitted' ? '<i class="ti ti-circle-check"></i> Submitted' : '<i class="ti ti-clipboard-list"></i> Draft')}
+        ${vRow('Submitted On', r.submitted_at ? new Date(r.submitted_at).toLocaleDateString('en-IN') : '—')}
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:.83rem;margin-bottom:14px">
+        <thead>
+          <tr style="background:#f0fdf4">
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;color:#15803d">Activity</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e2e8f0;color:#15803d">School</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e2e8f0;color:#15803d">Community</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e2e8f0;color:#15803d">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${actRow('Students Used ATL', r.students_school, r.students_community)}
+          ${actRow('Workshops / Exhibitions', r.workshops_school, r.workshops_community)}
+          ${actRow('Mentoring Sessions', r.mentoring_school, r.mentoring_community)}
+          ${actRow('Innovation Projects', r.innovation_school, r.innovation_community)}
+          ${actRow('Patents Granted', r.patents_school, r.patents_community)}
+          ${actRow('Copyrights Granted', r.copyrights_school, r.copyrights_community)}
+          <tr style="background:#f8fafc">
+            <td style="padding:7px 10px;font-weight:600">Girl Students</td>
+            <td colspan="2" style="text-align:center;padding:7px 10px">${r.students_girls || 0}</td>
+            <td style="text-align:center;padding:7px 10px;font-weight:600">${r.students_girls || 0}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style="width:100%;border-collapse:collapse;font-size:.83rem;margin-bottom:14px">
+        <thead>
+          <tr style="background:#f0fdf4">
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;color:#15803d">Competition</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e2e8f0;color:#15803d">Participated</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e2e8f0;color:#15803d">Won</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:7px 10px">ATL Competitions</td><td style="text-align:center;padding:7px 10px">${r.atl_competitions_participated || 0}</td><td style="text-align:center;padding:7px 10px;font-weight:600;color:#16a34a">${r.atl_competitions_won || 0}</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:7px 10px">Other Competitions</td><td style="text-align:center;padding:7px 10px">${r.other_competitions_participated || 0}</td><td style="text-align:center;padding:7px 10px;font-weight:600;color:#16a34a">${r.other_competitions_won || 0}</td></tr>
+        </tbody>
+      </table>
+
+      ${r.highlight_of_month ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:.84rem;margin-bottom:10px"><strong style="color:#15803d">Highlight of Month:</strong><br>${r.highlight_of_month}</div>` : ''}
+      ${r.social_post_link_1 ? `<div style="font-size:.82rem;margin-top:8px"><strong>Social Links:</strong><br>
+        ${r.social_post_link_1 ? `<a href="${r.social_post_link_1}" target="_blank" style="color:#16a34a;display:block;margin-top:4px;word-break:break-all">${r.social_post_link_1}</a>` : ''}
+        ${r.social_post_link_2 ? `<a href="${r.social_post_link_2}" target="_blank" style="color:#16a34a;display:block;margin-top:4px;word-break:break-all">${r.social_post_link_2}</a>` : ''}
+        ${r.social_post_link_3 ? `<a href="${r.social_post_link_3}" target="_blank" style="color:#16a34a;display:block;margin-top:4px;word-break:break-all">${r.social_post_link_3}</a>` : ''}
+      </div>` : ''}`;
+    openModal('viewModal');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function vRow(label, value) {
+  return `<div style="padding:7px 10px;background:#f8fafc;border-radius:6px"><div style="font-size:.7rem;color:#64748b;margin-bottom:2px">${label}</div><div style="font-weight:600">${value ?? '—'}</div></div>`;
+}
+function actRow(label, school, community) {
+  const s = school || 0, c = community || 0;
+  return `<tr><td style="padding:7px 10px">${label}</td><td style="text-align:center;padding:7px 10px">${s}</td><td style="text-align:center;padding:7px 10px">${c}</td><td style="text-align:center;padding:7px 10px;font-weight:700;color:#15803d">${s+c}</td></tr>`;
+}
+
+// ── SCHOOL PROFILE ───────────────────────────────────────
+async function pageSchool(el) {
+  const sc = STATE.school;
+  if (!sc) { el.innerHTML = `<div style="text-align:center;padding:60px;color:#94a3b8">No school assigned to your account.</div>`; return; }
+
+  el.innerHTML = `
+    <div class="ro-notice"><i class="ti ti-eye"></i> School profile is read-only. Contact your Division Master (SPM GTTC) to update any information.</div>
+
+    <div class="info-section">
+      <h4><i class="ti ti-building"></i> Basic School Information</h4>
+      <div class="info-grid">
+        <div>
+          ${infoRow('School Name', sc.name)}
+          ${infoRow('UDISE Code', sc.udise_code)}
+          ${infoRow('ATL Lab Code', sc.atl_lab_code)}
+          ${infoRow('District', sc.district)}
+          ${infoRow('PIN Code', sc.pin_code)}
+          ${infoRow('State', sc.state)}
+        </div>
+        <div>
+          ${infoRow('School Type', cap(sc.school_type))}
+          ${infoRow('Lab Type', sc.lab_type ? sc.lab_type.toUpperCase() : null)}
+          ${infoRow('Max Grade', sc.max_grade ? 'Grade ' + sc.max_grade : null)}
+          ${infoRow('Education Type', cap(sc.education_type))}
+          ${infoRow('Contact No.', sc.contact_no)}
+          ${infoRow('School Email', sc.school_email)}
+        </div>
+      </div>
+      ${sc.address ? `<div class="info-row" style="margin-top:8px"><span class="lbl">Address</span><span class="val" style="text-align:right">${sc.address}</span></div>` : ''}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="info-section" style="margin:0">
+        <h4><i class="ti ti-user"></i> Principal Details</h4>
+        ${infoRow('Principal Name', sc.principal_name)}
+        ${infoRow('Principal Email', sc.principal_email)}
+        ${infoRow('Principal Mobile', sc.principal_phone)}
+      </div>
+      <div class="info-section" style="margin:0">
+        <h4><i class="ti ti-tool"></i> Lab Incharge (School Side)</h4>
+        ${infoRow('Incharge Name', sc.lab_incharge_name)}
+        ${infoRow('Incharge Email', sc.lab_incharge_email)}
+        ${infoRow('Incharge Mobile', sc.lab_incharge_phone)}
+      </div>
+    </div>
+
+    <div class="info-section" style="margin-top:16px">
+      <h4><i class="ti ti-building-factory-2"></i> Lab Details</h4>
+      <div class="info-grid">
+        <div>
+          ${infoRow('Lab Area', sc.lab_area_sqft ? sc.lab_area_sqft + ' sq. ft.' : null)}
+          ${infoRow('Launch Date', sc.lab_launch_date)}
+        </div>
+        <div>
+          ${infoRow('Facebook', sc.social_facebook ? '<i class="ti ti-check"></i> Set' : null)}
+          ${infoRow('YouTube', sc.social_youtube ? '<i class="ti ti-check"></i> Set' : null)}
+          ${infoRow('GTTC CLICKS', sc.social_gttc_clicks ? '<i class="ti ti-check"></i> Set' : null)}
+        </div>
+      </div>
+      ${(sc.lab_photo_1 || sc.lab_photo_2 || sc.lab_photo_3) ? `
+        <div style="margin-top:14px">
+          <p style="font-size:.78rem;font-weight:600;color:#15803d;margin-bottom:8px">Lab Photos</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            ${[sc.lab_photo_1, sc.lab_photo_2, sc.lab_photo_3].filter(Boolean).map(p => `<img src="${p}" style="width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0">`).join('')}
+          </div>
+        </div>` : ''}
+    </div>`;
+}
+
+// ── NOTIFICATIONS ────────────────────────────────────────
+async function refreshPrincipalNotifBadge() {
+  try {
+    const data = await api('/api/admin/notifications');
+    const badge = document.getElementById('notif-badge');
+    const dot   = document.getElementById('nav-notif-dot');
+    if (data && data.unread > 0) {
+      if (badge) { badge.textContent = data.unread > 9 ? '9+' : data.unread; badge.style.display = ''; }
+      if (dot) dot.style.display = '';
+    } else {
+      if (badge) badge.style.display = 'none';
+      if (dot) dot.style.display = 'none';
+    }
+  } catch(_) {}
+}
+
+async function markPrincipalNotifRead(id, card) {
+  try {
+    await api(`/api/admin/notifications/${id}/read`, {method:'PATCH'});
+    if (card) {
+      card.style.borderColor = '#e2e8f0';
+      const dot = card.querySelector('.notif-dot');
+      if (dot) dot.style.background = '#e2e8f0';
+    }
+    refreshPrincipalNotifBadge();
+  } catch(_) {}
+}
+
+async function markAllPrincipalNotifRead() {
+  try {
+    await api('/api/admin/notifications/read-all', {method:'PATCH'});
+    document.querySelectorAll('[data-notif-id]').forEach(card => {
+      card.style.borderColor = '#e2e8f0';
+      const dot = card.querySelector('.notif-dot');
+      if (dot) dot.style.background = '#e2e8f0';
+    });
+    refreshPrincipalNotifBadge();
+  } catch(_) {}
+}
+
+function pagePrincipalNotifications(el) {
+  el.innerHTML = `
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;gap:10px">
+    <div>
+      <h2 style="font-size:22px;font-weight:800;margin:0;color:#1e293b">Notifications</h2>
+      <p style="font-size:14px;color:#64748b;margin:4px 0 0">Alerts and updates for your school</p>
+    </div>
+    <button onclick="markAllPrincipalNotifRead()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;color:#1e293b;font-size:13px;cursor:pointer;font-weight:600">Mark all read</button>
+  </div>
+  <div id="notif-list" style="display:flex;flex-direction:column;gap:10px">
+    <div style="padding:32px;text-align:center;opacity:.4">Loading…</div>
+  </div>`;
+  loadPrincipalNotifList();
+}
+
+async function loadPrincipalNotifList() {
+  const el = document.getElementById('notif-list');
+  if (!el) return;
+  const TYPE_ICON = { pending_report:'ti-clock-exclamation', report_reviewed:'ti-circle-check', competition_added:'ti-trophy', reminder_sent:'ti-send' };
+  const TYPE_COLOR = { pending_report:'#f59e0b', report_reviewed:'#16a34a', competition_added:'#2563eb', reminder_sent:'#7c3aed' };
+  try {
+    const data = await api('/api/admin/notifications');
+    if (!data || !data.items || !data.items.length) {
+      el.innerHTML = '<div style="padding:48px;text-align:center;opacity:.4;font-size:15px">No notifications yet</div>';
+      return;
+    }
+    el.innerHTML = data.items.map(n => {
+      const color = TYPE_COLOR[n.notif_type] || '#64748b';
+      const icon  = TYPE_ICON[n.notif_type]  || 'ti-bell';
+      const when  = n.created_at ? new Date(n.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}) : '';
+      const border = n.is_read ? '#e2e8f0' : color;
+      return `<div data-notif-id="${n.id}" style="display:flex;gap:12px;padding:14px 16px;border-radius:10px;background:#fff;border:1.5px solid ${border};align-items:flex-start;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.04)"
+        onclick="markPrincipalNotifRead(${n.id},this)">
+        <div class="notif-dot" style="width:9px;height:9px;border-radius:50%;background:${n.is_read?'#e2e8f0':color};flex-shrink:0;margin-top:5px;transition:background .2s"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px;margin-bottom:2px;color:#1e293b">${n.title}</div>
+          <div style="color:#64748b;font-size:13px;line-height:1.4">${n.body||''}</div>
+          <div style="color:#94a3b8;font-size:11px;margin-top:6px"><i class="ti ${icon}"></i> ${when}</div>
+        </div>
+      </div>`;
+    }).join('');
+    refreshPrincipalNotifBadge();
+  } catch(e) { el.innerHTML = `<div style="padding:16px;color:#dc2626;text-align:center">${e.message}</div>`; }
+}
+
+// ── BOOT ─────────────────────────────────────────────────
+(async function boot() {
+  const token = localStorage.getItem('gttc_principal_token') || localStorage.getItem('gttc_token');
+  if (!token) { window.location.replace('/login'); return; }
+  STATE.token = token;
+  try {
+    const me = await api('/api/auth/me');
+    if (me.role !== 'principal') { STATE.token = null; localStorage.removeItem('gttc_principal_token'); window.location.replace('/login'); return; }
+    STATE.me = me;
+    startApp();
+  } catch(e) { STATE.token = null; localStorage.removeItem('gttc_principal_token'); window.location.replace('/login'); }
+})();
+</script>
+<script>
+/* ═══ PREMIUM INTERACTIONS — 3D Tilt · Ripple · Stagger ═══ */
+(function(){
+  'use strict';
+  var _cur=null;
+  document.addEventListener('mousemove',function(e){
+    var c=e.target.closest&&e.target.closest('.card,.stat,.kpi,.kpi-card');
+    if(!c){if(_cur){_cur.style.transform='';_cur=null;}return;}
+    if(_cur&&_cur!==c)_cur.style.transform='';
+    _cur=c;
+    var r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    c.style.transform='perspective(800px) rotateY('+(x*8)+'deg) rotateX('+(-y*6)+'deg) translateZ(8px)';
+  },{passive:true});
+  document.addEventListener('mouseleave',function(e){
+    var t=e.target;
+    if(t&&t.matches&&t.matches('.card,.stat,.kpi,.kpi-card')){t.style.transform='';_cur=null;}
+  },true);
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest&&e.target.closest('button:not([disabled])');
+    if(!btn)return;
+    var rp=document.createElement('span'),r=btn.getBoundingClientRect(),sz=Math.max(r.width,r.height)*1.6;
+    Object.assign(rp.style,{position:'absolute',width:sz+'px',height:sz+'px',borderRadius:'50%',background:'rgba(255,255,255,.35)',left:(e.clientX-r.left-sz/2)+'px',top:(e.clientY-r.top-sz/2)+'px',transform:'scale(0)',animation:'ripple .55s ease-out forwards',pointerEvents:'none',zIndex:'9'});
+    if(getComputedStyle(btn).position==='static')btn.style.position='relative';
+    btn.style.overflow='hidden';btn.appendChild(rp);setTimeout(function(){rp.remove();},600);
+  });
+  try{
+    var obs=new MutationObserver(function(ms){
+      ms.forEach(function(m){
+        m.addedNodes.forEach(function(n){
+          if(n.nodeType!==1)return;
+          var sel='.card,.stat,.kpi,.kpi-card',cards=(n.matches&&n.matches(sel))?[n]:Array.from(n.querySelectorAll(sel));
+          cards.forEach(function(c,i){c.classList.remove('stagger-in');void c.offsetWidth;c.style.animationDelay=(i*60)+'ms';c.classList.add('stagger-in');});
+        });
+      });
+    });
+    obs.observe(document.body,{childList:true,subtree:true});
+  }catch(e){}
+})();
+</script>
+<script defer src="/static/js/portal-responsive.js?v=1"></script>
+</body>
+</html>

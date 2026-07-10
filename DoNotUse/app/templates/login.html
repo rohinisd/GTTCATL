@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTTC Portal — Secure Sign In</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Read saved theme before first paint to avoid flash -->
+<script>
+(function(){const t=localStorage.getItem('gttc_theme');if(t==='dark')document.documentElement.dataset.theme='dark'})();
+</script>
+<style>
+/* ── THEME TOKENS ───────────────────────────────────── */
+:root{
+  --bg-page:#EFF4FF;--bg-form:#FFFFFF;--bg-bar:#FFFFFF;
+  --bdr-bar:rgba(37,99,235,.1);--bdr-form:rgba(37,99,235,.1);--bdr-sep:rgba(37,99,235,.12);
+  --c-text:#0F172A;--c-sub:rgba(51,65,85,.55);--c-label:rgba(71,85,105,.55);
+  --inp-bg:#F8FAFC;--inp-bdr:rgba(37,99,235,.18);--inp-foc:rgba(37,99,235,.5);
+  --inp-txt:#0F172A;--inp-ph:rgba(100,116,139,.45);
+  --sel-opt:#FFFFFF;--caret:#64748B;
+  --sec-bg:rgba(37,99,235,.04);--sec-bdr:rgba(37,99,235,.1);--sec-txt:#475569;
+  --eye-c:rgba(71,85,105,.45);--eye-h:rgba(71,85,105,.75);
+  --fgt-c:rgba(37,99,235,.65);--fgt-h:#2563EB;--km-c:rgba(71,85,105,.65);
+  --err-bg:rgba(220,38,38,.06);--err-bdr:rgba(220,38,38,.22);--err-txt:#B91C1C;
+  --ft-c:#94A3B8;--tb-lbl:#64748B;
+  --art-bg:#FFFFFF;
+  --pill-bg:rgba(37,99,235,.06);--pill-bdr:rgba(37,99,235,.16);--pill-c:rgba(30,58,138,.75);
+  --h-lbl:rgba(71,85,105,.65);--h-ttl:#0F172A;--h-acc:#1D4ED8;--h-dsc:rgba(71,85,105,.75);
+  --dov-bg:rgba(241,245,249,.88);
+  --dc-bg:linear-gradient(160deg,#FFFFFF,#F8FAFC);--dc-bdr:rgba(37,99,235,.12);
+  --dc-nm:#0F172A;--dc-rl:rgba(71,85,105,.65);--dc-as:#1E293B;--dc-dsc:rgba(71,85,105,.55);
+  --dc-div:rgba(37,99,235,.1);--dc-cl:#64748B;--dc-clh:#0F172A;
+  --tog-bg:rgba(37,99,235,.07);--tog-bdr:rgba(37,99,235,.14);--tog-c:#2563EB;
+}
+[data-theme="dark"]{
+  --bg-page:#060C1E;--bg-form:#0C1426;--bg-bar:#060d24;
+  --bdr-bar:rgba(96,165,250,.15);--bdr-form:rgba(96,165,250,.12);--bdr-sep:rgba(96,165,250,.18);
+  --c-text:#FFFFFF;--c-sub:rgba(148,163,255,.5);--c-label:rgba(148,163,255,.45);
+  --inp-bg:rgba(255,255,255,.04);--inp-bdr:rgba(96,165,250,.18);--inp-foc:rgba(96,165,250,.6);
+  --inp-txt:#FFFFFF;--inp-ph:rgba(148,163,255,.3);
+  --sel-opt:#0C1426;--caret:#94A3B8;
+  --sec-bg:rgba(255,255,255,.03);--sec-bdr:rgba(96,165,250,.12);--sec-txt:rgba(203,213,225,.78);
+  --eye-c:rgba(148,163,255,.4);--eye-h:rgba(148,163,255,.7);
+  --fgt-c:rgba(96,165,250,.6);--fgt-h:#60A5FA;--km-c:rgba(148,163,255,.6);
+  --err-bg:rgba(248,113,113,.1);--err-bdr:rgba(248,113,113,.3);--err-txt:#FCA5A5;
+  --ft-c:#64748B;--tb-lbl:#CBD5E1;
+  --art-bg:radial-gradient(60% 60% at 70% 42%,rgba(37,99,235,.16),transparent 62%),radial-gradient(50% 50% at 30% 84%,rgba(124,58,237,.10),transparent 62%),linear-gradient(160deg,#060C1E 0%,#0A1430 60%,#0E1A3E 100%);
+  --pill-bg:rgba(255,255,255,.04);--pill-bdr:rgba(96,165,250,.22);--pill-c:rgba(203,213,225,.8);
+  --h-lbl:rgba(148,163,255,.6);--h-ttl:#FFFFFF;--h-acc:#60A5FA;--h-dsc:rgba(148,163,255,.7);
+  --dov-bg:rgba(2,6,20,.72);
+  --dc-bg:linear-gradient(160deg,#0C1426,#0A1020);--dc-bdr:rgba(96,165,250,.2);
+  --dc-nm:#FFFFFF;--dc-rl:rgba(148,163,255,.6);--dc-as:#E2E8F0;--dc-dsc:rgba(148,163,255,.55);
+  --dc-div:rgba(96,165,250,.15);--dc-cl:#94A3B8;--dc-clh:#FFFFFF;
+  --tog-bg:rgba(255,255,255,.06);--tog-bdr:rgba(96,165,250,.2);--tog-c:#60A5FA;
+}
+
+/* ── BASE ────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Figtree',system-ui,sans-serif;overflow:hidden;background:var(--bg-page);color:var(--c-text)}
+body{display:flex;flex-direction:column;height:100vh}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ripple{to{transform:scale(1);opacity:0}}
+@keyframes softpulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── TOP BAR ─────────────────────────────────────────── */
+.topbar{height:44px;flex-shrink:0;background:var(--bg-bar);border-bottom:.5px solid var(--bdr-bar);
+  display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:16px}
+.tb-logos{display:flex;align-items:center}
+.tb-logo{display:flex;align-items:center;gap:8px;padding:0 16px;position:relative}
+.tb-logo:not(:last-child)::after{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);height:26px;width:1px;background:var(--bdr-sep)}
+.tb-logo img{height:24px;width:auto;object-fit:contain;background:#fff;border-radius:4px;padding:2px;display:block}
+.tb-logo .lbl{font-size:9px;line-height:1.25;color:var(--tb-lbl);letter-spacing:.3px;font-weight:600;text-transform:uppercase;white-space:nowrap}
+.tb-right{display:flex;align-items:center;gap:18px}
+@media(max-width:820px){ .tb-logo .lbl{display:none} }
+
+/* ── THEME TOGGLE ────────────────────────────────────── */
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;
+  background:var(--tog-bg);border:1px solid var(--tog-bdr);color:var(--tog-c);
+  cursor:pointer;font-size:15px;transition:.15s;flex-shrink:0}
+.theme-toggle:hover{opacity:.75}
+
+/* ── MAIN SPLIT ──────────────────────────────────────── */
+#wrap{display:flex;flex:1;min-height:0;background:var(--bg-page)}
+
+/* LEFT: login form */
+.formside{width:480px;flex-shrink:0;background:var(--bg-form);border-right:1px solid var(--bdr-form);
+  display:flex;flex-direction:column;justify-content:center;padding:40px 44px;overflow-y:auto}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--c-label);text-transform:uppercase;margin-bottom:12px}
+.f-title{font-size:20px;font-weight:500;color:var(--c-text);letter-spacing:-.3px;line-height:1.2}
+.f-sub{font-size:13px;color:var(--c-sub);margin-top:6px}
+.section-label{font-size:11px;font-weight:700;color:var(--c-label);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:9px}
+
+/* custom select */
+.gselect{position:relative}
+.gselect select{width:100%;padding:12px 40px 12px 14px;background:var(--inp-bg);border:1.5px solid var(--inp-bdr);border-radius:10px;color:var(--inp-txt);font-size:14px;font-family:inherit;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;transition:.15s}
+.gselect select:focus{border-color:var(--inp-foc)}
+.gselect select option{background:var(--sel-opt);color:var(--inp-txt)}
+.gselect::after{content:'';position:absolute;right:16px;top:46%;width:7px;height:7px;border-right:2px solid var(--caret);border-bottom:2px solid var(--caret);transform:translateY(-50%) rotate(45deg);pointer-events:none}
+
+.fld-label{font-size:12px;font-weight:700;color:var(--c-label);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px}
+.fld-wrap{position:relative}
+.fld-wrap > i.lead{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--c-label);font-size:15px;pointer-events:none}
+.inp{width:100%;padding:12px 14px 12px 40px;background:var(--inp-bg);border:1.5px solid var(--inp-bdr);border-radius:10px;color:var(--inp-txt);font-size:14px;font-family:inherit;outline:none;transition:.15s}
+.inp:focus{border-color:var(--inp-foc)}
+.inp::placeholder{color:var(--inp-ph)}
+.pwd-inp{padding-right:44px}
+.eye-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--eye-c);font-size:15px;padding:4px;display:flex;align-items:center}
+.eye-btn:hover{color:var(--eye-h)}
+
+.signrow{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.keepme{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--km-c);cursor:pointer;user-select:none}
+.keepme input{width:15px;height:15px;accent-color:#2563eb;cursor:pointer}
+.forgot a{font-size:12px;color:var(--fgt-c);text-decoration:none;font-weight:600}
+.forgot a:hover{color:var(--fgt-h)}
+
+.err{background:var(--err-bg);border:1px solid var(--err-bdr);color:var(--err-txt);border-radius:9px;padding:10px 14px;font-size:13px;display:none;align-items:center;gap:8px;margin-top:16px}
+.err.on{display:flex}
+
+.btn-signin{width:100%;padding:14px;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 24px rgba(37,99,235,.3);transition:.2s;position:relative;overflow:hidden;margin-top:18px}
+.btn-signin:hover{filter:brightness(1.08);box-shadow:0 6px 30px rgba(37,99,235,.4)}
+.btn-signin:active{transform:translateY(1px)}
+.btn-signin:disabled{opacity:.7;cursor:wait}
+
+/* security strip */
+.sec-strip{margin-top:24px;display:flex;flex-direction:column;gap:11px;padding:14px 16px;background:var(--sec-bg);border:1px solid var(--sec-bdr);border-radius:10px}
+.sec-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--sec-txt);line-height:1.3}
+.sec-row i{font-size:16px;flex-shrink:0}
+.sec-row .g{color:#16a34a}
+.sec-row .b{color:#2563eb}
+[data-theme="dark"] .sec-row .b{color:#60A5FA}
+.sec-row .gr{color:#64748b}
+
+/* RIGHT: art panel */
+.artside{flex:1;min-width:0;position:relative;overflow:hidden;background:var(--art-bg)}
+#shader-bg{position:absolute;inset:0;z-index:0}
+[data-theme="light"] #shader-bg{opacity:1}
+#hero-canvas{position:absolute;top:42%;right:-4%;transform:translateY(-50%);width:56%;height:66%;opacity:.5;z-index:1}
+[data-theme="light"] #hero-canvas{opacity:.55}
+@media(max-width:1200px){ #hero-canvas{width:62%;opacity:.38} }
+.overlay{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:center;padding:34px 46px;z-index:2}
+
+.status-pill{position:absolute;top:34px;left:46px;display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--pill-c);text-transform:uppercase;padding:6px 13px;border:1px solid var(--pill-bdr);border-radius:999px;background:var(--pill-bg);backdrop-filter:blur(8px)}
+.status-pill .dot{color:#16a34a;font-size:9px;animation:softpulse 2.4s ease-in-out infinite}
+
+.hero-label{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;color:var(--h-lbl);text-transform:uppercase;margin-bottom:14px}
+.hero-title{font-size:clamp(28px,3.2vw,44px);font-weight:900;color:var(--h-ttl);letter-spacing:-1.5px;line-height:1.08}
+.hero-title .accent{color:var(--h-acc);display:inline-block;margin-top:8px;font-size:clamp(22px,2.6vw,34px);font-weight:800;letter-spacing:-1px}
+.hero-desc{color:var(--h-dsc);font-size:15px;margin-top:18px;line-height:1.65;max-width:500px}
+
+/* ── FOOTER ──────────────────────────────────────────── */
+.footer{height:36px;flex-shrink:0;background:var(--bg-bar);border-top:.5px solid var(--bdr-bar);
+  display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:10px;color:var(--ft-c)}
+.footer a{color:var(--ft-c);text-decoration:none}
+.footer a:hover{color:var(--c-text);opacity:.6}
+.footer .links{display:flex;align-items:center;gap:14px}
+.footer .ver{font-family:'JetBrains Mono',monospace;opacity:.7}
+
+/* ── Developer credits modal ─────────────────────────── */
+.dev-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;
+  background:var(--dov-bg);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px}
+.dev-overlay.on{display:flex;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.dev-card{width:min(440px,94vw);position:relative;text-align:center;padding:32px 30px;border-radius:16px;
+  background:var(--dc-bg);border:1px solid var(--dc-bdr);
+  box-shadow:0 28px 80px rgba(0,0,0,.12)}
+[data-theme="dark"] .dev-card{box-shadow:0 28px 80px rgba(0,0,0,.6)}
+.dev-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#2563EB;font-weight:700;margin-bottom:5px;margin-top:6px}
+[data-theme="dark"] .dev-label{color:#60A5FA}
+.dev-name{font-size:23px;font-weight:800;color:var(--dc-nm);letter-spacing:-.5px}
+.dev-role{font-size:13px;color:var(--dc-rl);margin-top:5px}
+.dev-email{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#2563EB;text-decoration:none;font-family:'JetBrains Mono',monospace}
+[data-theme="dark"] .dev-email{color:#60A5FA}
+.dev-email i{font-size:15px}
+.dev-email:hover{text-decoration:underline}
+.dev-divider{height:1px;background:var(--dc-div);margin:20px 0}
+.dev-assoc-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--c-label);font-weight:700;margin-bottom:5px}
+.dev-assoc{font-size:15px;color:var(--dc-as);font-weight:600}
+.dev-assoc span{color:var(--dc-rl);font-weight:500}
+.dev-desc{font-size:13px;color:var(--dc-dsc);line-height:1.65;margin-top:18px}
+.dev-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--dc-cl);cursor:pointer;font-size:20px;display:flex;padding:4px}
+.dev-close:hover{color:var(--dc-clh)}
+
+/* ── RESPONSIVE ─────────────────────────────────────── */
+@media(min-width:1600px){
+  .formside{width:520px;padding:52px 56px}
+  .overlay{padding:46px 60px}
+  .hero-title{font-size:clamp(36px,3.4vw,52px)}
+  .hero-title .accent{font-size:clamp(28px,2.8vw,40px)}
+}
+@media(max-width:1280px){
+  .formside{width:440px;padding:32px 36px}
+  .overlay{padding:28px 36px}
+  .hero-desc{font-size:14px}
+  .status-pill{top:24px;left:36px}
+}
+@media(max-width:1024px){
+  .formside{width:400px;padding:26px 30px}
+  .topbar{padding:0 12px}
+  .tb-logo{padding:0 10px}
+  .hero-title{font-size:clamp(24px,3vw,38px)}
+}
+@media(max-width:920px){
+  .artside{display:none}
+  .formside{width:100%;max-width:520px;margin:0 auto;border-right:none;padding:28px 30px}
+  .topbar{padding:0 10px}
+  .tb-logo{padding:0 8px;gap:6px}
+}
+@media(max-width:600px){
+  .formside{padding:22px 20px}
+  .tb-logo .lbl{display:none}
+  .tb-logo img{height:22px}
+  .topbar{height:48px}
+  .footer{height:auto;min-height:36px;padding:8px 14px;flex-direction:column;gap:4px;text-align:center;font-size:9px}
+  .f-title{font-size:18px}
+  .sec-strip{margin-top:18px;padding:11px 14px;gap:8px}
+  .sec-row{font-size:11px}
+}
+@media(max-width:380px){
+  .formside{padding:18px 16px}
+  .tb-logo{padding:0 5px}
+  .tb-logo img{height:20px}
+  .tb-logos{gap:0}
+  .role-grid,.gselect select,.inp{font-size:13px}
+}
+@media(max-height:720px){
+  .formside{padding-top:20px;padding-bottom:20px;justify-content:flex-start}
+  .formside > div{margin-bottom:14px !important}
+  .sec-strip{margin-top:14px;padding:10px 14px;gap:7px}
+  .btn-signin{padding:12px;margin-top:14px}
+  .overlay{padding-top:24px;padding-bottom:24px}
+}
+@media(max-height:580px){
+  .topbar{height:38px}
+  .footer{height:30px}
+  .tb-logo img{height:20px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══ -->
+<div class="topbar">
+  <div class="tb-logos">
+    <div class="tb-logo">
+      <img src="/static/img/samagra-shikshana.png" alt="Samagra Shikshana Karnataka">
+      <div class="lbl">Samagra Shikshana<br>Karnataka</div>
+    </div>
+    <div class="tb-logo">
+      <img src="/static/img/aim-niti.png" alt="NITI Aayog — Atal Innovation Mission">
+      <div class="lbl">NITI Aayog<br>Atal Innovation Mission</div>
+    </div>
+    <div class="tb-logo">
+      <img src="/static/img/gttc-logo.png" alt="Government Tool Room &amp; Training Centre">
+      <div class="lbl">Government<br>Tool Room &amp; Training Centre</div>
+    </div>
+  </div>
+  <div class="tb-right">
+    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark mode">
+      <i class="ti ti-moon" id="theme-icon"></i>
+    </button>
+  </div>
+</div>
+
+<!-- ═══ MAIN SPLIT ═══ -->
+<div id="wrap">
+
+  <!-- LEFT: form -->
+  <div class="formside">
+    <div style="margin-bottom:26px">
+      <div class="eyebrow">Secure Sign In</div>
+      <div class="f-title">Sign in to your account</div>
+      <div class="f-sub">Use your official GTTC or AIM credentials.</div>
+    </div>
+
+    <!-- Email -->
+    <div style="margin-bottom:16px">
+      <label class="fld-label">Login ID</label>
+      <div class="fld-wrap">
+        <i class="ti ti-mail lead"></i>
+        <input id="li-email" class="inp" type="email" placeholder="user@gttc.gov.in"
+               autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+    </div>
+
+    <!-- Password -->
+    <div>
+      <label class="fld-label">Password</label>
+      <div class="fld-wrap">
+        <i class="ti ti-lock lead"></i>
+        <input id="li-pwd" class="inp pwd-inp" type="password" placeholder="••••••••"
+               autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="eye-btn" type="button" onclick="togglePwd()"><i class="ti ti-eye" id="eye-ic"></i></button>
+      </div>
+    </div>
+
+    <div class="signrow">
+      <label class="keepme"><input type="checkbox" id="keep-signed" checked> Keep me signed in</label>
+      <span class="forgot"><a href="#" onclick="forgotPassword();return false">Forgot password?</a></span>
+    </div>
+
+    <div id="err-box" class="err"><i class="ti ti-alert-circle"></i><span id="err-msg"></span></div>
+
+    <button class="btn-signin" id="li-btn" onclick="doLogin()">
+      Sign in securely <i class="ti ti-arrow-right" style="font-size:16px"></i>
+    </button>
+
+    <!-- security strip -->
+    <div class="sec-strip">
+      <div class="sec-row"><i class="ti ti-shield-check g"></i> Session encrypted with TLS 1.3</div>
+      <div class="sec-row"><i class="ti ti-history b"></i> All login activity is logged and audited</div>
+      <div class="sec-row"><i class="ti ti-info-circle gr"></i> For authorized personnel only · Last updated 25 May 2026</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: animation (background) + descriptions -->
+  <div class="artside">
+    <div id="shader-bg"></div>
+    <div id="hero-canvas"></div>
+    <div class="overlay">
+      <div class="status-pill"><span class="dot">●</span> System Online</div>
+
+      <div>
+        <div class="hero-label">GTTC · ATL &amp; STL Management System</div>
+        <div class="hero-title">Atal Tinkering Lab - Karnataka<br><span class="accent">The Innovation Engine for Young India !</span></div>
+        <div class="hero-desc">An Integrated Statewide Platform for Atal Tinkering Labs Across Karnataka by Samagra Shikshana Karnataka &amp; GTTC.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<div class="footer">
+  <div>© 2026 Government Tool Room &amp; Training Centre, Karnataka. All rights reserved.</div>
+  <div class="links">
+    <a href="#" onclick="showDev();return false">Developer</a>
+    <span class="ver">v 4.2.1</span>
+  </div>
+</div>
+
+<!-- Developer credits modal -->
+<div class="dev-overlay" id="dev-overlay" onclick="if(event.target===this)closeDev()">
+  <div class="dev-card">
+    <button class="dev-close" onclick="closeDev()" aria-label="Close"><i class="ti ti-x"></i></button>
+    <div class="dev-label">Developer &amp; Lead Engineer</div>
+    <div class="dev-name">Swaraaj M Bhajantri</div>
+    <div class="dev-role">Robotics &amp; Full-Stack Developer</div>
+    <a class="dev-email" href="mailto:smbhajantri80@gmail.com"><i class="ti ti-mail"></i> smbhajantri80@gmail.com</a>
+    <div class="dev-divider"></div>
+    <div class="dev-assoc-label">In Association With</div>
+    <div class="dev-assoc">Kumar K <span>(CEO &amp; Founder Of ATS)</span></div>
+    <div class="dev-desc">Designed and engineered to provide a secure, accessible and unified
+      management platform for Atal Tinkering Lab - Karnataka.</div>
+  </div>
+</div>
+
+<script>
+/* ── Auth redirect if already logged in ── */
+(function(){
+  const tok = localStorage.getItem('gttc_token'), role = localStorage.getItem('gttc_role');
+  if (!tok || !role) return;
+  const dest = { master_trainer:'/master', atl_trainer:'/trainer', principal:'/principal' }[role] || '/admin';
+  window.location.replace(dest);
+})();
+
+/* ── Theme toggle ── */
+function toggleTheme(){
+  const html = document.documentElement;
+  const dark = html.dataset.theme === 'dark';
+  const next = dark ? 'light' : 'dark';
+  html.dataset.theme = next;
+  document.getElementById('theme-icon').className = dark ? 'ti ti-moon' : 'ti ti-sun';
+  localStorage.setItem('gttc_theme', next);
+  if (window._shaderBg) window._shaderBg.setTheme(next);
+}
+/* Sync icon with current theme (handles saved dark preference) */
+(function(){
+  const t = document.documentElement.dataset.theme || 'light';
+  const ic = document.getElementById('theme-icon');
+  if (ic) ic.className = t === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
+})();
+
+function togglePwd(){
+  const i = document.getElementById('li-pwd'), ic = document.getElementById('eye-ic');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  ic.className = i.type === 'password' ? 'ti ti-eye' : 'ti ti-eye-off';
+}
+function showErr(m){ document.getElementById('err-msg').textContent = m; document.getElementById('err-box').classList.add('on'); }
+function hideErr(){ document.getElementById('err-box').classList.remove('on'); }
+function forgotPassword(){
+  showErr('To reset your password, please contact your GTTC administrator (admin@gttc.gov.in) — they can issue a new password from User Management.');
+}
+
+/* ── Developer credits modal ── */
+function showDev(){ document.getElementById('dev-overlay').classList.add('on'); }
+function closeDev(){ document.getElementById('dev-overlay').classList.remove('on'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDev(); });
+
+/* ── Ripple on the sign-in button ── */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.btn-signin:not([disabled])');
+  if (!btn) return;
+  const rp = document.createElement('span'), r = btn.getBoundingClientRect(), sz = Math.max(r.width,r.height)*1.6;
+  Object.assign(rp.style,{position:'absolute',width:sz+'px',height:sz+'px',borderRadius:'50%',
+    background:'rgba(255,255,255,.25)',left:(e.clientX-r.left-sz/2)+'px',top:(e.clientY-r.top-sz/2)+'px',
+    transform:'scale(0)',animation:'ripple .55s ease-out forwards',pointerEvents:'none',zIndex:'1'});
+  btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
+});
+
+/* ── Login (real auth) ── */
+async function doLogin(){
+  const email = document.getElementById('li-email').value.trim();
+  const pwd   = document.getElementById('li-pwd').value;
+  const btn   = document.getElementById('li-btn');
+  if (!email || !pwd){ showErr('Please enter your email and password.'); return; }
+  hideErr(); btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite;font-size:16px"></i> Authenticating…';
+  try {
+    const fd = new FormData(); fd.append('username', email); fd.append('password', pwd);
+    const resp = await fetch('/api/auth/token', { method:'POST', body: fd });
+    if (!resp.ok){ const d = await resp.json().catch(()=>({})); showErr(d.detail || 'Incorrect email or password'); return; }
+    const data = await resp.json();
+    const tok = data.access_token, role = data.role;
+    localStorage.setItem('gttc_token', tok);
+    localStorage.setItem('gttc_role',  role);
+    localStorage.setItem('gttc_name',  data.name);
+    if (role === 'master_trainer'){
+      localStorage.setItem('gttc_mt_token', tok);
+      localStorage.setItem('gttc_mt_name',  data.name);
+      window.location.replace('/master'); return;
+    }
+    if (role === 'atl_trainer'){
+      localStorage.setItem('atl_trainer_token', tok);
+      window.location.replace('/trainer'); return;
+    }
+    if (role === 'principal'){
+      localStorage.setItem('gttc_principal_token', tok);
+      window.location.replace('/principal'); return;
+    }
+    window.location.replace('/admin');
+  } catch(e){ showErr('Network error — is the server running?'); }
+  finally{ btn.disabled = false; btn.innerHTML = 'Sign in securely <i class="ti ti-arrow-right" style="font-size:16px"></i>'; }
+}
+</script>
+
+<!-- Particle hero animation -->
+<script type="module">
+  import { initParticleHero } from '/static/js/particle-hero.js?v=6';
+  initParticleHero(document.getElementById('hero-canvas'), { theme: 'dark' , count: 3500, size: 8, rotate: false });
+</script>
+<!-- Subtle GLSL shader backdrop -->
+<script type="module">
+  import { initShaderBackground } from '/static/js/shader-bg.js?v=3';
+  const _t = document.documentElement.dataset.theme || 'light';
+  window._shaderBg = initShaderBackground(document.getElementById('shader-bg'), { intensity: 0.1, theme: _t });
+</script>
+</body>
+</html>
