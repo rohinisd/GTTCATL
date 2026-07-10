@@ -17,6 +17,8 @@ venv/
 *.sqlite3
 
 StudentDashboard/app/static/uploads/lms/*
+StudentDashboard/app/static/uploads/curriculum/*.pdf
+DoNotUse/app/static/uploads/*
 
 .vercel/
 .DS_Store
