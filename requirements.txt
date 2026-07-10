@@ -1,1 +1,8 @@
--r StudentDashboard/requirements.txt
+fastapi
+uvicorn
+sqlalchemy
+psycopg[binary]
+jinja2
+openpyxl
+python-multipart
+bcrypt
