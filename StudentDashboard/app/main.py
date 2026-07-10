@@ -112,7 +112,8 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=APP_DIR / "templates")
 
-UPLOAD_DIR = APP_DIR / "static" / "uploads" / "lms"
+default_upload_dir = "/tmp/student-dashboard/uploads/lms" if os.getenv("VERCEL") else str(APP_DIR / "static" / "uploads" / "lms")
+UPLOAD_DIR = Path(os.getenv("STUDENT_DASHBOARD_UPLOAD_DIR", default_upload_dir))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 SESSION_COOKIE = "student_dashboard_session"
