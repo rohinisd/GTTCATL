@@ -9,7 +9,7 @@ from urllib.parse import urlencode, urlparse
 import bcrypt
 import openpyxl
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, inspect, text
@@ -137,6 +137,12 @@ default_upload_dir = "/tmp/student-dashboard/uploads/lms" if os.getenv("VERCEL")
 UPLOAD_DIR = Path(os.getenv("STUDENT_DASHBOARD_UPLOAD_DIR", default_upload_dir))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+default_forms_upload_dir = "/tmp/student-dashboard/uploads/forms/custom" if os.getenv("VERCEL") else str(APP_DIR / "static" / "uploads" / "forms" / "custom")
+FORMS_UPLOAD_DIR = Path(os.getenv("STUDENT_DASHBOARD_FORMS_UPLOAD_DIR", default_forms_upload_dir))
+FORMS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+ATL_FORM_EXTENSIONS = {".doc", ".docx", ".pdf", ".xlsx"}
+
 SESSION_COOKIE = "student_dashboard_session"
 SESSION_VALUE = os.getenv("STUDENT_DASHBOARD_SESSION", "student-dashboard-local-session")
 LOGIN_USERNAME = os.getenv("STUDENT_DASHBOARD_USERNAME", "admin@gttc.gov.in")
@@ -167,6 +173,27 @@ def _current_account(request: Request):
 def _is_admin(request: Request):
     account = _current_account(request)
     return bool(account and account["role"] == "admin")
+
+
+def _is_master_trainer(request: Request):
+    account = _current_account(request)
+    if not account:
+        return False
+    if account.get("role") == "admin":
+        return True
+    if account.get("role") != "trainer":
+        return False
+    with SessionLocal() as db:
+        trainer = (
+            db.query(models.Trainer)
+            .filter(func.lower(models.Trainer.email) == account.get("email", "").lower())
+            .first()
+        )
+        return bool(trainer and trainer.role == "master_trainer")
+
+
+def _can_manage_forms(request: Request):
+    return _is_master_trainer(request)
 
 
 def _hash_password(password: str):
@@ -825,6 +852,35 @@ def _safe_upload_name(filename: str):
     suffix = Path(filename).suffix.lower()
     safe_stem = re.sub(r"[^A-Za-z0-9_-]+", "-", stem).strip("-")[:80] or "content"
     return f"{safe_stem}-{secrets.token_hex(6)}{suffix}"
+
+
+def _build_atl_forms(db):
+    forms = [
+        {
+            "id": None,
+            "code": form["code"],
+            "title": form["title"],
+            "filename": form["filename"],
+            "url": form["url"],
+            "source": "official",
+            "uploaded_by": None,
+        }
+        for form in ATL_MER_FORMS
+    ]
+    uploaded = db.query(models.AtlForm).order_by(models.AtlForm.created_at.desc(), models.AtlForm.title).all()
+    for form in uploaded:
+        forms.append(
+            {
+                "id": form.id,
+                "code": form.code or f"FORM-{form.id}",
+                "title": form.title,
+                "filename": form.filename,
+                "url": f"/forms/download/{form.id}",
+                "source": "uploaded",
+                "uploaded_by": form.uploaded_by,
+            }
+        )
+    return forms
 
 
 def _validate_content_upload(content_type: str, upload: UploadFile | None, resource_url: str):
@@ -2920,7 +2976,8 @@ async def dashboard(request: Request):
             "batch_assessment_form_map": batch_assessment_form_map,
             "teamwork_badge_rows": teamwork_badge_rows,
             "performance_assessment_rows": performance_assessment_rows,
-            "atl_forms": ATL_MER_FORMS,
+            "atl_forms": _build_atl_forms(db),
+            "can_manage_forms": _can_manage_forms(request),
             "reports_data": reports_data,
             "attendance_status_map": attendance_status_map,
             "today": date.today().isoformat(),
@@ -2929,6 +2986,70 @@ async def dashboard(request: Request):
             "notice_kind": request.query_params.get("notice_kind", "success"),
         },
     )
+
+
+@app.post("/forms/upload")
+async def upload_atl_form(
+    request: Request,
+    title: str = Form(...),
+    code: str = Form(""),
+    file: UploadFile = File(...),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _can_manage_forms(request):
+        return _dashboard_redirect("Only master trainers can add new forms.", "error")
+
+    cleaned_title = title.strip()
+    cleaned_code = code.strip().upper()
+    if len(cleaned_title) < 3:
+        return _dashboard_redirect("Form title must be at least 3 characters.", "error")
+    if not file or not file.filename:
+        return _dashboard_redirect("Please choose a form file to upload.", "error")
+
+    extension = Path(file.filename).suffix.lower()
+    if extension not in ATL_FORM_EXTENSIONS:
+        allowed = ", ".join(sorted(ATL_FORM_EXTENSIONS))
+        return _dashboard_redirect(f"Invalid file type. Allowed: {allowed}.", "error")
+
+    content = await file.read()
+    if not content:
+        return _dashboard_redirect("Uploaded form file is empty.", "error")
+
+    stored_name = _safe_upload_name(file.filename)
+    target = FORMS_UPLOAD_DIR / stored_name
+    target.write_bytes(content)
+
+    current_account = _current_account(request) or {"name": "Master Trainer"}
+    with SessionLocal() as db:
+        db.add(
+            models.AtlForm(
+                code=cleaned_code or None,
+                title=cleaned_title,
+                filename=Path(file.filename).name,
+                stored_name=stored_name,
+                uploaded_by=current_account.get("name"),
+            )
+        )
+        db.commit()
+
+    return _dashboard_redirect("Form uploaded successfully.")
+
+
+@app.get("/forms/download/{form_id}")
+async def download_atl_form(request: Request, form_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+
+    with SessionLocal() as db:
+        form = db.query(models.AtlForm).filter(models.AtlForm.id == form_id).first()
+        if not form:
+            raise HTTPException(status_code=404, detail="Form not found.")
+        target = FORMS_UPLOAD_DIR / form.stored_name
+        if not target.exists():
+            raise HTTPException(status_code=404, detail="Form file not found.")
+
+    return FileResponse(target, filename=form.filename, media_type="application/octet-stream")
 
 
 @app.get("/health")

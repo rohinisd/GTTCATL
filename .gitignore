@@ -17,6 +17,8 @@ venv/
 *.sqlite3
 
 StudentDashboard/app/static/uploads/lms/*
+StudentDashboard/app/static/uploads/forms/custom/*
+!StudentDashboard/app/static/uploads/forms/custom/.gitkeep
 StudentDashboard/app/static/uploads/curriculum/*.pdf
 DoNotUse/app/static/uploads/*
 

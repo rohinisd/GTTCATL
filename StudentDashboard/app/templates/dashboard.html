@@ -1579,16 +1579,38 @@
             <p>Download the official ATL monitoring, evaluation, and reporting forms. Print them and fill them by hand for school records, trainer diaries, attendance, field visits, and monthly submissions.</p>
           </div>
 
+          {% if can_manage_forms %}
+          <div class="card forms-upload-panel">
+            <h3><i class="ti ti-upload"></i> Add New Form</h3>
+            <p class="forms-upload-note">Master trainers can upload additional Word, PDF, or Excel forms for all users to download and print.</p>
+            <form class="compact-form forms-upload-form" method="post" action="/forms/upload" enctype="multipart/form-data">
+              <input name="title" placeholder="Form title" required>
+              <input name="code" placeholder="Form code (optional, e.g. MER-11)">
+              <label class="file-input">
+                <span>Choose form file (.doc, .docx, .pdf, .xlsx)</span>
+                <input name="file" type="file" accept=".doc,.docx,.pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+              </label>
+              <button class="btn-primary" type="submit"><i class="ti ti-upload"></i> Upload Form</button>
+            </form>
+          </div>
+          {% endif %}
+
           <div class="forms-grid">
             {% for form in atl_forms %}
             <article class="form-card">
               <div class="form-card-head">
-                <span class="badge badge-info">{{ form.code }}</span>
+                <span class="badge {% if form.source == 'uploaded' %}badge-success{% else %}badge-info{% endif %}">{{ form.code }}</span>
                 <i class="ti ti-file-description"></i>
               </div>
               <h3>{{ form.title }}</h3>
-              <p>Word document ready for printing and manual completion.</p>
-              <a class="btn-primary" href="{{ form.url }}" download="{{ form.filename }}">
+              <p>
+                {% if form.source == 'uploaded' %}
+                Added by {{ form.uploaded_by or 'Master Trainer' }}. Download, print, and complete manually.
+                {% else %}
+                Official ATL form ready for printing and manual completion.
+                {% endif %}
+              </p>
+              <a class="btn-primary" href="{{ form.url }}" {% if form.source == 'official' %}download="{{ form.filename }}"{% endif %}>
                 <i class="ti ti-download"></i> Download
               </a>
             </article>

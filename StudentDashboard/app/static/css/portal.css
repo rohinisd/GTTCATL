@@ -1826,6 +1826,39 @@ tbody tr:hover td {
   align-self: flex-start;
 }
 
+.forms-upload-panel {
+  margin-bottom: 22px;
+}
+
+.forms-upload-note {
+  color: var(--text2);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.forms-upload-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.forms-upload-form .file-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text2);
+}
+
+.forms-upload-form .file-input input[type="file"] {
+  width: 100%;
+}
+
+.forms-upload-form .btn-primary {
+  justify-self: start;
+}
+
 @media (max-width: 980px) {
   .sidebar {
     width: 220px;

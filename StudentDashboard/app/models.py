@@ -219,3 +219,15 @@ class StudentTeamworkBadge(Base):
 
     batch = relationship("Batch", back_populates="teamwork_badges")
     student = relationship("Student")
+
+
+class AtlForm(Base):
+    __tablename__ = "atl_forms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(40))
+    title = Column(String(220), nullable=False)
+    filename = Column(String(220), nullable=False)
+    stored_name = Column(String(220), nullable=False)
+    uploaded_by = Column(String(160))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
