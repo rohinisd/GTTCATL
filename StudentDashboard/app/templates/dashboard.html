@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260710-generated-report-flow">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260713-profile-modal">
 </head>
 <body>
   <div id="app">
@@ -56,13 +56,13 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <div class="sidebar-avatar">AD</div>
+        <button class="sidebar-user profile-trigger" type="button" data-profile-open>
+          <div class="sidebar-avatar">{{ current_account.name[:2]|upper }}</div>
           <div>
             <div class="sidebar-user-name">{{ current_account.name }}</div>
-            <div class="sidebar-user-role">{{ current_account.role|title }}</div>
+            <div class="sidebar-user-role">{{ profile_details.role_label or current_account.role|title }}</div>
           </div>
-        </div>
+        </button>
       </div>
     </aside>
 
@@ -80,7 +80,7 @@
           <div class="topbar-date" id="topbarDate"></div>
           <button class="btn-theme-toggle" type="button" onclick="toggleTheme()"><i class="ti ti-moon"></i> Dark</button>
           <a class="btn-ghost" href="/logout"><i class="ti ti-logout"></i> Logout</a>
-          <div class="topbar-avatar">{{ current_account.name[:2]|upper }}</div>
+          <button class="topbar-avatar profile-trigger" type="button" data-profile-open aria-label="Open profile">{{ current_account.name[:2]|upper }}</button>
         </div>
       </header>
 
@@ -221,10 +221,42 @@
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Trainer</button>
               </form>
             </div>
+            {% elif can_manage_trainers %}
+            <div class="card">
+              <h3>Add ATL Trainer</h3>
+              <p>New trainers are created with the default password <strong>{{ default_trainer_password }}</strong>. They can change it later from their profile.</p>
+              <form class="compact-form" method="post" action="/manual/trainer">
+                <input name="name" placeholder="Trainer name" required>
+                <input name="email" type="email" placeholder="Email" required>
+                <input name="phone" placeholder="Phone">
+                <input name="division" placeholder="Division">
+                <input name="districts" placeholder="Districts / District">
+                <select name="assigned_school_1">
+                  <option value="">Assigned school 1</option>
+                  {% for school in schools %}
+                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <select name="assigned_school_2">
+                  <option value="">Assigned school 2</option>
+                  {% for school in schools %}
+                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <select name="assigned_school_3">
+                  <option value="">Assigned school 3</option>
+                  {% for school in schools %}
+                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <input name="specialization" placeholder="Specialization" value="ATL trainer">
+                <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Trainer</button>
+              </form>
+            </div>
             {% else %}
             <div class="notice notice-error">
               <i class="ti ti-lock"></i>
-              Only admins can add trainers, bulk upload trainers, and create trainer login passwords.
+              Only admins and master trainers can add trainers.
             </div>
             {% endif %}
           </div>
@@ -1631,6 +1663,76 @@
     </main>
   </div>
 
-  <script src="/static/js/portal.js?v=20260710-report-dates-restored"></script>
+  <div class="profile-modal" id="profileModal" hidden>
+    <div class="profile-modal-backdrop" data-profile-close></div>
+    <div class="profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+      <div class="profile-modal-header">
+        <div class="profile-modal-avatar">{{ current_account.name[:2]|upper }}</div>
+        <div>
+          <h2 id="profileModalTitle">{{ profile_details.name or current_account.name }}</h2>
+          <p>{{ profile_details.role_label or current_account.role|title }}</p>
+        </div>
+        <button class="profile-modal-close" type="button" data-profile-close aria-label="Close profile">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+
+      <div class="profile-details-grid">
+        <div class="profile-detail">
+          <span>Email</span>
+          <strong>{{ profile_details.email or current_account.email or '-' }}</strong>
+        </div>
+        {% if profile_details.phone %}
+        <div class="profile-detail">
+          <span>Phone</span>
+          <strong>{{ profile_details.phone }}</strong>
+        </div>
+        {% endif %}
+        {% if profile_details.division %}
+        <div class="profile-detail">
+          <span>Division</span>
+          <strong>{{ profile_details.division }}</strong>
+        </div>
+        {% endif %}
+        {% if profile_details.districts %}
+        <div class="profile-detail">
+          <span>Districts</span>
+          <strong>{{ profile_details.districts }}</strong>
+        </div>
+        {% endif %}
+        {% if profile_details.assigned_school %}
+        <div class="profile-detail">
+          <span>Assigned School</span>
+          <strong>{{ profile_details.assigned_school }}</strong>
+        </div>
+        {% endif %}
+        {% if profile_details.specialization %}
+        <div class="profile-detail">
+          <span>Specialization</span>
+          <strong>{{ profile_details.specialization }}</strong>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if can_change_password %}
+      <div class="profile-password-panel">
+        <h3><i class="ti ti-lock"></i> Change Password</h3>
+        <form class="compact-form" method="post" action="/profile/password">
+          <input name="current_password" type="password" placeholder="Current password" autocomplete="current-password" required>
+          <input name="new_password" type="password" placeholder="New password" autocomplete="new-password" required>
+          <input name="confirm_password" type="password" placeholder="Confirm new password" autocomplete="new-password" required>
+          <button class="btn-primary" type="submit"><i class="ti ti-key"></i> Update Password</button>
+        </form>
+      </div>
+      {% else %}
+      <div class="profile-password-panel">
+        <h3><i class="ti ti-lock"></i> Password</h3>
+        <p class="profile-password-note">Admin passwords are managed in system settings.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script src="/static/js/portal.js?v=20260713-profile-modal"></script>
 </body>
 </html>

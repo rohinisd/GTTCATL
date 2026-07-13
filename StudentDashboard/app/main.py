@@ -20,7 +20,7 @@ from app.content_seed import seed_lms_content
 from app.curriculum_import import seed_curriculum_content
 from app.forms_catalog import ATL_MER_FORMS
 from app.handbook_import import VOLUME_COURSES, seed_handbook_volume_courses
-from app.seed import seed_initial_data, seed_trainer_accounts
+from app.seed import DEFAULT_TRAINER_PASSWORD, seed_initial_data, seed_trainer_accounts
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -194,6 +194,53 @@ def _is_master_trainer(request: Request):
 
 def _can_manage_forms(request: Request):
     return _is_master_trainer(request)
+
+
+def _can_manage_trainers(request: Request):
+    return _is_admin(request) or _is_master_trainer(request)
+
+
+def _build_profile_details(db, current_account):
+    if not current_account:
+        return {}
+
+    role_label = current_account.get("role", "").replace("_", " ").title()
+    details = {
+        "name": current_account.get("name"),
+        "email": current_account.get("email"),
+        "role": current_account.get("role"),
+        "role_label": role_label,
+        "phone": None,
+        "division": None,
+        "districts": None,
+        "assigned_school": None,
+        "specialization": None,
+        "trainer_role": None,
+        "trainer_role_label": None,
+    }
+
+    if current_account.get("role") == "trainer":
+        trainer = (
+            db.query(models.Trainer)
+            .filter(func.lower(models.Trainer.email) == current_account.get("email", "").lower())
+            .first()
+        )
+        if trainer:
+            trainer_role_label = trainer.role.replace("_", " ").title() if trainer.role else None
+            details.update(
+                {
+                    "phone": trainer.phone,
+                    "division": trainer.division,
+                    "districts": trainer.districts,
+                    "assigned_school": trainer.assigned_school,
+                    "specialization": trainer.specialization,
+                    "trainer_role": trainer.role,
+                    "trainer_role_label": trainer_role_label,
+                    "role_label": trainer_role_label or role_label,
+                }
+            )
+
+    return details
 
 
 def _hash_password(password: str):
@@ -1245,26 +1292,32 @@ async def add_trainer(
     assigned_school_2: str = Form(""),
     assigned_school_3: str = Form(""),
     specialization: str = Form("ATL trainer"),
-    password: str = Form(...),
-    confirm_password: str = Form(...),
+    password: str = Form(""),
+    confirm_password: str = Form(""),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can add trainers and create trainer logins.", "error")
+    if not _can_manage_trainers(request):
+        return _dashboard_redirect("Only admins and master trainers can add trainers.", "error")
 
     normalized_email = email.strip().lower()
     cleaned_name = name.strip()
     allowed_trainer_roles = {"atl_trainer", "master_trainer"}
-    selected_role = role if role in allowed_trainer_roles else "atl_trainer"
+    if _is_admin(request):
+        selected_role = role if role in allowed_trainer_roles else "atl_trainer"
+        chosen_password = password
+        if len(chosen_password) < 6:
+            return _dashboard_redirect("Trainer login password must be at least 6 characters.", "error")
+        if chosen_password != confirm_password:
+            return _dashboard_redirect("Trainer login passwords do not match.", "error")
+    else:
+        selected_role = "atl_trainer"
+        chosen_password = DEFAULT_TRAINER_PASSWORD
+
     if len(cleaned_name) < 2:
         return _dashboard_redirect("Trainer name is required.", "error")
     if "@" not in normalized_email:
         return _dashboard_redirect("Trainer email must be valid.", "error")
-    if len(password) < 6:
-        return _dashboard_redirect("Trainer login password must be at least 6 characters.", "error")
-    if password != confirm_password:
-        return _dashboard_redirect("Trainer login passwords do not match.", "error")
 
     with SessionLocal() as db:
         if db.query(models.Trainer).filter(func.lower(models.Trainer.email) == normalized_email).first():
@@ -1294,11 +1347,13 @@ async def add_trainer(
                 name=cleaned_name,
                 email=normalized_email,
                 role="trainer",
-                hashed_password=_hash_password(password),
+                hashed_password=_hash_password(chosen_password),
             )
         )
         db.commit()
-    return _dashboard_redirect("Trainer added successfully. Login credentials are ready.")
+    if _is_admin(request):
+        return _dashboard_redirect("Trainer added successfully. Login credentials are ready.")
+    return _dashboard_redirect(f"Trainer added successfully. Default login password is {DEFAULT_TRAINER_PASSWORD}.")
 
 
 @app.post("/manual/school")
@@ -2978,6 +3033,10 @@ async def dashboard(request: Request):
             "performance_assessment_rows": performance_assessment_rows,
             "atl_forms": _build_atl_forms(db),
             "can_manage_forms": _can_manage_forms(request),
+            "can_manage_trainers": _can_manage_trainers(request),
+            "profile_details": _build_profile_details(db, current_account),
+            "can_change_password": current_account.get("role") == "trainer",
+            "default_trainer_password": DEFAULT_TRAINER_PASSWORD,
             "reports_data": reports_data,
             "attendance_status_map": attendance_status_map,
             "today": date.today().isoformat(),
@@ -2986,6 +3045,38 @@ async def dashboard(request: Request):
             "notice_kind": request.query_params.get("notice_kind", "success"),
         },
     )
+
+
+@app.post("/profile/password")
+async def change_profile_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+
+    current_account = _current_account(request)
+    if not current_account or current_account.get("role") != "trainer":
+        return _dashboard_redirect("Password change is only available for trainer accounts.", "error")
+    if len(new_password) < 6:
+        return _dashboard_redirect("New password must be at least 6 characters.", "error")
+    if new_password != confirm_password:
+        return _dashboard_redirect("New passwords do not match.", "error")
+
+    with SessionLocal() as db:
+        account = (
+            db.query(models.Account)
+            .filter(func.lower(models.Account.email) == current_account.get("email", "").lower())
+            .first()
+        )
+        if not account or not _verify_password(current_password, account.hashed_password):
+            return _dashboard_redirect("Current password is incorrect.", "error")
+        account.hashed_password = _hash_password(new_password)
+        db.commit()
+
+    return _dashboard_redirect("Password changed successfully.")
 
 
 @app.post("/forms/upload")

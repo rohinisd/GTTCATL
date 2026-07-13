@@ -975,6 +975,35 @@ function initCourseSearch() {
   applySearch();
 }
 
+function initProfileModal() {
+  const modal = document.getElementById('profileModal');
+  if (!modal) return;
+
+  const openModal = () => {
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+  };
+
+  document.querySelectorAll('[data-profile-open]').forEach(trigger => {
+    trigger.addEventListener('click', openModal);
+  });
+
+  document.querySelectorAll('[data-profile-close]').forEach(trigger => {
+    trigger.addEventListener('click', closeModal);
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !modal.hidden) {
+      closeModal();
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateThemeButtons();
   resetSearchFields();
@@ -1007,4 +1036,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initAddCourseToggle();
   initCourseItems();
   initCourseSearch();
+  initProfileModal();
 });
