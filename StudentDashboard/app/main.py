@@ -18,6 +18,7 @@ from app.database import Base, SessionLocal, engine
 from app import models  # noqa: F401 - registers SQLAlchemy models
 from app.content_seed import seed_lms_content
 from app.curriculum_import import seed_curriculum_content
+from app.forms_catalog import ATL_MER_FORMS
 from app.handbook_import import VOLUME_COURSES, seed_handbook_volume_courses
 from app.seed import seed_initial_data, seed_trainer_accounts
 
@@ -2919,6 +2920,7 @@ async def dashboard(request: Request):
             "batch_assessment_form_map": batch_assessment_form_map,
             "teamwork_badge_rows": teamwork_badge_rows,
             "performance_assessment_rows": performance_assessment_rows,
+            "atl_forms": ATL_MER_FORMS,
             "reports_data": reports_data,
             "attendance_status_map": attendance_status_map,
             "today": date.today().isoformat(),

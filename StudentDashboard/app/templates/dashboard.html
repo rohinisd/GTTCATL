@@ -51,6 +51,7 @@
         <div class="nav-item" data-page="attendance"><i class="ti ti-calendar-check"></i><span>Attendance</span></div>
         <div class="nav-item" data-page="reports"><i class="ti ti-chart-bar"></i><span>Reports</span></div>
         <div class="nav-item" data-page="performance"><i class="ti ti-chart-dots"></i><span>Performance</span></div>
+        <div class="nav-item" data-page="forms"><i class="ti ti-files"></i><span>Forms</span></div>
         <div class="nav-item" data-page="settings"><i class="ti ti-settings"></i><span>Settings</span></div>
       </nav>
 
@@ -1568,6 +1569,30 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-forms">
+          <div class="hero-card">
+            <div class="eyebrow">ATL MER Forms</div>
+            <h2>Forms</h2>
+            <p>Download the official ATL monitoring, evaluation, and reporting forms. Print them and fill them by hand for school records, trainer diaries, attendance, field visits, and monthly submissions.</p>
+          </div>
+
+          <div class="forms-grid">
+            {% for form in atl_forms %}
+            <article class="form-card">
+              <div class="form-card-head">
+                <span class="badge badge-info">{{ form.code }}</span>
+                <i class="ti ti-file-description"></i>
+              </div>
+              <h3>{{ form.title }}</h3>
+              <p>Word document ready for printing and manual completion.</p>
+              <a class="btn-primary" href="{{ form.url }}" download="{{ form.filename }}">
+                <i class="ti ti-download"></i> Download
+              </a>
+            </article>
+            {% endfor %}
           </div>
         </section>
 

@@ -1782,6 +1782,50 @@ tbody tr:hover td {
   margin-top: 8px;
 }
 
+.forms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  background: var(--surface2);
+  min-height: 220px;
+}
+
+.form-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-card-head i {
+  font-size: 28px;
+  color: var(--accent);
+}
+
+.form-card h3 {
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.form-card p {
+  flex: 1;
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.form-card .btn-primary {
+  align-self: flex-start;
+}
+
 @media (max-width: 980px) {
   .sidebar {
     width: 220px;
