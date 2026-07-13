@@ -1455,18 +1455,26 @@
               <h3>Assess Whole Batch</h3>
               <p class="form-hint">Concept Understanding, Project Understanding, and Design Thinking / Extensions are assessed once for the selected batch.</p>
               <form class="compact-form" method="post" action="/performance/batch-assessment" data-performance-batch-form>
-                <select data-performance-school-select required>
-                  {% for school in schools %}
-                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <select name="batch_id" data-performance-batch-select required>
-                  {% for batch in batches %}
-                  <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
-                    {{ batch.school_name }} - {{ batch.name }}
-                  </option>
-                  {% endfor %}
-                </select>
+                <label class="form-field-label">
+                  <span>School</span>
+                  <select data-performance-school-select required>
+                    <option value="" disabled selected hidden>Select school</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Batch</span>
+                  <select name="batch_id" data-performance-batch-select required>
+                    <option value="" disabled selected hidden>Select batch</option>
+                    {% for batch in batches %}
+                    <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
+                      {{ batch.school_name }} - {{ batch.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </label>
                 <label class="form-field-label">
                   <span>Concept Understanding</span>
                   <select name="concept_understanding" data-performance-field="concept_understanding">
@@ -1502,18 +1510,26 @@
               <h3>Assign Teamwork Badges</h3>
               <p class="form-hint">Assign each teamwork badge to one student from the selected batch's school.</p>
               <form class="compact-form" method="post" action="/performance/teamwork-badges" data-teamwork-badge-form>
-                <select data-teamwork-school-select required>
-                  {% for school in schools %}
-                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <select name="batch_id" data-teamwork-batch-select required>
-                  {% for batch in batches %}
-                  <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
-                    {{ batch.school_name }} - {{ batch.name }}
-                  </option>
-                  {% endfor %}
-                </select>
+                <label class="form-field-label">
+                  <span>School</span>
+                  <select data-teamwork-school-select required>
+                    <option value="" disabled selected hidden>Select school</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Batch</span>
+                  <select name="batch_id" data-teamwork-batch-select required>
+                    <option value="" disabled selected hidden>Select batch</option>
+                    {% for batch in batches %}
+                    <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
+                      {{ batch.school_name }} - {{ batch.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </label>
                 {% for badge_key, badge_label in teamwork_badges.items() %}
                 <label class="form-field-label">
                   <span>{{ badge_label }}</span>

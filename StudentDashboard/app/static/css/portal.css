@@ -1005,6 +1005,10 @@ html[data-theme="dark"] .topbar {
   width: 100%;
 }
 
+.form-field-label select {
+  width: 100%;
+}
+
 .compact-form textarea {
   min-height: 82px;
   resize: vertical;

@@ -802,15 +802,19 @@ function readJsonScript(id) {
 function syncBatchSelect(schoolSelect, batchSelect) {
   if (!batchSelect) return;
   const schoolId = schoolSelect?.value || '';
-  let firstVisible = null;
   Array.from(batchSelect.options).forEach(option => {
-    const isMatch = !schoolId || option.dataset.schoolId === schoolId;
+    if (!option.value) {
+      option.hidden = false;
+      option.disabled = false;
+      return;
+    }
+    const isMatch = schoolId && option.dataset.schoolId === schoolId;
     option.hidden = !isMatch;
     option.disabled = !isMatch;
-    if (isMatch && !firstVisible) firstVisible = option;
   });
-  if (firstVisible && (!batchSelect.value || batchSelect.selectedOptions[0]?.disabled)) {
-    batchSelect.value = firstVisible.value;
+  const selected = batchSelect.selectedOptions[0];
+  if (!schoolId || !batchSelect.value || selected?.disabled || selected?.hidden) {
+    batchSelect.value = '';
   }
 }
 
@@ -822,6 +826,16 @@ function initPerformanceForms() {
 
   const applyBatchAssessment = () => {
     if (!batchForm || !batchSelect) return;
+    if (!batchSelect.value) {
+      batchForm.querySelectorAll('[data-performance-field]').forEach(field => {
+        if (field.tagName === 'SELECT') {
+          field.value = 'not_assessed';
+        } else if (field.name === 'remarks') {
+          field.value = '';
+        }
+      });
+      return;
+    }
     const saved = batchData[batchSelect.value] || {};
     batchForm.querySelectorAll('[data-performance-field]').forEach(field => {
       const key = field.dataset.performanceField;
@@ -850,6 +864,12 @@ function initPerformanceForms() {
 
   const updateBadgeStudents = () => {
     if (!badgeBatchSelect) return;
+    if (!badgeBatchSelect.value) {
+      badgeSelects.forEach(select => {
+        select.value = '';
+      });
+      return;
+    }
     const schoolId = badgeBatchSelect.selectedOptions[0]?.dataset.schoolId || '';
     badgeSelects.forEach(select => {
       Array.from(select.options).forEach(option => {
