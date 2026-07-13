@@ -1,7 +1,13 @@
 from datetime import date
 import random
 
-from app.models import School, Trainer
+import bcrypt
+from sqlalchemy import func
+
+from app.models import Account, School, Trainer
+
+
+DEFAULT_TRAINER_PASSWORD = "Trainer@123"
 
 
 DIVISION_DISTRICTS = {
@@ -169,6 +175,38 @@ def seed_initial_data(db):
                 assigned_trainer=trainer_name,
                 current_students=current_students,
                 girls_count=girls_count,
+            )
+        )
+
+    db.commit()
+
+
+def _hash_password(password: str):
+    return bcrypt.hashpw(password[:72].encode(), bcrypt.gensalt()).decode()
+
+
+def seed_trainer_accounts(db):
+    trainers = db.query(Trainer).all()
+    if not trainers:
+        return
+
+    hashed_password = _hash_password(DEFAULT_TRAINER_PASSWORD)
+
+    for trainer in trainers:
+        normalized_email = trainer.email.strip().lower()
+        account = db.query(Account).filter(func.lower(Account.email) == normalized_email).first()
+        if account:
+            account.name = trainer.name
+            account.role = "trainer"
+            account.hashed_password = hashed_password
+            continue
+
+        db.add(
+            Account(
+                name=trainer.name,
+                email=normalized_email,
+                role="trainer",
+                hashed_password=hashed_password,
             )
         )
 

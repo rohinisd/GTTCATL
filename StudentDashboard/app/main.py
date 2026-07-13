@@ -19,7 +19,7 @@ from app import models  # noqa: F401 - registers SQLAlchemy models
 from app.content_seed import seed_lms_content
 from app.curriculum_import import seed_curriculum_content
 from app.handbook_import import VOLUME_COURSES, seed_handbook_volume_courses
-from app.seed import seed_initial_data
+from app.seed import seed_initial_data, seed_trainer_accounts
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -118,6 +118,7 @@ Base.metadata.create_all(bind=engine)
 
 with SessionLocal() as db:
     seed_initial_data(db)
+    seed_trainer_accounts(db)
     seed_lms_content(db)
     seed_curriculum_content(db)
     seed_handbook_volume_courses(db)
