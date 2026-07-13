@@ -196,6 +196,10 @@ def _can_manage_forms(request: Request):
     return _is_master_trainer(request)
 
 
+def _can_manage_courses(request: Request):
+    return _is_master_trainer(request)
+
+
 def _can_manage_trainers(request: Request):
     return _is_admin(request) or _is_master_trainer(request)
 
@@ -1621,8 +1625,8 @@ async def create_course(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can add new courses.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can add new courses.", "error")
 
     cleaned_title = title.strip()
     if not cleaned_title:
@@ -1684,8 +1688,8 @@ async def create_course(
 async def upload_course_pdf(request: Request, course_id: int, pdf_file: UploadFile = File(...)):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can add course PDFs.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can add course PDFs.", "error")
     if not pdf_file or not pdf_file.filename:
         return _dashboard_redirect("Choose a PDF file to upload.", "error")
     if Path(pdf_file.filename).suffix.lower() != ".pdf":
@@ -1713,8 +1717,8 @@ async def upload_course_pdf(request: Request, course_id: int, pdf_file: UploadFi
 async def delete_course(request: Request, course_id: int):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can delete courses.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can delete courses.", "error")
 
     protected_titles = {"ATL Curriculum and Innovation Calendar 2026-27"}
 
@@ -1750,8 +1754,8 @@ async def update_course(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can modify courses.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can modify courses.", "error")
 
     cleaned_title = title.strip()
     if not cleaned_title:
@@ -1784,8 +1788,8 @@ async def update_course(
 async def manage_course(request: Request, course_id: int):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can modify courses.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can modify courses.", "error")
 
     form = await request.form()
     cleaned_title = str(form.get("title") or "").strip()
@@ -1870,8 +1874,8 @@ async def add_course_lesson(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can add course items.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can add course items.", "error")
 
     cleaned_title = item_title.strip()
     if not cleaned_title:
@@ -1905,8 +1909,8 @@ async def update_lesson(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can modify course items.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can modify course items.", "error")
 
     cleaned_title = item_title.strip()
     if not cleaned_title:
@@ -1927,8 +1931,8 @@ async def update_lesson(
 async def delete_lesson(request: Request, lesson_id: int):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if not _is_admin(request):
-        return _dashboard_redirect("Only admin can delete course items.", "error")
+    if not _can_manage_courses(request):
+        return _dashboard_redirect("Only admin or master trainer can delete course items.", "error")
 
     with SessionLocal() as db:
         lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
@@ -3033,6 +3037,7 @@ async def dashboard(request: Request):
             "performance_assessment_rows": performance_assessment_rows,
             "atl_forms": _build_atl_forms(db),
             "can_manage_forms": _can_manage_forms(request),
+            "can_manage_courses": _can_manage_courses(request),
             "can_manage_trainers": _can_manage_trainers(request),
             "profile_details": _build_profile_details(db, current_account),
             "can_change_password": current_account.get("role") == "trainer",

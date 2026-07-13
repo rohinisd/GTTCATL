@@ -575,7 +575,7 @@
               Courses are reconstructed into three handbook columns. Each column links to the source PDF and lists the activity/case-study content inside that volume.
             </p>
           </div>
-          {% if is_admin %}
+          {% if can_manage_courses %}
           <div class="card">
             <button class="btn-primary" type="button" data-add-course-toggle><i class="ti ti-plus"></i> Add Course</button>
             <form class="compact-form" method="post" action="/courses/create" enctype="multipart/form-data" data-add-course-form hidden>
@@ -625,7 +625,7 @@
                 </div>
                 {% if volume.resource_url %}
                 <a class="btn-ghost" href="{{ volume.resource_url }}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i> PDF</a>
-                {% elif volume.is_custom and is_admin %}
+                {% elif volume.is_custom and can_manage_courses %}
                 <form class="course-pdf-form" method="post" action="/courses/{{ volume.id }}/pdf" enctype="multipart/form-data">
                   <label class="btn-ghost">
                     <i class="ti ti-file-type-pdf"></i> Add PDF
@@ -651,7 +651,7 @@
                 </article>
                 {% endfor %}
               </div>
-              {% if volume.can_delete and is_admin %}
+              {% if volume.can_delete and can_manage_courses %}
               <div class="course-card-actions">
                 <details class="course-manage-details">
                   <summary>Edit Course</summary>
