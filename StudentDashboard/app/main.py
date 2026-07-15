@@ -470,6 +470,21 @@ def _export_workbook(sheet_name: str, headers: list[str], rows: list[dict], file
     return _export_workbook_sheets([{"name": sheet_name, "headers": headers, "rows": rows}], filename)
 
 
+def _autosize_worksheet(worksheet):
+    for column_cells in worksheet.columns:
+        max_length = max(len(str(cell.value or "")) for cell in column_cells)
+        worksheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 14), 45)
+
+
+def _append_labeled_table(worksheet, title: str, columns: list[tuple[str, str]], rows: list[dict]):
+    worksheet.append([title])
+    keys = [key for key, _label in columns]
+    worksheet.append([label for _key, label in columns])
+    for row in rows:
+        worksheet.append([row.get(key, "") for key in keys])
+    worksheet.append([])
+
+
 def _export_workbook_sheets(sheets: list[dict], filename: str):
     workbook = openpyxl.Workbook()
     first = True
@@ -480,13 +495,49 @@ def _export_workbook_sheets(sheets: list[dict], filename: str):
         else:
             worksheet = workbook.create_sheet()
         worksheet.title = str(sheet["name"])[:31]
-        headers = sheet["headers"]
-        worksheet.append(headers)
-        for row in sheet.get("rows") or []:
-            worksheet.append([row.get(header, "") for header in headers])
-        for column_cells in worksheet.columns:
-            max_length = max(len(str(cell.value or "")) for cell in column_cells)
-            worksheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 14), 45)
+        columns = sheet.get("columns")
+        if columns:
+            _append_labeled_table(worksheet, sheet.get("title") or sheet["name"], columns, sheet.get("rows") or [])
+            # Remove the trailing blank row left by helper when it's a dedicated sheet
+            if worksheet.max_row > 1 and all(cell.value in (None, "") for cell in worksheet[worksheet.max_row]):
+                worksheet.delete_rows(worksheet.max_row)
+        else:
+            headers = sheet["headers"]
+            worksheet.append(headers)
+            for row in sheet.get("rows") or []:
+                worksheet.append([row.get(header, "") for header in headers])
+        _autosize_worksheet(worksheet)
+
+    buffer = BytesIO()
+    workbook.save(buffer)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _export_student_combination_workbook(summary_rows: list[dict], detail_rows: list[dict], filename: str):
+    """One sheet with Matching Students first, then Summary — so details are always visible."""
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Student Report"
+    _append_labeled_table(
+        worksheet,
+        f"Matching Students ({len(detail_rows)})",
+        REPORT_TABLE_COLUMNS["student_detail_list"],
+        detail_rows,
+    )
+    _append_labeled_table(
+        worksheet,
+        f"Summary ({len(summary_rows)})",
+        REPORT_TABLE_COLUMNS["student_combination_summary"],
+        summary_rows,
+    )
+    if worksheet.max_row > 1 and all(cell.value in (None, "") for cell in worksheet[worksheet.max_row]):
+        worksheet.delete_rows(worksheet.max_row)
+    _autosize_worksheet(worksheet)
 
     buffer = BytesIO()
     workbook.save(buffer)
@@ -539,6 +590,25 @@ def _matches_report_filters(row: dict, filters: dict):
             continue
         row_value = str(row.get(key) or "").strip()
         if row_value.lower() != str(value).strip().lower():
+            return False
+    return True
+
+
+def _student_matches_combination(detail: dict, summary: dict) -> bool:
+    """Match a student to a summary combo row on the dimensions that define that combo."""
+    fields = (
+        "school_id",
+        "district",
+        "gender",
+        "income_status",
+        "physically_challenged",
+        "medium",
+        "urban_rural",
+    )
+    for field in fields:
+        left = str(detail.get(field) or "").strip().lower()
+        right = str(summary.get(field) or "").strip().lower()
+        if left != right:
             return False
     return True
 
@@ -2812,19 +2882,36 @@ async def export_generated_report(
     filename = f"report-{report_type}.xlsx"
 
     if report_type == "student_combination_summary":
-        detail_rows = [
-            row
-            for row in detail_source_rows
-            if _matches_report_filters(row, filters)
-        ]
-        detail_headers = [key for key, _label in REPORT_TABLE_COLUMNS["student_detail_list"]]
-        return _export_workbook_sheets(
-            [
-                {"name": "Summary", "headers": headers, "rows": filtered_rows},
-                {"name": "Student Details", "headers": detail_headers, "rows": detail_rows},
-            ],
-            filename,
-        )
+        # Prefer students that belong to the visible summary combinations (same counts as UI).
+        # Also keep direct filter matches so location filters (taluk/village/etc.) still apply.
+        location_filters = {
+            key: filters.get(key, "")
+            for key in ("taluk", "village", "trainer", "caste", "category")
+            if filters.get(key)
+        }
+        detail_rows = []
+        seen = set()
+        for row in detail_source_rows:
+            if filtered_rows:
+                in_visible_combo = any(_student_matches_combination(row, summary) for summary in filtered_rows)
+                if not in_visible_combo:
+                    continue
+                if location_filters and not _matches_report_filters(row, location_filters):
+                    continue
+            elif not _matches_report_filters(row, filters):
+                continue
+            marker = (
+                str(row.get("name") or ""),
+                str(row.get("email") or ""),
+                str(row.get("school_id") or ""),
+                str(row.get("phone") or ""),
+            )
+            if marker in seen:
+                continue
+            seen.add(marker)
+            detail_rows.append(row)
+        detail_rows = sorted(detail_rows, key=lambda row: str(row.get("name") or "").lower())
+        return _export_student_combination_workbook(filtered_rows, detail_rows, filename)
 
     return _export_workbook(sheet_name, headers, filtered_rows, filename)
 
