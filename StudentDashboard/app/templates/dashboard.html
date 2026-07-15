@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-report-details">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-analytics">
 </head>
 <body>
   <div id="app">
@@ -111,32 +111,108 @@
               <div class="icon"><i class="ti ti-user-star"></i></div>
               <div class="label">Trainers</div>
               <div class="value">{{ trainers_count }}</div>
-              <div class="sub">4 master + 8 ATL trainers</div>
+              <div class="sub">Active directory across schools</div>
             </div>
             <div class="kpi">
               <div class="icon"><i class="ti ti-building-community"></i></div>
               <div class="label">Schools</div>
               <div class="value">{{ schools_count }}</div>
-              <div class="sub">Copied from DoNotUse seed</div>
+              <div class="sub">ATL partner institutions</div>
             </div>
             <div class="kpi">
               <div class="icon"><i class="ti ti-users-group"></i></div>
-              <div class="label">Reported Students</div>
-              <div class="value">{{ total_student_count }}</div>
-              <div class="sub">From school report totals</div>
+              <div class="label">Registered Students</div>
+              <div class="value">{{ students_count }}</div>
+              <div class="sub">{{ dashboard_analytics.girls }} girls · {{ dashboard_analytics.boys }} boys</div>
             </div>
             <div class="kpi">
               <div class="icon"><i class="ti ti-book-2"></i></div>
               <div class="label">Courses</div>
               <div class="value">{{ courses_count }}</div>
-              <div class="sub">{{ lessons_count }} imported lessons</div>
+              <div class="sub">{{ lessons_count }} lessons in library</div>
             </div>
           </div>
+
+          <section class="analytics-board" aria-label="Programme analytics">
+            <div class="analytics-board-head">
+              <div>
+                <div class="eyebrow">Board Snapshot</div>
+                <h2>Programme Analytics</h2>
+                <p>Live view of learner mix, batch delivery, and course progress for leadership review.</p>
+              </div>
+              <div class="analytics-board-meta">
+                <span class="badge badge-info">{{ dashboard_analytics.batches_total }} Batches</span>
+                <span class="badge badge-info">{{ dashboard_analytics.enrollments_total }} Enrollments</span>
+              </div>
+            </div>
+
+            <div class="analytics-highlights">
+              <div class="analytics-highlight">
+                <span class="analytics-highlight-label">Girls</span>
+                <strong>{{ dashboard_analytics.girls }}</strong>
+                <span class="analytics-highlight-sub">{{ dashboard_analytics.girl_percent }}% of learners</span>
+              </div>
+              <div class="analytics-highlight">
+                <span class="analytics-highlight-label">Boys</span>
+                <strong>{{ dashboard_analytics.boys }}</strong>
+                <span class="analytics-highlight-sub">{{ dashboard_analytics.boy_percent }}% of learners</span>
+              </div>
+              <div class="analytics-highlight">
+                <span class="analytics-highlight-label">Batches Completed</span>
+                <strong>{{ dashboard_analytics.batch_completed }}</strong>
+                <span class="analytics-highlight-sub">{{ dashboard_analytics.batch_completion_percent }}% of {{ dashboard_analytics.batches_total }} batches</span>
+              </div>
+              <div class="analytics-highlight">
+                <span class="analytics-highlight-label">Batches In Progress</span>
+                <strong>{{ dashboard_analytics.batch_in_progress }}</strong>
+                <span class="analytics-highlight-sub">Avg course progress {{ dashboard_analytics.avg_progress }}%</span>
+              </div>
+            </div>
+
+            <div class="analytics-chart-grid">
+              <article class="card analytics-chart-card">
+                <div class="analytics-chart-head">
+                  <h3>Learner Gender Mix</h3>
+                  <p>Registered students by gender</p>
+                </div>
+                <div class="analytics-chart-wrap">
+                  <canvas id="chartGenderMix" aria-label="Gender mix chart"></canvas>
+                </div>
+              </article>
+              <article class="card analytics-chart-card">
+                <div class="analytics-chart-head">
+                  <h3>Batch Delivery Status</h3>
+                  <p>Completed, active, and upcoming batches</p>
+                </div>
+                <div class="analytics-chart-wrap">
+                  <canvas id="chartBatchStatus" aria-label="Batch status chart"></canvas>
+                </div>
+              </article>
+              <article class="card analytics-chart-card">
+                <div class="analytics-chart-head">
+                  <h3>Course Enrollment Progress</h3>
+                  <p>Assigned through completed learning paths</p>
+                </div>
+                <div class="analytics-chart-wrap analytics-chart-wrap-bar">
+                  <canvas id="chartEnrollmentStatus" aria-label="Enrollment status chart"></canvas>
+                </div>
+              </article>
+              <article class="card analytics-chart-card">
+                <div class="analytics-chart-head">
+                  <h3>Students by District</h3>
+                  <p>Top districts by registered learners</p>
+                </div>
+                <div class="analytics-chart-wrap analytics-chart-wrap-bar">
+                  <canvas id="chartDistrictStudents" aria-label="District students chart"></canvas>
+                </div>
+              </article>
+            </div>
+          </section>
 
           <div class="grid-2">
             <div class="table-card">
               <div class="table-header">
-                <h3>Seeded Schools Preview</h3>
+                <h3>School Coverage</h3>
                 <span class="badge badge-info">{{ schools_count }} Schools</span>
               </div>
               <table>
@@ -145,7 +221,7 @@
                     <th>School</th>
                     <th>District</th>
                     <th>Trainer</th>
-                    <th>Reported Students</th>
+                    <th>Students</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -161,12 +237,38 @@
               </table>
             </div>
 
-            <div class="card">
-              <h3>Build Roadmap</h3>
-              <p>Phase 1: basic layout and separate DB.</p>
-              <p>Phase 2: CRUD for trainers, schools, and students.</p>
-              <p>Phase 3: LMS course builder with lessons, files, links, and publishing.</p>
-              <p>Phase 4: enrollments, progress, reports, and role-based access.</p>
+            <div class="card analytics-insight-card">
+              <h3>Leadership Takeaways</h3>
+              <ul class="analytics-insight-list">
+                <li>
+                  <i class="ti ti-gender-female"></i>
+                  <div>
+                    <strong>{{ dashboard_analytics.girl_percent }}% girls</strong>
+                    <span>{{ dashboard_analytics.girls }} girls and {{ dashboard_analytics.boys }} boys across {{ dashboard_analytics.students_total }} registered learners.</span>
+                  </div>
+                </li>
+                <li>
+                  <i class="ti ti-flag"></i>
+                  <div>
+                    <strong>{{ dashboard_analytics.batch_completed }} batches completed</strong>
+                    <span>{{ dashboard_analytics.batch_in_progress }} currently in progress · {{ dashboard_analytics.batch_upcoming }} upcoming.</span>
+                  </div>
+                </li>
+                <li>
+                  <i class="ti ti-chart-arrows"></i>
+                  <div>
+                    <strong>{{ dashboard_analytics.enrollment_completed }} course enrollments completed</strong>
+                    <span>{{ dashboard_analytics.enrollment_in_progress }} in progress · average progress {{ dashboard_analytics.avg_progress }}%.</span>
+                  </div>
+                </li>
+                <li>
+                  <i class="ti ti-scale"></i>
+                  <div>
+                    <strong>APL {{ dashboard_analytics.apl }} · BPL {{ dashboard_analytics.bpl }}</strong>
+                    <span>Income mix among registered students in the current scope.</span>
+                  </div>
+                </li>
+              </ul>
             </div>
           </div>
         </section>
@@ -1895,6 +1997,8 @@
     </div>
   </div>
 
-  <script src="/static/js/portal.js?v=20260715-report-details"></script>
+  <script id="dashboard-analytics-data" type="application/json">{{ dashboard_analytics|tojson }}</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/static/js/portal.js?v=20260715-analytics"></script>
 </body>
 </html>

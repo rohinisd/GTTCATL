@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import secrets
@@ -1109,6 +1110,135 @@ def _build_reports_payload(db, current_account):
         },
         "sections": sections,
         "tables": tables,
+    }
+
+
+def _build_dashboard_analytics(students: list[dict], batches: list[dict], enrollments: list[dict]):
+    """Board-ready dashboard metrics and chart series from live LMS records."""
+    today = date.today()
+    girls = boys = other_gender = 0
+    apl = bpl = income_other = 0
+    urban = rural = locale_other = 0
+    district_counts: dict[str, int] = {}
+
+    for student in students:
+        gender = _report_key(student.get("gender"))
+        if gender == "female":
+            girls += 1
+        elif gender == "male":
+            boys += 1
+        else:
+            other_gender += 1
+
+        income = _report_key(student.get("income_status"))
+        if income == "apl":
+            apl += 1
+        elif income == "bpl":
+            bpl += 1
+        else:
+            income_other += 1
+
+        locale = _report_key(student.get("urban_rural"))
+        if locale == "urban":
+            urban += 1
+        elif locale == "rural":
+            rural += 1
+        else:
+            locale_other += 1
+
+        district = _report_label(student.get("district"), "Unspecified")
+        district_counts[district] = district_counts.get(district, 0) + 1
+
+    batch_completed = batch_in_progress = batch_upcoming = batch_unscheduled = 0
+    for batch in batches:
+        start = batch.get("start_date")
+        end = batch.get("end_date")
+        if isinstance(start, str):
+            start = _parse_date(start)
+        if isinstance(end, str):
+            end = _parse_date(end)
+
+        if end and end < today:
+            batch_completed += 1
+        elif start and start > today:
+            batch_upcoming += 1
+        elif start or end:
+            batch_in_progress += 1
+        else:
+            batch_unscheduled += 1
+
+    enrollment_status_counts = {
+        "assigned": 0,
+        "in_progress": 0,
+        "completed": 0,
+        "dropped": 0,
+    }
+    progress_total = 0
+    for enrollment in enrollments:
+        status = _report_key(enrollment.get("status")) or "assigned"
+        if status not in enrollment_status_counts:
+            status = "assigned"
+        enrollment_status_counts[status] += 1
+        progress_total += int(enrollment.get("progress") or 0)
+
+    enrollment_total = len(enrollments)
+    students_total = len(students)
+    batches_total = len(batches)
+    top_districts = sorted(district_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
+
+    return {
+        "students_total": students_total,
+        "batches_total": batches_total,
+        "enrollments_total": enrollment_total,
+        "girls": girls,
+        "boys": boys,
+        "other_gender": other_gender,
+        "girl_percent": _report_percent(girls, students_total),
+        "boy_percent": _report_percent(boys, students_total),
+        "batch_completed": batch_completed,
+        "batch_in_progress": batch_in_progress,
+        "batch_upcoming": batch_upcoming,
+        "batch_unscheduled": batch_unscheduled,
+        "batch_completion_percent": _report_percent(batch_completed, batches_total),
+        "enrollment_completed": enrollment_status_counts["completed"],
+        "enrollment_in_progress": enrollment_status_counts["in_progress"],
+        "enrollment_assigned": enrollment_status_counts["assigned"],
+        "enrollment_dropped": enrollment_status_counts["dropped"],
+        "avg_progress": round(progress_total / enrollment_total) if enrollment_total else 0,
+        "apl": apl,
+        "bpl": bpl,
+        "charts": {
+            "gender": {
+                "labels": ["Girls", "Boys", "Other"],
+                "values": [girls, boys, other_gender],
+                "colors": ["#db2777", "#2563eb", "#94a3b8"],
+            },
+            "batches": {
+                "labels": ["Completed", "In Progress", "Upcoming", "Not Scheduled"],
+                "values": [batch_completed, batch_in_progress, batch_upcoming, batch_unscheduled],
+                "colors": ["#059669", "#d97706", "#0891b2", "#94a3b8"],
+            },
+            "enrollments": {
+                "labels": ["Assigned", "In Progress", "Completed", "Dropped"],
+                "values": [
+                    enrollment_status_counts["assigned"],
+                    enrollment_status_counts["in_progress"],
+                    enrollment_status_counts["completed"],
+                    enrollment_status_counts["dropped"],
+                ],
+                "colors": ["#64748b", "#2563eb", "#059669", "#dc2626"],
+            },
+            "districts": {
+                "labels": [name for name, _count in top_districts],
+                "values": [count for _name, count in top_districts],
+                "colors": ["#1e3a8a", "#2563eb", "#0891b2", "#0f766e", "#d97706", "#db2777", "#475569", "#94a3b8"],
+            },
+            "income": {
+                "labels": ["APL", "BPL", "Other"],
+                "values": [apl, bpl, income_other],
+                "colors": ["#0f766e", "#d97706", "#94a3b8"],
+            },
+        },
     }
 
 
@@ -3371,6 +3501,7 @@ async def dashboard(request: Request):
         ]
         total_student_count = sum(school.current_students or 0 for school in schools)
         reports_data = _build_reports_payload(db, current_account)
+        dashboard_analytics = _build_dashboard_analytics(student_rows, batch_rows, enrollment_rows)
 
     return templates.TemplateResponse(
         request,
@@ -3423,6 +3554,7 @@ async def dashboard(request: Request):
             "can_change_password": current_account.get("role") == "trainer",
             "default_trainer_password": DEFAULT_TRAINER_PASSWORD,
             "reports_data": reports_data,
+            "dashboard_analytics": dashboard_analytics,
             "attendance_status_map": attendance_status_map,
             "today": date.today().isoformat(),
             "total_student_count": total_student_count,

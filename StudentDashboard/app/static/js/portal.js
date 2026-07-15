@@ -1092,6 +1092,149 @@ function initEnrollmentForm() {
   syncEnrollmentOptions();
 }
 
+function initDashboardAnalytics() {
+  const dataNode = document.getElementById('dashboard-analytics-data');
+  if (!dataNode || typeof Chart === 'undefined') return;
+
+  let analytics;
+  try {
+    analytics = JSON.parse(dataNode.textContent || '{}');
+  } catch (_error) {
+    return;
+  }
+
+  const charts = analytics.charts || {};
+  if (!charts.gender) return;
+
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#375080';
+  const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#e0e8f4';
+  const sharedLegend = {
+    position: 'bottom',
+    labels: {
+      boxWidth: 12,
+      boxHeight: 12,
+      usePointStyle: true,
+      padding: 16,
+      color: textColor,
+      font: { family: 'Figtree', size: 12, weight: '600' },
+    },
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: {
+      legend: sharedLegend,
+      tooltip: {
+        callbacks: {
+          label(context) {
+            const value = context.raw || 0;
+            const total = context.dataset.data.reduce((sum, item) => sum + (Number(item) || 0), 0);
+            const percent = total ? Math.round((value / total) * 100) : 0;
+            return ` ${context.label}: ${value} (${percent}%)`;
+          },
+        },
+      },
+    },
+  };
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label(context) {
+            return ` ${context.raw}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: textColor, font: { family: 'Figtree', size: 11, weight: '600' } },
+        grid: { display: false },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { precision: 0, color: textColor, font: { family: 'Figtree', size: 11 } },
+        grid: { color: gridColor },
+      },
+    },
+  };
+
+  const makeDoughnut = (canvasId, series) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !series) return;
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: series.labels,
+        datasets: [{
+          data: series.values,
+          backgroundColor: series.colors,
+          borderWidth: 0,
+          hoverOffset: 6,
+        }],
+      },
+      options: doughnutOptions,
+    });
+  };
+
+  makeDoughnut('chartGenderMix', charts.gender);
+  makeDoughnut('chartBatchStatus', charts.batches);
+
+  const enrollmentCanvas = document.getElementById('chartEnrollmentStatus');
+  if (enrollmentCanvas && charts.enrollments) {
+    new Chart(enrollmentCanvas, {
+      type: 'bar',
+      data: {
+        labels: charts.enrollments.labels,
+        datasets: [{
+          data: charts.enrollments.values,
+          backgroundColor: charts.enrollments.colors,
+          borderRadius: 8,
+          maxBarThickness: 42,
+        }],
+      },
+      options: barOptions,
+    });
+  }
+
+  const districtCanvas = document.getElementById('chartDistrictStudents');
+  if (districtCanvas && charts.districts) {
+    new Chart(districtCanvas, {
+      type: 'bar',
+      data: {
+        labels: charts.districts.labels.length ? charts.districts.labels : ['No districts yet'],
+        datasets: [{
+          data: charts.districts.values.length ? charts.districts.values : [0],
+          backgroundColor: charts.districts.colors,
+          borderRadius: 8,
+          maxBarThickness: 28,
+        }],
+      },
+      options: {
+        ...barOptions,
+        indexAxis: 'y',
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { precision: 0, color: textColor, font: { family: 'Figtree', size: 11 } },
+            grid: { color: gridColor },
+          },
+          y: {
+            ticks: { color: textColor, font: { family: 'Figtree', size: 11, weight: '600' } },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+}
+
 function initTableScroll() {
   document.querySelectorAll('.table-card > table').forEach(table => {
     if (table.parentElement?.classList.contains('table-scroll')) return;
@@ -1138,4 +1281,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initPasswordReveal();
   initEnrollmentForm();
   initTableScroll();
+  initDashboardAnalytics();
 });
