@@ -211,6 +211,7 @@ class StudentTeamworkBadge(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     batch_id = Column(Integer, ForeignKey("batches.id"), nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     badge = Column(String(40), nullable=False)
     assigned_by = Column(String(160))
@@ -218,6 +219,7 @@ class StudentTeamworkBadge(Base):
     assigned_at = Column(DateTime(timezone=True), server_default=func.now())
 
     batch = relationship("Batch", back_populates="teamwork_badges")
+    course = relationship("Course")
     student = relationship("Student")
 
 

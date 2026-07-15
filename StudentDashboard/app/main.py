@@ -112,6 +112,12 @@ def _ensure_columns():
             "end_date": "DATE",
         },
     )
+    add_missing(
+        "student_teamwork_badges",
+        {
+            "course_id": "INTEGER",
+        },
+    )
 
 
 _ensure_columns()
@@ -2362,10 +2368,13 @@ async def save_teamwork_badges(request: Request):
 
     form = await request.form()
     batch_id = _parse_int(form.get("batch_id"))
+    course_id = _parse_int(form.get("course_id"))
     assigned_by = str(form.get("assigned_by") or "Trainer").strip() or "Trainer"
     remarks = str(form.get("remarks") or "").strip() or None
     if not batch_id:
         return _dashboard_redirect("Select a batch before assigning teamwork badges.", "error")
+    if not course_id:
+        return _dashboard_redirect("Select a course, experiment, or curriculum item before assigning teamwork badges.", "error")
 
     with SessionLocal() as db:
         scope_school_ids = _request_school_scope_ids(request, db)
@@ -2374,12 +2383,19 @@ async def save_teamwork_badges(request: Request):
             return _dashboard_redirect("Selected batch was not found.", "error")
         if not _school_in_scope(scope_school_ids, batch.school_id):
             return _dashboard_redirect("You can assign badges only for your assigned schools.", "error")
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if not course:
+            return _dashboard_redirect("Selected course was not found.", "error")
         saved_count = 0
         for badge_key in TEAMWORK_BADGES:
             student_id = _parse_int(form.get(f"badge_{badge_key}"))
             existing = (
                 db.query(models.StudentTeamworkBadge)
-                .filter(models.StudentTeamworkBadge.batch_id == batch.id, models.StudentTeamworkBadge.badge == badge_key)
+                .filter(
+                    models.StudentTeamworkBadge.batch_id == batch.id,
+                    models.StudentTeamworkBadge.course_id == course.id,
+                    models.StudentTeamworkBadge.badge == badge_key,
+                )
                 .all()
             )
             for badge_record in existing:
@@ -2392,6 +2408,7 @@ async def save_teamwork_badges(request: Request):
             db.add(
                 models.StudentTeamworkBadge(
                     batch_id=batch.id,
+                    course_id=course.id,
                     student_id=student.id,
                     badge=badge_key,
                     assigned_by=assigned_by,
@@ -2941,17 +2958,18 @@ async def dashboard(request: Request):
         batch_assessments = batch_assessments_query.all()
         batch_assessment_map = {assessment.batch_id: assessment for assessment in batch_assessments}
         teamwork_badges_query = (
-            db.query(models.StudentTeamworkBadge, models.Batch, models.Student, models.School)
+            db.query(models.StudentTeamworkBadge, models.Batch, models.Student, models.School, models.Course)
             .join(models.Batch, models.Batch.id == models.StudentTeamworkBadge.batch_id)
             .join(models.Student, models.Student.id == models.StudentTeamworkBadge.student_id)
             .join(models.School, models.School.id == models.Batch.school_id)
+            .outerjoin(models.Course, models.Course.id == models.StudentTeamworkBadge.course_id)
         )
         if scope_school_ids is not None:
             teamwork_badges_query = teamwork_badges_query.filter(models.Batch.school_id.in_(scope_school_ids))
-        teamwork_badges = teamwork_badges_query.order_by(models.School.name, models.Batch.name, models.StudentTeamworkBadge.badge).all()
+        teamwork_badges = teamwork_badges_query.order_by(models.School.name, models.Batch.name, models.Course.title, models.StudentTeamworkBadge.badge).all()
         teamwork_badge_map = {
-            f"{badge.batch_id}:{badge.badge}": badge.student_id
-            for badge, _batch, _student, _school in teamwork_badges
+            f"{badge.batch_id}:{badge.course_id or ''}:{badge.badge}": badge.student_id
+            for badge, _batch, _student, _school, _course in teamwork_badges
         }
         batch_assessment_form_map = {
             str(assessment.batch_id): {
@@ -2969,13 +2987,15 @@ async def dashboard(request: Request):
                 "school_name": school.name,
                 "batch_id": batch.id,
                 "batch_name": batch.name,
+                "course_id": course.id if course else None,
+                "course_title": course.title if course else "Not linked",
                 "student_name": student.name,
                 "badge": badge.badge,
                 "badge_label": TEAMWORK_BADGES.get(badge.badge, badge.badge),
                 "assigned_by": badge.assigned_by,
                 "remarks": badge.remarks,
             }
-            for badge, batch, student, school in teamwork_badges
+            for badge, batch, student, school, course in teamwork_badges
         ]
         performance_assessment_rows = [
             {

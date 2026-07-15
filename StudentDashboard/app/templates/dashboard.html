@@ -1508,7 +1508,7 @@
 
             <div class="card">
               <h3>Assign Teamwork Badges</h3>
-              <p class="form-hint">Assign each teamwork badge to one student from the selected batch's school.</p>
+              <p class="form-hint">Choose the same course, experiment, or ATL curriculum item used in Content Library, then assign each teamwork badge to one student from the selected batch's school.</p>
               <form class="compact-form" method="post" action="/performance/teamwork-badges" data-teamwork-badge-form>
                 <label class="form-field-label">
                   <span>School</span>
@@ -1527,6 +1527,15 @@
                     <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
                       {{ batch.school_name }} - {{ batch.name }}
                     </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Course / Experiment / Curriculum</span>
+                  <select name="course_id" data-teamwork-course-select required>
+                    <option value="" disabled selected hidden>Select course, experiment, or curriculum</option>
+                    {% for course in courses %}
+                    <option value="{{ course.id }}">{{ course.title }}</option>
                     {% endfor %}
                   </select>
                 </label>
@@ -1596,6 +1605,7 @@
                   <tr>
                     <th>School</th>
                     <th>Batch</th>
+                    <th>Course</th>
                     <th>Badge</th>
                     <th>Student</th>
                     <th>Assigned By</th>
@@ -1606,13 +1616,14 @@
                   <tr>
                     <td>{{ row.school_name }}</td>
                     <td>{{ row.batch_name }}</td>
+                    <td>{{ row.course_title }}</td>
                     <td>{{ row.badge_label }}</td>
                     <td>{{ row.student_name }}</td>
                     <td>{{ row.assigned_by or '-' }}</td>
                   </tr>
                   {% endfor %}
                   {% if not teamwork_badge_rows %}
-                  <tr><td colspan="5">No teamwork badges assigned yet.</td></tr>
+                  <tr><td colspan="6">No teamwork badges assigned yet.</td></tr>
                   {% endif %}
                 </tbody>
               </table>
@@ -1749,6 +1760,6 @@
     </div>
   </div>
 
-  <script src="/static/js/portal.js?v=20260713-profile-modal"></script>
+  <script src="/static/js/portal.js?v=20260715-teamwork-course"></script>
 </body>
 </html>

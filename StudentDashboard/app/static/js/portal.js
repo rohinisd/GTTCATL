@@ -859,12 +859,13 @@ function initPerformanceForms() {
   const badgeForm = document.querySelector('[data-teamwork-badge-form]');
   const badgeSchoolSelect = document.querySelector('[data-teamwork-school-select]');
   const badgeBatchSelect = document.querySelector('[data-teamwork-batch-select]');
+  const badgeCourseSelect = document.querySelector('[data-teamwork-course-select]');
   const badgeData = readJsonScript('teamworkBadgeData');
   const badgeSelects = Array.from(document.querySelectorAll('[data-teamwork-badge]'));
 
   const updateBadgeStudents = () => {
     if (!badgeBatchSelect) return;
-    if (!badgeBatchSelect.value) {
+    if (!badgeBatchSelect.value || !badgeCourseSelect?.value) {
       badgeSelects.forEach(select => {
         select.value = '';
       });
@@ -882,7 +883,7 @@ function initPerformanceForms() {
         option.hidden = !isMatch;
         option.disabled = !isMatch;
       });
-      const savedStudent = badgeData[`${badgeBatchSelect.value}:${select.dataset.teamworkBadge}`];
+      const savedStudent = badgeData[`${badgeBatchSelect.value}:${badgeCourseSelect.value}:${select.dataset.teamworkBadge}`];
       select.value = savedStudent ? String(savedStudent) : '';
       if (select.selectedOptions[0]?.disabled) {
         select.value = '';
@@ -897,6 +898,7 @@ function initPerformanceForms() {
 
   badgeSchoolSelect?.addEventListener('change', updateBadgeForm);
   badgeBatchSelect?.addEventListener('change', updateBadgeStudents);
+  badgeCourseSelect?.addEventListener('change', updateBadgeStudents);
   if (badgeForm) updateBadgeForm();
 }
 
