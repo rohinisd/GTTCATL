@@ -1459,6 +1459,13 @@ html[data-theme="dark"] .topbar {
   margin-bottom: 16px;
 }
 
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 .table-header {
   padding: 14px 18px;
   border-bottom: 1px solid var(--border2);
@@ -1829,6 +1836,19 @@ table {
   border-collapse: collapse;
 }
 
+.table-card table,
+.table-scroll table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.table-card th,
+.table-card td,
+.table-scroll th,
+.table-scroll td {
+  white-space: nowrap;
+}
+
 th {
   background: var(--surface2);
   padding: 10px 13px;
@@ -2017,6 +2037,17 @@ tbody tr:hover td {
 .password-reveal .password-toggle {
   padding: 4px 8px;
   font-size: 12px;
+}
+
+.trainer-status-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trainer-inactive-row td {
+  opacity: 0.72;
 }
 
 @media (max-width: 980px) {

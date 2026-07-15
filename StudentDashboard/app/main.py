@@ -51,6 +51,7 @@ def _ensure_columns():
             "division": "VARCHAR(120)",
             "districts": "TEXT",
             "assigned_school": "VARCHAR(220)",
+            "is_active": "BOOLEAN DEFAULT TRUE",
         },
     )
     add_missing(
@@ -1137,6 +1138,24 @@ async def login(request: Request, username: str = Form(...), password: str = For
         account = db.query(models.Account).filter(func.lower(models.Account.email) == normalized_username).first()
 
     if account and _verify_password(password, account.hashed_password):
+        if account.role == "trainer":
+            with SessionLocal() as db:
+                trainer = (
+                    db.query(models.Trainer)
+                    .filter(func.lower(models.Trainer.email) == normalized_username)
+                    .first()
+                )
+                if trainer and trainer.is_active is False:
+                    return templates.TemplateResponse(
+                        request,
+                        "login.html",
+                        {
+                            "app_name": "GTTC Student Dashboard",
+                            "error": "This trainer account is deactivated. Contact admin or master trainer.",
+                            "username": username,
+                        },
+                        status_code=401,
+                    )
         response = RedirectResponse("/dashboard", status_code=303)
         _set_session_cookie(response, f"account:{account.id}:{secrets.token_urlsafe(16)}")
         return response
@@ -1431,6 +1450,7 @@ async def add_trainer(
                 districts=districts.strip() or None,
                 assigned_school=assigned_schools,
                 specialization="ATL trainer",
+                is_active=True,
             )
         )
         db.add(
@@ -1446,6 +1466,32 @@ async def add_trainer(
     if _is_admin(request):
         return _dashboard_redirect("Trainer added successfully. Login credentials are ready.")
     return _dashboard_redirect(f"Trainer added successfully. Default login password is {DEFAULT_TRAINER_PASSWORD}.")
+
+
+@app.post("/trainers/{trainer_id}/toggle-active")
+async def toggle_trainer_active(request: Request, trainer_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _can_manage_trainers(request):
+        return _dashboard_redirect("Only admins and master trainers can activate or deactivate trainers.", "error")
+
+    current_account = _current_account(request) or {}
+    with SessionLocal() as db:
+        trainer = db.query(models.Trainer).filter(models.Trainer.id == trainer_id).first()
+        if not trainer:
+            return _dashboard_redirect("Trainer was not found.", "error")
+        if current_account.get("email") and trainer.email.lower() == current_account.get("email", "").lower():
+            return _dashboard_redirect("You cannot deactivate your own account.", "error")
+        if not _is_admin(request) and trainer.role == "master_trainer":
+            return _dashboard_redirect("Only admin can activate or deactivate master trainers.", "error")
+
+        current_active = True if trainer.is_active is None else bool(trainer.is_active)
+        trainer.is_active = not current_active
+        trainer_name = trainer.name
+        db.commit()
+        state = "activated" if trainer.is_active else "deactivated"
+
+    return _dashboard_redirect(f"Trainer {trainer_name} has been {state}.")
 
 
 @app.post("/manual/school")
@@ -1615,6 +1661,7 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                                 col(row, "assigned_school"),
                             ),
                             specialization="ATL trainer",
+                            is_active=True,
                         )
                     )
                     db.add(

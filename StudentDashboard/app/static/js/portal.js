@@ -1080,6 +1080,16 @@ function initEnrollmentForm() {
   syncEnrollmentOptions();
 }
 
+function initTableScroll() {
+  document.querySelectorAll('.table-card > table').forEach(table => {
+    if (table.parentElement?.classList.contains('table-scroll')) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-scroll';
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateThemeButtons();
   resetSearchFields();
@@ -1115,4 +1125,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initProfileModal();
   initPasswordReveal();
   initEnrollmentForm();
+  initTableScroll();
 });

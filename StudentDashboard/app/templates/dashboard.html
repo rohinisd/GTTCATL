@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-enrollment-scope">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-trainer-active">
 </head>
 <body>
   <div id="app">
@@ -268,12 +268,13 @@
                   <th data-sort-key="assigned_school">Assigned Schools</th>
                   {% if can_manage_trainers %}
                   <th>Password</th>
+                  <th>Status</th>
                   {% endif %}
                 </tr>
               </thead>
               <tbody>
                 {% for trainer in trainers %}
-                <tr>
+                <tr class="{% if trainer.is_active is sameas false %}trainer-inactive-row{% endif %}">
                   <td>{{ trainer.name }}</td>
                   <td>{{ trainer.email }}</td>
                   <td>
@@ -295,6 +296,21 @@
                       <button class="btn-ghost password-toggle" type="button" data-password-toggle aria-label="Show password">
                         <i class="ti ti-eye"></i> View
                       </button>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="trainer-status-cell">
+                      {% if trainer.is_active is sameas false %}
+                      <span class="badge badge-warn">Inactive</span>
+                      <form method="post" action="/trainers/{{ trainer.id }}/toggle-active">
+                        <button class="btn-ghost" type="submit"><i class="ti ti-user-check"></i> Activate</button>
+                      </form>
+                      {% else %}
+                      <span class="badge badge-success">Active</span>
+                      <form method="post" action="/trainers/{{ trainer.id }}/toggle-active" onsubmit="return confirm('Deactivate {{ trainer.name }}? They will not be able to log in.');">
+                        <button class="btn-ghost" type="submit"><i class="ti ti-user-off"></i> Deactivate</button>
+                      </form>
+                      {% endif %}
                     </div>
                   </td>
                   {% endif %}
@@ -494,6 +510,7 @@
               </select>
               <a class="btn-ghost" href="/export/students" data-table-export="students"><i class="ti ti-file-spreadsheet"></i> Download Excel</a>
             </div>
+            <div class="table-scroll">
             <table class="managed-table" data-table="students">
               <thead>
                 <tr>
@@ -553,6 +570,7 @@
                 {% endif %}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
 
@@ -854,7 +872,7 @@
                   <select name="trainer_name" required>
                     <option value="" disabled selected hidden>Select trainer</option>
                     {% for trainer in trainers %}
-                    {% if trainer.role != 'master_trainer' %}
+                    {% if trainer.role != 'master_trainer' and trainer.is_active is not sameas false %}
                     <option value="{{ trainer.name }}">{{ trainer.name }}{% if trainer.email %} ({{ trainer.email }}){% endif %}</option>
                     {% endif %}
                     {% endfor %}
@@ -1834,6 +1852,6 @@
     </div>
   </div>
 
-  <script src="/static/js/portal.js?v=20260715-enrollment-batch"></script>
+  <script src="/static/js/portal.js?v=20260715-trainer-active"></script>
 </body>
 </html>
