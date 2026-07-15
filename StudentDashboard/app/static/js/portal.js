@@ -1026,6 +1026,25 @@ function initProfileModal() {
   });
 }
 
+function initPasswordReveal() {
+  document.querySelectorAll('[data-password-reveal]').forEach(wrapper => {
+    const toggle = wrapper.querySelector('[data-password-toggle]');
+    const masked = wrapper.querySelector('[data-password-masked]');
+    const value = wrapper.querySelector('[data-password-value]');
+    if (!toggle || !masked || !value) return;
+
+    toggle.addEventListener('click', () => {
+      const showing = !value.hidden;
+      value.hidden = showing;
+      masked.hidden = !showing;
+      toggle.innerHTML = showing
+        ? '<i class="ti ti-eye"></i> View'
+        : '<i class="ti ti-eye-off"></i> Hide';
+      toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateThemeButtons();
   resetSearchFields();
@@ -1059,4 +1078,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initCourseItems();
   initCourseSearch();
   initProfileModal();
+  initPasswordReveal();
 });

@@ -2001,6 +2001,24 @@ tbody tr:hover td {
   justify-self: start;
 }
 
+.password-reveal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.password-reveal .password-value,
+.password-reveal .password-masked {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.password-reveal .password-toggle {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 @media (max-width: 980px) {
   .sidebar {
     width: 220px;

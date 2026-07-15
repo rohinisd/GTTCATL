@@ -118,6 +118,12 @@ def _ensure_columns():
             "course_id": "INTEGER",
         },
     )
+    add_missing(
+        "accounts",
+        {
+            "plain_password": "VARCHAR(240)",
+        },
+    )
 
 
 _ensure_columns()
@@ -1110,20 +1116,22 @@ async def logout():
 async def bulk_template(record_type: str, request: Request):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
-    if record_type in {"trainers", "schools"} and not _is_admin(request):
-        return _dashboard_redirect("Only admin can download trainer or school bulk templates.", "error")
+    if record_type == "trainers" and not _can_manage_trainers(request):
+        return _dashboard_redirect("Only admins and master trainers can download trainer bulk templates.", "error")
+    if record_type == "schools" and not _is_admin(request):
+        return _dashboard_redirect("Only admin can download school bulk templates.", "error")
 
     templates = {
         "trainers": {
             "sheet": "Trainers",
             "headers": [
-                "name", "email", "phone", "role", "gender", "caste",
-                "division", "districts", "assigned_school_1", "assigned_school_2", "assigned_school_3", "specialization",
+                "name", "email", "phone", "role", "division", "districts",
+                "assigned_school_1", "assigned_school_2", "assigned_school_3", "password",
             ],
             "sample": [
                 "Trainer Full Name", "trainer@example.com", "+91 9876543210", "atl_trainer",
-                "female", "cat_2a", "Bengaluru", "Bengaluru South",
-                "GHS Jayanagar", "GHS Basavanagudi", "GHS Malleshwaram", "ATL trainer",
+                "Bengaluru", "Bengaluru South",
+                "GHS Jayanagar", "GHS Basavanagudi", "GHS Malleshwaram", "Trainer@123",
             ],
         },
         "schools": {
@@ -1193,23 +1201,24 @@ async def export_records(record_type: str, request: Request):
                 return _dashboard_redirect("Only admin can export trainer records.", "error")
             headers = [
                 "name", "email", "phone", "role", "division", "districts",
-                "assigned_school_1", "assigned_school_2", "assigned_school_3", "specialization",
+                "assigned_school_1", "assigned_school_2", "assigned_school_3",
             ]
-            rows = [
-                {
-                    "name": trainer.name,
-                    "email": trainer.email,
-                    "phone": trainer.phone,
-                    "role": trainer.role,
-                    "division": trainer.division,
-                    "districts": trainer.districts,
-                    "assigned_school_1": (_split_assigned_schools(trainer.assigned_school) + ["", "", ""])[0],
-                    "assigned_school_2": (_split_assigned_schools(trainer.assigned_school) + ["", "", ""])[1],
-                    "assigned_school_3": (_split_assigned_schools(trainer.assigned_school) + ["", "", ""])[2],
-                    "specialization": trainer.specialization,
-                }
-                for trainer in db.query(models.Trainer).all()
-            ]
+            rows = []
+            for trainer in db.query(models.Trainer).order_by(models.Trainer.name).all():
+                schools = (_split_assigned_schools(trainer.assigned_school) + ["", "", ""])[:3]
+                rows.append(
+                    {
+                        "name": trainer.name,
+                        "email": trainer.email,
+                        "phone": trainer.phone,
+                        "role": trainer.role,
+                        "division": trainer.division,
+                        "districts": trainer.districts,
+                        "assigned_school_1": schools[0],
+                        "assigned_school_2": schools[1],
+                        "assigned_school_3": schools[2],
+                    }
+                )
             filename = "student_dashboard_trainers.xlsx"
             sheet_name = "Trainers"
         elif record_type == "schools":
@@ -1301,7 +1310,6 @@ async def add_trainer(
     assigned_school_1: str = Form(""),
     assigned_school_2: str = Form(""),
     assigned_school_3: str = Form(""),
-    specialization: str = Form("ATL trainer"),
     password: str = Form(""),
     confirm_password: str = Form(""),
 ):
@@ -1349,7 +1357,7 @@ async def add_trainer(
                 division=division.strip() or None,
                 districts=districts.strip() or None,
                 assigned_school=assigned_schools,
-                specialization=specialization.strip() or None,
+                specialization="ATL trainer",
             )
         )
         db.add(
@@ -1358,6 +1366,7 @@ async def add_trainer(
                 email=normalized_email,
                 role="trainer",
                 hashed_password=_hash_password(chosen_password),
+                plain_password=chosen_password,
             )
         )
         db.commit()
@@ -1483,11 +1492,14 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
 
     if record_type not in {"trainers", "schools", "students"}:
         raise HTTPException(404, "Unknown bulk upload type")
-    if record_type in {"trainers", "schools"} and not _is_admin(request):
-        return _dashboard_redirect("Only admin can bulk upload trainer or school records.", "error")
+    if record_type == "trainers" and not _can_manage_trainers(request):
+        return _dashboard_redirect("Only admins and master trainers can bulk upload trainers.", "error")
+    if record_type == "schools" and not _is_admin(request):
+        return _dashboard_redirect("Only admin can bulk upload school records.", "error")
 
     rows, col = _worksheet_rows(await file.read())
     success, failed, errors = 0, 0, []
+    is_admin_user = _is_admin(request)
 
     with SessionLocal() as db:
         scope_school_ids = _request_school_scope_ids(request, db)
@@ -1498,19 +1510,29 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
             try:
                 if record_type == "trainers":
                     name = col(row, "name") or col(row, "trainer_name")
-                    email = (col(row, "email") or col(row, "trainer_email")).lower()
+                    email = (col(row, "email") or col(row, "trainer_email") or "").lower()
                     if not name or not email:
                         raise ValueError("missing name/email")
                     if db.query(models.Trainer).filter(func.lower(models.Trainer.email) == email).first():
                         raise ValueError(f"trainer email already exists: {email}")
+                    if db.query(models.Account).filter(func.lower(models.Account.email) == email).first():
+                        raise ValueError(f"login account already exists: {email}")
+                    role_value = (col(row, "role") or "atl_trainer").strip().lower()
+                    if not is_admin_user:
+                        role_value = "atl_trainer"
+                    elif role_value not in {"atl_trainer", "master_trainer"}:
+                        role_value = "atl_trainer"
+                    chosen_password = (col(row, "password") or col(row, "login_password") or "").strip()
+                    if not chosen_password:
+                        chosen_password = DEFAULT_TRAINER_PASSWORD
+                    if len(chosen_password) < 6:
+                        raise ValueError("password must be at least 6 characters")
                     db.add(
                         models.Trainer(
                             name=name,
                             email=email,
                             phone=col(row, "phone") or col(row, "trainer_phone") or None,
-                            role=col(row, "role") or "atl_trainer",
-                            gender=col(row, "gender") or col(row, "trainer_gender") or None,
-                            caste=col(row, "caste") or col(row, "trainer_caste") or None,
+                            role=role_value,
                             division=col(row, "division") or None,
                             districts=col(row, "districts") or col(row, "district") or None,
                             assigned_school=_join_assigned_schools(
@@ -1519,7 +1541,16 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                                 col(row, "assigned_school_3"),
                                 col(row, "assigned_school"),
                             ),
-                            specialization=col(row, "specialization") or "ATL trainer",
+                            specialization="ATL trainer",
+                        )
+                    )
+                    db.add(
+                        models.Account(
+                            name=name,
+                            email=email,
+                            role="trainer",
+                            hashed_password=_hash_password(chosen_password),
+                            plain_password=chosen_password,
                         )
                     )
 
@@ -2600,9 +2631,22 @@ async def dashboard(request: Request):
 
     with SessionLocal() as db:
         trainers_query = db.query(models.Trainer)
-        if current_account.get("role") == "trainer":
+        if current_account.get("role") == "trainer" and not _is_master_trainer(request):
             trainers_query = trainers_query.filter(func.lower(models.Trainer.email) == current_account.get("email", "").lower())
         trainers = trainers_query.order_by(models.Trainer.role.desc(), models.Trainer.name).all()
+        trainer_password_map = {}
+        if _can_manage_trainers(request):
+            trainer_emails = [trainer.email.lower() for trainer in trainers if trainer.email]
+            if trainer_emails:
+                accounts = (
+                    db.query(models.Account)
+                    .filter(func.lower(models.Account.email).in_(trainer_emails))
+                    .all()
+                )
+                trainer_password_map = {
+                    account.email.lower(): account.plain_password or DEFAULT_TRAINER_PASSWORD
+                    for account in accounts
+                }
         all_schools = db.query(models.School).order_by(models.School.division, models.School.district, models.School.name).all()
         scope_school_ids = _trainer_school_scope_ids(db, current_account)
         schools = [school for school in all_schools if _school_in_scope(scope_school_ids, school.id)]
@@ -3024,6 +3068,7 @@ async def dashboard(request: Request):
             "current_account": current_account,
             "is_admin": is_admin,
             "trainers": trainers,
+            "trainer_password_map": trainer_password_map,
             "schools": schools,
             "trainers_count": len(trainers),
             "schools_count": len(schools),
@@ -3099,6 +3144,7 @@ async def change_profile_password(
         if not account or not _verify_password(current_password, account.hashed_password):
             return _dashboard_redirect("Current password is incorrect.", "error")
         account.hashed_password = _hash_password(new_password)
+        account.plain_password = new_password
         db.commit()
 
     return _dashboard_redirect("Password changed successfully.")

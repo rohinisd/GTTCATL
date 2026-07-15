@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260713-profile-modal">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-trainer-password">
 </head>
 <body>
   <div id="app">
@@ -173,10 +173,10 @@
 
         <section class="page-section" id="page-trainers">
           <div class="bulk-grid">
-            {% if is_admin %}
+            {% if can_manage_trainers %}
             <div class="card">
               <h3>Bulk Upload Trainers</h3>
-              <p>Download the Excel template, fill trainer rows, then upload it back here.</p>
+              <p>Download the Excel template, fill the same fields as Add Single Trainer (including password), then upload it back here.</p>
               <div class="bulk-actions">
                 <a class="btn-ghost" href="/bulk-template/trainers"><i class="ti ti-download"></i> Download Template</a>
               </div>
@@ -187,14 +187,19 @@
             </div>
             <div class="card">
               <h3>Add Single Trainer</h3>
+              {% if not is_admin %}
+              <p class="form-hint">New trainers use the default password <strong>{{ default_trainer_password }}</strong> unless you set one in bulk upload. They can change it later from their profile.</p>
+              {% endif %}
               <form class="compact-form" method="post" action="/manual/trainer">
                 <input name="name" placeholder="Trainer name" required>
                 <input name="email" type="email" placeholder="Email" required>
                 <input name="phone" placeholder="Phone">
+                {% if is_admin %}
                 <select name="role">
                   <option value="atl_trainer">ATL Trainer</option>
                   <option value="master_trainer">Master Trainer</option>
                 </select>
+                {% endif %}
                 <input name="division" placeholder="Division">
                 <input name="districts" placeholder="Districts / District">
                 <select name="assigned_school_1">
@@ -215,41 +220,10 @@
                   <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
                   {% endfor %}
                 </select>
-                <input name="specialization" placeholder="Specialization" value="ATL trainer">
+                {% if is_admin %}
                 <input name="password" type="password" placeholder="Login password" autocomplete="new-password" required>
                 <input name="confirm_password" type="password" placeholder="Confirm login password" autocomplete="new-password" required>
-                <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Trainer</button>
-              </form>
-            </div>
-            {% elif can_manage_trainers %}
-            <div class="card">
-              <h3>Add ATL Trainer</h3>
-              <p>New trainers are created with the default password <strong>{{ default_trainer_password }}</strong>. They can change it later from their profile.</p>
-              <form class="compact-form" method="post" action="/manual/trainer">
-                <input name="name" placeholder="Trainer name" required>
-                <input name="email" type="email" placeholder="Email" required>
-                <input name="phone" placeholder="Phone">
-                <input name="division" placeholder="Division">
-                <input name="districts" placeholder="Districts / District">
-                <select name="assigned_school_1">
-                  <option value="">Assigned school 1</option>
-                  {% for school in schools %}
-                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <select name="assigned_school_2">
-                  <option value="">Assigned school 2</option>
-                  {% for school in schools %}
-                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <select name="assigned_school_3">
-                  <option value="">Assigned school 3</option>
-                  {% for school in schools %}
-                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <input name="specialization" placeholder="Specialization" value="ATL trainer">
+                {% endif %}
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Trainer</button>
               </form>
             </div>
@@ -262,7 +236,7 @@
           </div>
           <div class="table-card">
             <div class="table-header">
-              <h3>Trainer Details from DoNotUse</h3>
+              <h3>Trainer Details</h3>
               <span class="badge badge-info">{{ trainers_count }} Trainers</span>
             </div>
             <div class="table-tools" data-table-tools="trainers">
@@ -292,6 +266,9 @@
                   <th data-sort-key="division">Division</th>
                   <th data-sort-key="districts">Districts / District</th>
                   <th data-sort-key="assigned_school">Assigned Schools</th>
+                  {% if can_manage_trainers %}
+                  <th>Password</th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -309,6 +286,18 @@
                   <td>{{ trainer.division or '-' }}</td>
                   <td>{{ trainer.districts or '-' }}</td>
                   <td>{{ trainer.assigned_school or '-' }}</td>
+                  {% if can_manage_trainers %}
+                  <td>
+                    {% set login_password = trainer_password_map.get(trainer.email.lower() if trainer.email else '', default_trainer_password) %}
+                    <div class="password-reveal" data-password-reveal>
+                      <span class="password-masked" data-password-masked>••••••••</span>
+                      <span class="password-value" data-password-value hidden>{{ login_password }}</span>
+                      <button class="btn-ghost password-toggle" type="button" data-password-toggle aria-label="Show password">
+                        <i class="ti ti-eye"></i> View
+                      </button>
+                    </div>
+                  </td>
+                  {% endif %}
                 </tr>
                 {% endfor %}
               </tbody>
@@ -1760,6 +1749,6 @@
     </div>
   </div>
 
-  <script src="/static/js/portal.js?v=20260715-teamwork-course"></script>
+  <script src="/static/js/portal.js?v=20260715-trainer-password"></script>
 </body>
 </html>

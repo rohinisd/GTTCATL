@@ -12,6 +12,7 @@ class Account(Base):
     name = Column(String(160), nullable=False)
     email = Column(String(180), unique=True, index=True, nullable=False)
     hashed_password = Column(String(240), nullable=False)
+    plain_password = Column(String(240))
     role = Column(String(80), default="student")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -198,7 +198,8 @@ def seed_trainer_accounts(db):
         if account:
             account.name = trainer.name
             account.role = "trainer"
-            account.hashed_password = hashed_password
+            if not getattr(account, "plain_password", None):
+                account.plain_password = DEFAULT_TRAINER_PASSWORD
             continue
 
         db.add(
@@ -207,6 +208,7 @@ def seed_trainer_accounts(db):
                 email=normalized_email,
                 role="trainer",
                 hashed_password=hashed_password,
+                plain_password=DEFAULT_TRAINER_PASSWORD,
             )
         )
 
