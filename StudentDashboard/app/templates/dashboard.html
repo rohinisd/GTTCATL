@@ -876,7 +876,7 @@
             </div>
             <div class="card">
               <h3>Assign Student to Course</h3>
-              <p>Select a school first, then choose a student from that school and the course to enroll them in.</p>
+              <p>Select school and batch first, then choose a student from that school and the course to enroll them in.</p>
               <form class="compact-form" method="post" action="/enrollments/create" data-enrollment-form>
                 <label class="form-field-label">
                   <span>School</span>
@@ -884,6 +884,17 @@
                     <option value="" disabled selected hidden>Select school</option>
                     {% for school in schools %}
                     <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Batch</span>
+                  <select name="batch_id" data-enrollment-batch required>
+                    <option value="" disabled selected hidden>Select batch</option>
+                    {% for batch in batches %}
+                    <option value="{{ batch.id }}" data-school-id="{{ batch.school_id }}">
+                      {{ batch.school_name }} - {{ batch.name }}
+                    </option>
                     {% endfor %}
                   </select>
                 </label>
@@ -960,52 +971,54 @@
               <span class="badge badge-info">{{ enrollments_count }} Enrollments</span>
             </div>
             <table>
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>School</th>
-                  <th>Course</th>
-                  <th>Status</th>
-                  <th>Progress</th>
-                  <th>Assigned By</th>
-                  <th>Update</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for enrollment in enrollments %}
-                <tr>
-                  <td>{{ enrollment.student_name }}</td>
-                  <td>{{ enrollment.school_name or '-' }}</td>
-                  <td>{{ enrollment.course_title }}</td>
-                  <td><span class="badge badge-info">{{ enrollment.status }}</span></td>
-                  <td>
-                    <div class="progress-cell">
-                      <div class="progress-track"><span style="width: {{ enrollment.progress }}%"></span></div>
-                      <strong>{{ enrollment.progress }}%</strong>
-                    </div>
-                  </td>
-                  <td>{{ enrollment.assigned_by or '-' }}</td>
-                  <td>
-                    <form class="row-update-form" method="post" action="/enrollments/update">
-                      <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
-                      <select name="status">
-                        <option value="assigned" {% if enrollment.status == 'assigned' %}selected{% endif %}>Assigned</option>
-                        <option value="in_progress" {% if enrollment.status == 'in_progress' %}selected{% endif %}>In Progress</option>
-                        <option value="completed" {% if enrollment.status == 'completed' %}selected{% endif %}>Completed</option>
-                        <option value="dropped" {% if enrollment.status == 'dropped' %}selected{% endif %}>Dropped</option>
-                      </select>
-                      <input name="progress" type="number" min="0" max="100" value="{{ enrollment.progress }}">
-                      <button class="btn-ghost" type="submit">Save</button>
-                    </form>
-                  </td>
-                </tr>
-                {% endfor %}
-                {% if not enrollments %}
-                <tr>
-                  <td colspan="7">No enrollments yet. Add students first, then assign them to courses.</td>
-                </tr>
-                {% endif %}
-              </tbody>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>School</th>
+                    <th>Batch</th>
+                    <th>Course</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Assigned By</th>
+                    <th>Update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for enrollment in enrollments %}
+                  <tr>
+                    <td>{{ enrollment.student_name }}</td>
+                    <td>{{ enrollment.school_name or '-' }}</td>
+                    <td>{{ enrollment.batch_name or '-' }}</td>
+                    <td>{{ enrollment.course_title }}</td>
+                    <td><span class="badge badge-info">{{ enrollment.status }}</span></td>
+                    <td>
+                      <div class="progress-cell">
+                        <div class="progress-track"><span style="width: {{ enrollment.progress }}%"></span></div>
+                        <strong>{{ enrollment.progress }}%</strong>
+                      </div>
+                    </td>
+                    <td>{{ enrollment.assigned_by or '-' }}</td>
+                    <td>
+                      <form class="row-update-form" method="post" action="/enrollments/update">
+                        <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                        <select name="status">
+                          <option value="assigned" {% if enrollment.status == 'assigned' %}selected{% endif %}>Assigned</option>
+                          <option value="in_progress" {% if enrollment.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                          <option value="completed" {% if enrollment.status == 'completed' %}selected{% endif %}>Completed</option>
+                          <option value="dropped" {% if enrollment.status == 'dropped' %}selected{% endif %}>Dropped</option>
+                        </select>
+                        <input name="progress" type="number" min="0" max="100" value="{{ enrollment.progress }}">
+                        <button class="btn-ghost" type="submit">Save</button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  {% if not enrollments %}
+                  <tr>
+                    <td colspan="8">No enrollments yet. Add students first, then assign them to courses.</td>
+                  </tr>
+                  {% endif %}
+                </tbody>
             </table>
           </div>
         </section>
@@ -1821,6 +1834,6 @@
     </div>
   </div>
 
-  <script src="/static/js/portal.js?v=20260715-enrollment-scope"></script>
+  <script src="/static/js/portal.js?v=20260715-enrollment-batch"></script>
 </body>
 </html>

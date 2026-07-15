@@ -124,6 +124,12 @@ def _ensure_columns():
             "plain_password": "VARCHAR(240)",
         },
     )
+    add_missing(
+        "enrollments",
+        {
+            "batch_id": "INTEGER",
+        },
+    )
 
 
 _ensure_columns()
@@ -2204,6 +2210,7 @@ async def create_enrollment(
     request: Request,
     student_id: int = Form(...),
     course_id: int = Form(...),
+    batch_id: int = Form(...),
     assigned_by: str = Form(""),
 ):
     if not _is_authenticated(request):
@@ -2216,23 +2223,35 @@ async def create_enrollment(
         scope_school_ids = _request_school_scope_ids(request, db)
         student = db.query(models.Student).filter(models.Student.id == student_id).first()
         course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
         if not student:
             return _dashboard_redirect("Selected student was not found.", "error")
         if not course:
             return _dashboard_redirect("Selected course was not found.", "error")
+        if not batch:
+            return _dashboard_redirect("Selected batch was not found.", "error")
         if not _school_in_scope(scope_school_ids, student.school_id):
             return _dashboard_redirect("You can enroll students only from your assigned schools.", "error")
+        if not _school_in_scope(scope_school_ids, batch.school_id):
+            return _dashboard_redirect("You can enroll only into batches from your assigned schools.", "error")
+        if student.school_id and student.school_id != batch.school_id:
+            return _dashboard_redirect("Selected student does not belong to the selected batch school.", "error")
         existing = (
             db.query(models.Enrollment)
-            .filter(models.Enrollment.student_id == student_id, models.Enrollment.course_id == course_id)
+            .filter(
+                models.Enrollment.student_id == student_id,
+                models.Enrollment.course_id == course_id,
+                models.Enrollment.batch_id == batch.id,
+            )
             .first()
         )
         if existing:
-            return _dashboard_redirect("This student is already enrolled in the selected course.", "error")
+            return _dashboard_redirect("This student is already enrolled in the selected course for this batch.", "error")
         db.add(
             models.Enrollment(
                 student_id=student_id,
                 course_id=course_id,
+                batch_id=batch.id,
                 status="assigned",
                 progress=0,
                 assigned_by=assigned_by_name,
@@ -2929,10 +2948,11 @@ async def dashboard(request: Request):
             "curriculum": sum(1 for row in content_rows if row["group"] == "curriculum"),
         }
         enrollments_query = (
-            db.query(models.Enrollment, models.Student, models.Course, models.School)
+            db.query(models.Enrollment, models.Student, models.Course, models.School, models.Batch)
             .join(models.Student, models.Student.id == models.Enrollment.student_id)
             .join(models.Course, models.Course.id == models.Enrollment.course_id)
             .outerjoin(models.School, models.School.id == models.Student.school_id)
+            .outerjoin(models.Batch, models.Batch.id == models.Enrollment.batch_id)
         )
         if scope_school_ids is not None:
             enrollments_query = enrollments_query.filter(models.Student.school_id.in_(scope_school_ids))
@@ -2943,12 +2963,13 @@ async def dashboard(request: Request):
                 "student_name": student.name,
                 "student_email": student.email,
                 "school_name": school.name if school else None,
+                "batch_name": batch.name if batch else None,
                 "course_title": course.title,
                 "status": enrollment.status,
                 "progress": enrollment.progress or 0,
                 "assigned_by": enrollment.assigned_by,
             }
-            for enrollment, student, course, school in enrollments
+            for enrollment, student, course, school, batch in enrollments
         ]
         batches_query = (
             db.query(models.Batch, models.School)

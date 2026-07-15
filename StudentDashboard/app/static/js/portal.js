@@ -1049,13 +1049,14 @@ function initEnrollmentForm() {
   const form = document.querySelector('[data-enrollment-form]');
   if (!form) return;
   const schoolSelect = form.querySelector('[data-enrollment-school]');
+  const batchSelect = form.querySelector('[data-enrollment-batch]');
   const studentSelect = form.querySelector('[data-enrollment-student]');
   if (!schoolSelect || !studentSelect) return;
 
-  const syncStudents = () => {
+  const syncBySchool = (selectEl) => {
+    if (!selectEl) return;
     const schoolId = schoolSelect.value || '';
-    let firstVisible = '';
-    Array.from(studentSelect.options).forEach(option => {
+    Array.from(selectEl.options).forEach(option => {
       if (!option.value) {
         option.hidden = false;
         option.disabled = false;
@@ -1064,15 +1065,19 @@ function initEnrollmentForm() {
       const isMatch = schoolId && option.dataset.schoolId === schoolId;
       option.hidden = !isMatch;
       option.disabled = !isMatch;
-      if (isMatch && !firstVisible) firstVisible = option.value;
     });
-    if (!schoolId || !studentSelect.value || studentSelect.selectedOptions[0]?.disabled) {
-      studentSelect.value = '';
+    if (!schoolId || !selectEl.value || selectEl.selectedOptions[0]?.disabled) {
+      selectEl.value = '';
     }
   };
 
-  schoolSelect.addEventListener('change', syncStudents);
-  syncStudents();
+  const syncEnrollmentOptions = () => {
+    syncBySchool(batchSelect);
+    syncBySchool(studentSelect);
+  };
+
+  schoolSelect.addEventListener('change', syncEnrollmentOptions);
+  syncEnrollmentOptions();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

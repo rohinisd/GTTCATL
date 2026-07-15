@@ -118,6 +118,7 @@ class Enrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=True)
     status = Column(String(40), default="assigned")
     progress = Column(Integer, default=0)
     assigned_by = Column(String(160))
@@ -126,6 +127,7 @@ class Enrollment(Base):
 
     student = relationship("Student", back_populates="enrollments")
     course = relationship("Course", back_populates="enrollments")
+    batch = relationship("Batch")
 
 
 class Lesson(Base):
