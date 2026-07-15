@@ -927,6 +927,13 @@ html[data-theme="dark"] .topbar {
   gap: 16px;
 }
 
+.grid-2 > *,
+.grid-3 > *,
+.bulk-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1457,10 +1464,13 @@ html[data-theme="dark"] .topbar {
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .table-scroll {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
