@@ -12,7 +12,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func, inspect, or_, text
 
 from app.database import Base, SessionLocal, engine
 from app import models  # noqa: F401 - registers SQLAlchemy models
@@ -248,7 +248,7 @@ def _build_profile_details(db, current_account):
                     "phone": trainer.phone,
                     "division": trainer.division,
                     "districts": trainer.districts,
-                    "assigned_school": trainer.assigned_school,
+                    "assigned_school": _format_assigned_schools(db, trainer.assigned_school) or trainer.assigned_school,
                     "specialization": trainer.specialization,
                     "trainer_role": trainer.role,
                     "trainer_role_label": trainer_role_label,
@@ -329,19 +329,86 @@ def _trainer_school_scope_ids(db, account):
     )
     if not trainer:
         return set()
-    assigned_names = {name.lower() for name in _split_assigned_schools(trainer.assigned_school)}
-    if not assigned_names:
-        return set()
+    # Master trainers can work across all schools.
+    if trainer.role == "master_trainer":
+        return None
+
+    tokens = _split_assigned_schools(trainer.assigned_school)
     schools = db.query(models.School).all()
-    return {school.id for school in schools if (school.name or "").lower() in assigned_names}
+    matched_ids = set()
+
+    for token in tokens:
+        cleaned = token.strip()
+        if not cleaned:
+            continue
+        if cleaned.isdigit():
+            matched_ids.add(int(cleaned))
+            continue
+        token_l = cleaned.lower()
+        for school in schools:
+            school_name = (school.name or "").strip().lower()
+            school_label = f"{school_name} - {(school.district or '').strip().lower()}".strip(" -")
+            if not school_name:
+                continue
+            if (
+                school_name == token_l
+                or school_label == token_l
+                or school_name.startswith(token_l)
+                or token_l.startswith(school_name)
+            ):
+                matched_ids.add(school.id)
+
+    trainer_name_l = (trainer.name or "").strip().lower()
+    if trainer_name_l:
+        for school in schools:
+            assigned_trainer = (school.assigned_trainer or "").strip().lower()
+            if assigned_trainer and (
+                assigned_trainer == trainer_name_l
+                or trainer_name_l in assigned_trainer
+                or assigned_trainer in trainer_name_l
+            ):
+                matched_ids.add(school.id)
+
+    return matched_ids
 
 
 def _school_in_scope(scope_school_ids, school_id):
-    return scope_school_ids is None or school_id in scope_school_ids
+    return scope_school_ids is None or (school_id is not None and school_id in scope_school_ids)
 
 
 def _request_school_scope_ids(request: Request, db):
     return _trainer_school_scope_ids(db, _current_account(request))
+
+
+def _format_assigned_schools(db, value: str | None):
+    tokens = _split_assigned_schools(value)
+    if not tokens:
+        return None
+    school_by_id = {
+        str(school.id): school.name
+        for school in db.query(models.School).all()
+        if school.id is not None
+    }
+    labels = []
+    for token in tokens:
+        if token.isdigit() and token in school_by_id:
+            labels.append(school_by_id[token])
+        else:
+            labels.append(token)
+    return ", ".join(labels) or None
+
+
+def _is_atl_trainer_account(request: Request):
+    account = _current_account(request)
+    if not account or account.get("role") != "trainer":
+        return False
+    with SessionLocal() as db:
+        trainer = (
+            db.query(models.Trainer)
+            .filter(func.lower(models.Trainer.email) == account.get("email", "").lower())
+            .first()
+        )
+        return bool(trainer and trainer.role != "master_trainer")
 
 
 def _compose_student_address(state="", district="", taluk="", village="", pincode="", fallback=""):
@@ -2137,10 +2204,13 @@ async def create_enrollment(
     request: Request,
     student_id: int = Form(...),
     course_id: int = Form(...),
-    assigned_by: str = Form("Trainer"),
+    assigned_by: str = Form(""),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+
+    current_account = _current_account(request) or {"name": "Trainer"}
+    assigned_by_name = assigned_by.strip() or current_account.get("name") or "Trainer"
 
     with SessionLocal() as db:
         scope_school_ids = _request_school_scope_ids(request, db)
@@ -2165,7 +2235,7 @@ async def create_enrollment(
                 course_id=course_id,
                 status="assigned",
                 progress=0,
-                assigned_by=assigned_by.strip() or "Trainer",
+                assigned_by=assigned_by_name,
             )
         )
         db.commit()
@@ -2226,7 +2296,10 @@ async def create_attendance_batch(
     if parsed_start_date and parsed_end_date and parsed_end_date < parsed_start_date:
         return _dashboard_redirect("Batch end date cannot be before start date.", "error")
     current_account = _current_account(request) or {"name": "Trainer", "role": "trainer"}
-    saved_trainer_name = current_account["name"] if current_account.get("role") == "trainer" else (trainer_name.strip() or current_account["name"])
+    if _is_atl_trainer_account(request):
+        saved_trainer_name = current_account["name"]
+    else:
+        saved_trainer_name = trainer_name.strip() or current_account["name"]
 
     with SessionLocal() as db:
         scope_school_ids = _request_school_scope_ids(request, db)
@@ -2235,6 +2308,8 @@ async def create_attendance_batch(
             return _dashboard_redirect("Selected school was not found.", "error")
         if not _school_in_scope(scope_school_ids, school.id):
             return _dashboard_redirect("You can create batches only for your assigned schools.", "error")
+        if not _is_atl_trainer_account(request) and not trainer_name.strip():
+            return _dashboard_redirect("Select the trainer this batch belongs to.", "error")
         exists = (
             db.query(models.Batch)
             .filter(models.Batch.school_id == school_id, func.lower(models.Batch.name) == cleaned_name.lower())
@@ -2634,6 +2709,8 @@ async def dashboard(request: Request):
         if current_account.get("role") == "trainer" and not _is_master_trainer(request):
             trainers_query = trainers_query.filter(func.lower(models.Trainer.email) == current_account.get("email", "").lower())
         trainers = trainers_query.order_by(models.Trainer.role.desc(), models.Trainer.name).all()
+        for trainer in trainers:
+            trainer.assigned_school_display = _format_assigned_schools(db, trainer.assigned_school)
         trainer_password_map = {}
         if _can_manage_trainers(request):
             trainer_emails = [trainer.email.lower() for trainer in trainers if trainer.email]
@@ -2650,6 +2727,11 @@ async def dashboard(request: Request):
         all_schools = db.query(models.School).order_by(models.School.division, models.School.district, models.School.name).all()
         scope_school_ids = _trainer_school_scope_ids(db, current_account)
         schools = [school for school in all_schools if _school_in_scope(scope_school_ids, school.id)]
+        assignment_schools = all_schools if _can_manage_trainers(request) else schools
+        is_atl_trainer = bool(
+            current_account.get("role") == "trainer"
+            and scope_school_ids is not None
+        )
         students_query = (
             db.query(models.Student, models.School.name.label("school_name"), models.School.udise_code.label("school_udise_code"))
             .outerjoin(models.School, models.School.id == models.Student.school_id)
@@ -2873,7 +2955,16 @@ async def dashboard(request: Request):
             .join(models.School, models.School.id == models.Batch.school_id)
         )
         if scope_school_ids is not None:
-            batches_query = batches_query.filter(models.Batch.school_id.in_(scope_school_ids))
+            trainer_name_l = (current_account.get("name") or "").strip().lower()
+            batch_filters = []
+            if scope_school_ids:
+                batch_filters.append(models.Batch.school_id.in_(scope_school_ids))
+            if trainer_name_l:
+                batch_filters.append(func.lower(models.Batch.trainer_name) == trainer_name_l)
+            if batch_filters:
+                batches_query = batches_query.filter(or_(*batch_filters))
+            else:
+                batches_query = batches_query.filter(models.Batch.id == -1)
         batches = batches_query.order_by(models.School.name, models.Batch.name).all()
         batch_rows = [
             {
@@ -3067,9 +3158,11 @@ async def dashboard(request: Request):
             "module_name": "Student + LMS Extension",
             "current_account": current_account,
             "is_admin": is_admin,
+            "is_atl_trainer": is_atl_trainer,
             "trainers": trainers,
             "trainer_password_map": trainer_password_map,
             "schools": schools,
+            "assignment_schools": assignment_schools,
             "trainers_count": len(trainers),
             "schools_count": len(schools),
             "students_count": students_count,

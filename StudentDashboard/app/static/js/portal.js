@@ -1045,6 +1045,36 @@ function initPasswordReveal() {
   });
 }
 
+function initEnrollmentForm() {
+  const form = document.querySelector('[data-enrollment-form]');
+  if (!form) return;
+  const schoolSelect = form.querySelector('[data-enrollment-school]');
+  const studentSelect = form.querySelector('[data-enrollment-student]');
+  if (!schoolSelect || !studentSelect) return;
+
+  const syncStudents = () => {
+    const schoolId = schoolSelect.value || '';
+    let firstVisible = '';
+    Array.from(studentSelect.options).forEach(option => {
+      if (!option.value) {
+        option.hidden = false;
+        option.disabled = false;
+        return;
+      }
+      const isMatch = schoolId && option.dataset.schoolId === schoolId;
+      option.hidden = !isMatch;
+      option.disabled = !isMatch;
+      if (isMatch && !firstVisible) firstVisible = option.value;
+    });
+    if (!schoolId || !studentSelect.value || studentSelect.selectedOptions[0]?.disabled) {
+      studentSelect.value = '';
+    }
+  };
+
+  schoolSelect.addEventListener('change', syncStudents);
+  syncStudents();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateThemeButtons();
   resetSearchFields();
@@ -1079,4 +1109,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initCourseSearch();
   initProfileModal();
   initPasswordReveal();
+  initEnrollmentForm();
 });

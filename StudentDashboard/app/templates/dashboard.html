@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-trainer-password">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-enrollment-scope">
 </head>
 <body>
   <div id="app">
@@ -204,20 +204,20 @@
                 <input name="districts" placeholder="Districts / District">
                 <select name="assigned_school_1">
                   <option value="">Assigned school 1</option>
-                  {% for school in schools %}
-                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% for school in assignment_schools %}
+                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
                   {% endfor %}
                 </select>
                 <select name="assigned_school_2">
                   <option value="">Assigned school 2</option>
-                  {% for school in schools %}
-                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% for school in assignment_schools %}
+                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
                   {% endfor %}
                 </select>
                 <select name="assigned_school_3">
                   <option value="">Assigned school 3</option>
-                  {% for school in schools %}
-                  <option value="{{ school.name }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                  {% for school in assignment_schools %}
+                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
                   {% endfor %}
                 </select>
                 {% if is_admin %}
@@ -285,7 +285,7 @@
                   </td>
                   <td>{{ trainer.division or '-' }}</td>
                   <td>{{ trainer.districts or '-' }}</td>
-                  <td>{{ trainer.assigned_school or '-' }}</td>
+                  <td>{{ trainer.assigned_school_display or trainer.assigned_school or '-' }}</td>
                   {% if can_manage_trainers %}
                   <td>
                     {% set login_password = trainer_password_map.get(trainer.email.lower() if trainer.email else '', default_trainer_password) %}
@@ -836,15 +836,33 @@
           <div class="bulk-grid">
             <div class="card">
               <h3>Create School Batch</h3>
-              <p>Create the school batch first, then use Attendance to mark attendance and download attendance reports.</p>
+              <p>Create the school batch first. Batches created here (by you, admin, or master trainer) will appear for the assigned trainer under that school.</p>
               <form class="compact-form" method="post" action="/attendance/batches/create">
-                <select name="school_id" required>
-                  {% for school in schools %}
-                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
+                <label class="form-field-label">
+                  <span>School</span>
+                  <select name="school_id" required>
+                    <option value="" disabled selected hidden>Select school</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </label>
                 <input name="name" placeholder="Batch name, e.g. Batch A / Grade 8 Robotics" required>
-                <input name="trainer_name" placeholder="Trainer name" value="{{ current_account.name }}" {% if current_account.role == 'trainer' %}readonly{% endif %}>
+                {% if not is_atl_trainer %}
+                <label class="form-field-label">
+                  <span>Assigned Trainer</span>
+                  <select name="trainer_name" required>
+                    <option value="" disabled selected hidden>Select trainer</option>
+                    {% for trainer in trainers %}
+                    {% if trainer.role != 'master_trainer' %}
+                    <option value="{{ trainer.name }}">{{ trainer.name }}{% if trainer.email %} ({{ trainer.email }}){% endif %}</option>
+                    {% endif %}
+                    {% endfor %}
+                  </select>
+                </label>
+                {% else %}
+                <input name="trainer_name" placeholder="Trainer name" value="{{ current_account.name }}" readonly>
+                {% endif %}
                 <label class="form-field-label">
                   <span>Training Start Date</span>
                   <input name="start_date" type="date" aria-label="Training start date">
@@ -858,19 +876,38 @@
             </div>
             <div class="card">
               <h3>Assign Student to Course</h3>
-              <p>Use this to enroll one student into one LMS course. Duplicate student-course enrollments are blocked.</p>
-              <form class="compact-form" method="post" action="/enrollments/create">
-                <select name="student_id" required>
-                  {% for student in students %}
-                  <option value="{{ student.id }}">{{ student.name }}{% if student.school_name %} - {{ student.school_name }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <select name="course_id" required>
-                  {% for course in courses %}
-                  <option value="{{ course.id }}">{{ course.title }}</option>
-                  {% endfor %}
-                </select>
-                <input name="assigned_by" placeholder="Assigned by" value="Trainer">
+              <p>Select a school first, then choose a student from that school and the course to enroll them in.</p>
+              <form class="compact-form" method="post" action="/enrollments/create" data-enrollment-form>
+                <label class="form-field-label">
+                  <span>School</span>
+                  <select data-enrollment-school required>
+                    <option value="" disabled selected hidden>Select school</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Student</span>
+                  <select name="student_id" data-enrollment-student required>
+                    <option value="">Select student</option>
+                    {% for student in students %}
+                    <option value="{{ student.id }}" data-school-id="{{ student.school_id or '' }}">
+                      {{ student.name }}{% if student.grade %} - Grade {{ student.grade }}{% endif %}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="form-field-label">
+                  <span>Course / Experiment / Curriculum</span>
+                  <select name="course_id" required>
+                    <option value="" disabled selected hidden>Select course</option>
+                    {% for course in courses %}
+                    <option value="{{ course.id }}">{{ course.title }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <input type="hidden" name="assigned_by" value="{{ current_account.name }}">
                 <button class="btn-primary" type="submit"><i class="ti ti-user-check"></i> Enroll Student</button>
               </form>
             </div>
@@ -882,6 +919,41 @@
               <p>Progress is tracked from 0 to 100 percent.</p>
             </div>
           </div>
+
+          <div class="table-card">
+            <div class="table-header">
+              <h3>School Batches</h3>
+              <span class="badge badge-info">{{ batches|length }} Batches</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>School</th>
+                  <th>Batch</th>
+                  <th>Assigned Trainer</th>
+                  <th>Start</th>
+                  <th>End</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for batch in batches %}
+                <tr>
+                  <td>{{ batch.school_name }}</td>
+                  <td>{{ batch.name }}</td>
+                  <td>{{ batch.trainer_name or '-' }}</td>
+                  <td>{{ batch.start_date or '-' }}</td>
+                  <td>{{ batch.end_date or '-' }}</td>
+                </tr>
+                {% endfor %}
+                {% if not batches %}
+                <tr>
+                  <td colspan="5">No batches yet for your assigned schools. Create a batch above, or ask admin/master trainer to create one for your school.</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+
           <div class="table-card">
             <div class="table-header">
               <h3>Course Enrollments</h3>
@@ -1749,6 +1821,6 @@
     </div>
   </div>
 
-  <script src="/static/js/portal.js?v=20260715-trainer-password"></script>
+  <script src="/static/js/portal.js?v=20260715-enrollment-scope"></script>
 </body>
 </html>
