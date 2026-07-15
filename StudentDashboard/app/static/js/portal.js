@@ -665,7 +665,8 @@ function initReportFilters() {
 function initGeneratedReports() {
   const filterShell = document.querySelector('[data-generated-report-filters]');
   const rows = Array.from(document.querySelectorAll('[data-generated-report-row]'));
-  if (!filterShell || !rows.length) return;
+  const detailRows = Array.from(document.querySelectorAll('[data-generated-report-detail-row]'));
+  if (!filterShell || (!rows.length && !detailRows.length)) return;
 
   const controls = Array.from(filterShell.querySelectorAll('[data-generated-report-filter]'));
   const startDate = filterShell.querySelector('[data-generated-report-date="start"]');
@@ -692,6 +693,25 @@ function initGeneratedReports() {
     if (filters.startDate && rowEnd && rowEnd < filters.startDate) return false;
     if (filters.endDate && rowStart && rowStart > filters.endDate) return false;
     return true;
+  };
+
+  const rowMatchesFilters = (row, filters) => {
+    const normalize = value => String(value || '').trim().toLowerCase();
+    const datasetMatches = [
+      'schoolId',
+      'district',
+      'taluk',
+      'village',
+      'trainer',
+      'medium',
+      'gender',
+      'incomeStatus',
+      'physicallyChallenged',
+      'urbanRural',
+      'caste',
+      'category',
+    ].every(key => !filters[key] || normalize(row.dataset[`report${key[0].toUpperCase()}${key.slice(1)}`]) === normalize(filters[key]));
+    return datasetMatches && rowMatchesDate(row, filters);
   };
 
   const updateExports = filters => {
@@ -743,33 +763,25 @@ function initGeneratedReports() {
       }
       return;
     }
+
     let visibleTableCount = 0;
-    const normalize = value => String(value || '').trim().toLowerCase();
     rows.forEach(row => {
-      const datasetMatches = [
-        'schoolId',
-        'district',
-        'taluk',
-        'village',
-        'trainer',
-        'medium',
-        'gender',
-        'incomeStatus',
-        'physicallyChallenged',
-        'urbanRural',
-        'caste',
-        'category',
-      ]
-        .every(key => !filters[key] || normalize(row.dataset[`report${key[0].toUpperCase()}${key.slice(1)}`]) === normalize(filters[key]));
-      const matches = datasetMatches && rowMatchesDate(row, filters);
-      row.style.display = matches ? '' : 'none';
+      row.style.display = rowMatchesFilters(row, filters) ? '' : 'none';
     });
+    detailRows.forEach(row => {
+      row.style.display = rowMatchesFilters(row, filters) ? '' : 'none';
+    });
+
     document.querySelectorAll('[data-generated-report-table]').forEach(table => {
-      const visibleRows = Array.from(table.querySelectorAll('[data-generated-report-row]')).filter(row => row.style.display !== 'none');
-      const hasVisibleRows = visibleRows.length > 0;
+      const visibleSummaryRows = Array.from(table.querySelectorAll('[data-generated-report-row]')).filter(row => row.style.display !== 'none');
+      const visibleDetailRows = Array.from(table.querySelectorAll('[data-generated-report-detail-row]')).filter(row => row.style.display !== 'none');
+      const hasVisibleRows = visibleSummaryRows.length > 0 || visibleDetailRows.length > 0;
       table.hidden = !hasVisibleRows;
       visibleTableCount += hasVisibleRows ? 1 : 0;
+      const detailCount = table.querySelector('[data-generated-detail-count]');
+      if (detailCount) detailCount.textContent = String(visibleDetailRows.length);
     });
+
     if (resultMessage) {
       resultMessage.hidden = false;
       resultMessage.textContent = visibleTableCount

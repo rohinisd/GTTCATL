@@ -467,17 +467,26 @@ def _matches_search(row: dict, search: str):
 
 
 def _export_workbook(sheet_name: str, headers: list[str], rows: list[dict], filename: str):
+    return _export_workbook_sheets([{"name": sheet_name, "headers": headers, "rows": rows}], filename)
+
+
+def _export_workbook_sheets(sheets: list[dict], filename: str):
     workbook = openpyxl.Workbook()
-    worksheet = workbook.active
-    worksheet.title = sheet_name
-    worksheet.append(headers)
-
-    for row in rows:
-        worksheet.append([row.get(header, "") for header in headers])
-
-    for column_cells in worksheet.columns:
-        max_length = max(len(str(cell.value or "")) for cell in column_cells)
-        worksheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 14), 45)
+    first = True
+    for sheet in sheets:
+        if first:
+            worksheet = workbook.active
+            first = False
+        else:
+            worksheet = workbook.create_sheet()
+        worksheet.title = str(sheet["name"])[:31]
+        headers = sheet["headers"]
+        worksheet.append(headers)
+        for row in sheet.get("rows") or []:
+            worksheet.append([row.get(header, "") for header in headers])
+        for column_cells in worksheet.columns:
+            max_length = max(len(str(cell.value or "")) for cell in column_cells)
+            worksheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 14), 45)
 
     buffer = BytesIO()
     workbook.save(buffer)
@@ -587,6 +596,13 @@ REPORT_TABLE_COLUMNS = {
         ("school", "School"), ("district", "District"), ("gender", "Gender"), ("income_status", "Income"),
         ("physically_challenged", "Physically Challenged"), ("medium", "Medium"), ("urban_rural", "Urban/Rural"), ("total", "Students"),
     ],
+    "student_detail_list": [
+        ("name", "Name"), ("email", "Email"), ("grade", "Grade"), ("father_name", "Father"), ("mother_name", "Mother"),
+        ("age", "Age"), ("gender", "Gender"), ("caste", "Caste"), ("category", "Category"), ("phone", "Phone"),
+        ("urban_rural", "Urban/Rural"), ("income_status", "Income"), ("physically_challenged", "Physically Challenged"),
+        ("medium", "Medium"), ("state", "State"), ("district", "District"), ("taluk", "Taluk"), ("village", "Village"),
+        ("pincode", "Pincode"), ("school", "School"), ("trainer", "Trainer"),
+    ],
     "trainer_summary": [
         ("trainer", "Trainer"), ("email", "Email"), ("role", "Role"), ("division", "Division"),
         ("districts", "Districts"), ("assigned_school_count", "Schools Assigned"), ("assigned_schools", "Assigned Schools"),
@@ -623,6 +639,7 @@ REPORT_TABLE_TITLES = {
     "student_medium_summary": "Students by Medium",
     "student_caste_category_summary": "Students by Caste and Category",
     "student_combination_summary": "Student Detail Combination Report",
+    "student_detail_list": "Matching Students",
     "trainer_summary": "Trainer Assignment Summary",
     "batch_summary": "Batches by School and Trainer",
     "enrollment_summary": "Enrollments by Course and Status",
@@ -814,11 +831,16 @@ def _build_reports_payload(db, current_account):
                 "school_id": student.school_id or "",
                 "school": school_name,
                 "district": district,
+                "taluk": taluk,
+                "village": village,
+                "trainer": _report_label(school.assigned_trainer if school else ""),
                 "gender": gender_label,
                 "income_status": income_label,
                 "physically_challenged": challenged_label,
                 "medium": medium_label,
                 "urban_rural": urban_rural_label,
+                "caste": caste_label,
+                "category": category_label,
             },
         )
 
@@ -831,6 +853,33 @@ def _build_reports_payload(db, current_account):
     student_medium_summary = list(student_medium_groups.values())
     student_caste_category_summary = list(student_caste_category_groups.values())
     student_combination_summary = list(student_combination_groups.values())
+    student_detail_list = [
+        {
+            "name": student.name,
+            "email": student.email or "",
+            "grade": student.grade or "",
+            "father_name": student.father_name or "",
+            "mother_name": student.mother_name or "",
+            "age": student.age or "",
+            "gender": _report_label(student.gender),
+            "caste": _report_label(student.caste),
+            "category": _report_label(student.category),
+            "phone": student.phone or "",
+            "urban_rural": _report_label(student.urban_rural),
+            "income_status": _report_label(student.income_status),
+            "physically_challenged": _report_label(student.physically_challenged),
+            "medium": _report_label(student.medium),
+            "state": _report_label(student.state or (school.state if school else "")),
+            "district": _report_label(student.district or (school.district if school else "")),
+            "taluk": _report_label(student.taluk),
+            "village": _report_label(student.village),
+            "pincode": _report_label(student.pincode),
+            "school_id": student.school_id or "",
+            "school": school.name if school else "Unknown",
+            "trainer": _report_label(school.assigned_trainer if school else ""),
+        }
+        for student, school in students
+    ]
 
     trainer_summary = [
         {
@@ -927,6 +976,7 @@ def _build_reports_payload(db, current_account):
         "student_medium_summary": student_medium_summary,
         "student_caste_category_summary": student_caste_category_summary,
         "student_combination_summary": student_combination_summary,
+        "student_detail_list": student_detail_list,
         "student_location_summary": student_location_summary,
         "student_demographics": student_demographics,
         "trainer_summary": trainer_summary,
@@ -936,15 +986,23 @@ def _build_reports_payload(db, current_account):
         "performance_summary": performance_summary,
     }
 
-    sections = [
-        {
+    sections = []
+    for key, rows in tables.items():
+        if key == "student_detail_list":
+            continue
+        section = {
             "key": key,
             "title": REPORT_TABLE_TITLES[key],
             "columns": [{"key": column_key, "label": label} for column_key, label in REPORT_TABLE_COLUMNS[key]],
             "rows": rows,
         }
-        for key, rows in tables.items()
-    ]
+        if key == "student_combination_summary":
+            section["detail_columns"] = [
+                {"key": column_key, "label": label}
+                for column_key, label in REPORT_TABLE_COLUMNS["student_detail_list"]
+            ]
+            section["detail_rows"] = tables.get("student_detail_list", [])
+        sections.append(section)
 
     girls = sum(1 for student, _school in students if _report_key(student.gender) == "female")
     boys = sum(1 for student, _school in students if _report_key(student.gender) == "male")
@@ -1232,13 +1290,13 @@ async def bulk_template(record_type: str, request: Request):
                 "udise_code", "atl_lab_code", "name", "district", "division", "state",
                 "pin_code", "school_type", "lab_type", "education_type", "max_grade",
                 "principal_name", "principal_email", "principal_phone", "lab_area_sqft",
-                "lab_launch_date", "assigned_trainer", "current_students", "girls_count",
+                "lab_launch_date", "assigned_trainer",
             ],
             "sample": [
                 "29XXXXXXXXX", "ATL-KA-999", "Government High School Example", "Mysore",
                 "Mysuru", "Karnataka", "570001", "government", "atl", "secondary", "10",
                 "Dr. Principal Name", "principal@example.edu", "+91 9876543210", "1200",
-                "2023-01-15", "Trainer Full Name", "120", "55",
+                "2023-01-15", "Trainer Full Name",
             ],
         },
         "students": {
@@ -1316,7 +1374,7 @@ async def export_records(record_type: str, request: Request):
         elif record_type == "schools":
             headers = [
                 "udise_code", "atl_lab_code", "name", "division", "district", "principal_name",
-                "assigned_trainer", "current_students", "girls_count",
+                "assigned_trainer",
             ]
             school_query = db.query(models.School)
             if scope_school_ids is not None:
@@ -1330,8 +1388,6 @@ async def export_records(record_type: str, request: Request):
                     "district": school.district,
                     "principal_name": school.principal_name,
                     "assigned_trainer": school.assigned_trainer,
-                    "current_students": school.current_students,
-                    "girls_count": school.girls_count,
                 }
                 for school in school_query.all()
             ]
@@ -1505,8 +1561,6 @@ async def add_school(
     pin_code: str = Form(""),
     principal_name: str = Form(""),
     assigned_trainer: str = Form(""),
-    current_students: str = Form("0"),
-    girls_count: str = Form("0"),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
@@ -1526,8 +1580,6 @@ async def add_school(
                 pin_code=pin_code.strip() or None,
                 principal_name=principal_name.strip() or None,
                 assigned_trainer=assigned_trainer.strip() or None,
-                current_students=_parse_int(current_students, 0),
-                girls_count=_parse_int(girls_count, 0),
             )
         )
         db.commit()
@@ -1700,8 +1752,6 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                             lab_area_sqft=_parse_int(col(row, "lab_area_sqft")),
                             lab_launch_date=_parse_date(col(row, "lab_launch_date")),
                             assigned_trainer=col(row, "assigned_trainer") or col(row, "trainer_name") or None,
-                            current_students=_parse_int(col(row, "current_students"), 0),
-                            girls_count=_parse_int(col(row, "girls_count"), 0),
                         )
                     )
 
@@ -2749,6 +2799,7 @@ async def export_generated_report(
     with SessionLocal() as db:
         reports_data = _build_reports_payload(db, _current_account(request) or {"role": "student"})
         rows = reports_data["tables"].get(report_type, [])
+        detail_source_rows = reports_data["tables"].get("student_detail_list", [])
 
     filtered_rows = [
         row
@@ -2759,6 +2810,22 @@ async def export_generated_report(
     headers = [key for key, _label in REPORT_TABLE_COLUMNS[report_type]]
     sheet_name = REPORT_TABLE_TITLES[report_type][:31]
     filename = f"report-{report_type}.xlsx"
+
+    if report_type == "student_combination_summary":
+        detail_rows = [
+            row
+            for row in detail_source_rows
+            if _matches_report_filters(row, filters)
+        ]
+        detail_headers = [key for key, _label in REPORT_TABLE_COLUMNS["student_detail_list"]]
+        return _export_workbook_sheets(
+            [
+                {"name": "Summary", "headers": headers, "rows": filtered_rows},
+                {"name": "Student Details", "headers": detail_headers, "rows": detail_rows},
+            ],
+            filename,
+        )
+
     return _export_workbook(sheet_name, headers, filtered_rows, filename)
 
 

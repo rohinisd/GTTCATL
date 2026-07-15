@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-perf-scroll">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-report-details">
 </head>
 <body>
   <div id="app">
@@ -346,8 +346,6 @@
                 <input name="pin_code" placeholder="PIN code">
                 <input name="principal_name" placeholder="Principal name">
                 <input name="assigned_trainer" placeholder="Assigned trainer">
-                <input name="current_students" type="number" min="0" placeholder="Students">
-                <input name="girls_count" type="number" min="0" placeholder="Girls">
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add School</button>
               </form>
             </div>
@@ -373,7 +371,6 @@
                 <option value="district">Sort by District</option>
                 <option value="principal_name">Sort by Principal</option>
                 <option value="assigned_trainer">Sort by Trainer</option>
-                <option value="current_students">Sort by Students</option>
               </select>
               <select data-table-direction="schools">
                 <option value="asc">Ascending</option>
@@ -391,7 +388,6 @@
                   <th data-sort-key="district">District</th>
                   <th data-sort-key="principal_name">Principal</th>
                   <th data-sort-key="assigned_trainer">Trainer</th>
-                  <th data-sort-key="current_students">Students</th>
                 </tr>
               </thead>
               <tbody>
@@ -404,7 +400,6 @@
                   <td>{{ school.district }}</td>
                   <td>{{ school.principal_name }}</td>
                   <td>{{ school.assigned_trainer }}</td>
-                  <td>{{ school.current_students }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -1465,6 +1460,7 @@
                 <i class="ti ti-file-spreadsheet"></i> Download Excel
               </a>
             </div>
+            <div class="table-scroll">
             <table>
               <thead>
                 <tr>
@@ -1503,6 +1499,49 @@
                 {% endif %}
               </tbody>
             </table>
+            </div>
+
+            <div class="table-header generated-report-detail-header">
+              <h3>Matching Students <span class="badge badge-info" data-generated-detail-count>0</span></h3>
+              <span class="form-hint">Sorted by student name</span>
+            </div>
+            <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  {% for column in section.detail_columns %}
+                  <th>{{ column.label }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in section.detail_rows %}
+                <tr data-generated-report-detail-row
+                    data-report-school-id="{{ row.school_id or '' }}"
+                    data-report-district="{{ row.district or '' }}"
+                    data-report-taluk="{{ row.taluk or '' }}"
+                    data-report-village="{{ row.village or '' }}"
+                    data-report-trainer="{{ row.trainer or '' }}"
+                    data-report-medium="{{ row.medium or '' }}"
+                    data-report-gender="{{ row.gender or '' }}"
+                    data-report-income-status="{{ row.income_status or '' }}"
+                    data-report-physically-challenged="{{ row.physically_challenged or '' }}"
+                    data-report-urban-rural="{{ row.urban_rural or '' }}"
+                    data-report-caste="{{ row.caste or '' }}"
+                    data-report-category="{{ row.category or '' }}">
+                  {% for column in section.detail_columns %}
+                  <td>{{ row[column.key] if row[column.key] is not none and row[column.key] != '' else '-' }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+                {% if not section.detail_rows %}
+                <tr>
+                  <td colspan="{{ section.detail_columns|length }}">No student details available.</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+            </div>
           </div>
           {% endif %}
           {% endfor %}
@@ -1856,6 +1895,6 @@
     </div>
   </div>
 
-  <script src="/static/js/portal.js?v=20260715-perf-scroll"></script>
+  <script src="/static/js/portal.js?v=20260715-report-details"></script>
 </body>
 </html>

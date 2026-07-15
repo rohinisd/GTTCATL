@@ -1136,6 +1136,10 @@ html[data-theme="dark"] .topbar {
   margin-bottom: 16px;
 }
 
+.generated-report-detail-header {
+  border-top: 1px solid var(--border2);
+}
+
 .bulk-actions {
   display: flex;
   gap: 10px;
