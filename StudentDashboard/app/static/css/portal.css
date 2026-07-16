@@ -2158,6 +2158,30 @@ tbody tr:hover td {
   align-self: flex-start;
 }
 
+.form-card-description {
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.55;
+  min-height: 44px;
+}
+
+.form-replace-form textarea,
+.forms-upload-form textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.form-replace-form textarea {
+  min-height: 56px;
+}
+
 .form-card-actions {
   display: flex;
   flex-direction: column;

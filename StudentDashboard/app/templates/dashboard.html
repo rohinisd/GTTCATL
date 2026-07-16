@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260716-forms-religion">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260716-form-description">
 </head>
 <body>
   <div id="app">
@@ -1899,6 +1899,7 @@
             <form class="compact-form forms-upload-form" method="post" action="/forms/upload" enctype="multipart/form-data">
               <input name="title" placeholder="Form title" required>
               <input name="code" placeholder="Form code (optional, e.g. MER-11)">
+              <textarea name="description" rows="3" placeholder="Description shown on the form card (e.g. when to use this form, who should fill it)"></textarea>
               <label class="file-input">
                 <span>Choose form file (.doc, .docx, .pdf, .xlsx)</span>
                 <input name="file" type="file" accept=".doc,.docx,.pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
@@ -1916,15 +1917,7 @@
                 <i class="ti ti-file-description"></i>
               </div>
               <h3>{{ form.title }}</h3>
-              <p>
-                {% if form.source == 'official_override' %}
-                Updated by {{ form.uploaded_by or 'Admin' }}. This replaces the default official file until restored.
-                {% elif form.source == 'uploaded' %}
-                Added by {{ form.uploaded_by or 'Admin' }}. Download, print, and complete manually.
-                {% else %}
-                Official ATL form ready for printing and manual completion.
-                {% endif %}
-              </p>
+              <p class="form-card-description">{{ form.description }}</p>
               <div class="form-card-actions">
                 <a class="btn-primary" href="{{ form.url }}" {% if form.source == 'official' %}download="{{ form.filename }}"{% endif %}>
                   <i class="ti ti-download"></i> Download
@@ -1936,20 +1929,23 @@
                     <span>Choose updated file</span>
                     <input name="file" type="file" accept=".doc,.docx,.pdf,.xlsx" required>
                   </label>
+                  <textarea name="description" rows="2" placeholder="Update description (optional)">{{ form.description_raw }}</textarea>
                   <button class="btn-ghost" type="submit"><i class="ti ti-refresh"></i> Replace</button>
                 </form>
-                {% if form.is_deletable %}
                 <form method="post" action="/forms/{{ form.id }}/delete" onsubmit="return confirm('Remove {{ form.code }}?{% if form.source == 'official_override' %} The default official version will be restored.{% else %} This cannot be undone.{% endif %}');">
                   <button class="btn-ghost btn-danger-ghost" type="submit"><i class="ti ti-trash"></i> Delete</button>
                 </form>
-                {% endif %}
                 {% else %}
                 <form class="form-replace-form" method="post" action="/forms/official/{{ form.code }}/replace" enctype="multipart/form-data">
                   <label class="file-input file-input-compact">
                     <span>Upload edited official file</span>
                     <input name="file" type="file" accept=".doc,.docx,.pdf,.xlsx" required>
                   </label>
+                  <textarea name="description" rows="2" placeholder="Add description (optional)"></textarea>
                   <button class="btn-ghost" type="submit"><i class="ti ti-refresh"></i> Replace</button>
+                </form>
+                <form method="post" action="/forms/official/{{ form.code }}/delete" onsubmit="return confirm('Remove {{ form.code }} from the forms list?');">
+                  <button class="btn-ghost btn-danger-ghost" type="submit"><i class="ti ti-trash"></i> Delete</button>
                 </form>
                 {% endif %}
                 {% endif %}

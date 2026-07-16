@@ -138,6 +138,13 @@ def _ensure_columns():
             "batch_id": "INTEGER",
         },
     )
+    add_missing(
+        "atl_forms",
+        {
+            "description": "TEXT",
+            "is_hidden": "BOOLEAN DEFAULT FALSE",
+        },
+    )
 
 
 _ensure_columns()
@@ -262,6 +269,24 @@ def _atl_form_record(db, form_id: int):
     if not form:
         raise HTTPException(status_code=404, detail="Form not found.")
     return form
+
+
+def _form_card_description(source: str, description: str | None = None, uploaded_by: str | None = None) -> str:
+    cleaned = str(description or "").strip()
+    if cleaned:
+        return cleaned
+    if source == "official_override":
+        return f"Updated by {uploaded_by or 'Admin'}. This replaces the default official file until restored."
+    if source == "uploaded":
+        return f"Added by {uploaded_by or 'Admin'}. Download, print, and complete manually."
+    return "Official ATL form ready for printing and manual completion."
+
+
+def _clean_form_description(description: str) -> str | None:
+    cleaned = str(description or "").strip()
+    if not cleaned:
+        return None
+    return cleaned[:500]
 
 
 def _can_manage_courses(request: Request):
@@ -1331,9 +1356,14 @@ def _build_atl_forms(db):
     official_codes = _official_form_codes()
     uploaded = db.query(models.AtlForm).order_by(models.AtlForm.created_at.desc(), models.AtlForm.title).all()
     overrides = {}
+    hidden_official = set()
     custom_forms = []
     for form in uploaded:
         code_key = (form.code or "").strip().upper()
+        if form.is_hidden:
+            if code_key and code_key in official_codes:
+                hidden_official.add(code_key)
+            continue
         if code_key and code_key in official_codes:
             overrides[code_key] = form
         else:
@@ -1342,45 +1372,59 @@ def _build_atl_forms(db):
     forms = []
     for catalog in ATL_MER_FORMS:
         code = catalog["code"]
+        if code.upper() in hidden_official:
+            continue
         override = overrides.get(code.upper())
-        if override:
+        if override and override.stored_name:
+            source = "official_override"
             forms.append(
                 {
                     "id": override.id,
                     "code": code,
                     "title": override.title or catalog["title"],
+                    "description": _form_card_description(source, override.description, override.uploaded_by),
+                    "description_raw": override.description or "",
                     "filename": override.filename,
                     "url": f"/forms/download/{override.id}",
-                    "source": "official_override",
+                    "source": source,
                     "uploaded_by": override.uploaded_by,
-                    "is_deletable": True,
                 }
             )
         else:
+            metadata = override if override and not override.stored_name else None
+            source = "official"
             forms.append(
                 {
-                    "id": None,
+                    "id": metadata.id if metadata else None,
                     "code": code,
                     "title": catalog["title"],
+                    "description": _form_card_description(
+                        source,
+                        metadata.description if metadata else None,
+                        metadata.uploaded_by if metadata else None,
+                    ),
+                    "description_raw": metadata.description if metadata else "",
                     "filename": catalog["filename"],
                     "url": catalog["url"],
-                    "source": "official",
-                    "uploaded_by": None,
-                    "is_deletable": False,
+                    "source": source,
+                    "uploaded_by": metadata.uploaded_by if metadata else None,
                 }
             )
 
     for form in custom_forms:
+        if not form.stored_name:
+            continue
         forms.append(
             {
                 "id": form.id,
                 "code": form.code or f"FORM-{form.id}",
                 "title": form.title,
+                "description": _form_card_description("uploaded", form.description, form.uploaded_by),
+                "description_raw": form.description or "",
                 "filename": form.filename,
                 "url": f"/forms/download/{form.id}",
                 "source": "uploaded",
                 "uploaded_by": form.uploaded_by,
-                "is_deletable": True,
             }
         )
     return forms
@@ -3714,6 +3758,7 @@ async def upload_atl_form(
     request: Request,
     title: str = Form(...),
     code: str = Form(""),
+    description: str = Form(""),
     file: UploadFile = File(...),
 ):
     if not _is_authenticated(request):
@@ -3723,6 +3768,7 @@ async def upload_atl_form(
 
     cleaned_title = title.strip()
     cleaned_code = code.strip().upper()
+    cleaned_description = _clean_form_description(description)
     if len(cleaned_title) < 3:
         return _dashboard_redirect("Form title must be at least 3 characters.", "error")
 
@@ -3746,17 +3792,21 @@ async def upload_atl_form(
         if existing:
             _remove_form_file(existing.stored_name)
             existing.title = cleaned_title
+            existing.description = cleaned_description
             existing.filename = Path(file.filename).name
             existing.stored_name = stored_name
             existing.uploaded_by = current_account.get("name")
+            existing.is_hidden = False
         else:
             db.add(
                 models.AtlForm(
                     code=cleaned_code or None,
                     title=cleaned_title,
+                    description=cleaned_description,
                     filename=Path(file.filename).name,
                     stored_name=stored_name,
                     uploaded_by=current_account.get("name"),
+                    is_hidden=False,
                 )
             )
         db.commit()
@@ -3771,6 +3821,7 @@ async def replace_official_atl_form(
     request: Request,
     form_code: str,
     file: UploadFile = File(...),
+    description: str = Form(""),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
@@ -3790,6 +3841,7 @@ async def replace_official_atl_form(
     stored_name = _safe_upload_name(file.filename)
     _write_form_file(stored_name, content)
     current_account = _current_account(request) or {"name": "Admin"}
+    cleaned_description = _clean_form_description(description)
 
     with SessionLocal() as db:
         existing = (
@@ -3803,14 +3855,19 @@ async def replace_official_atl_form(
             existing.filename = Path(file.filename).name
             existing.stored_name = stored_name
             existing.uploaded_by = current_account.get("name")
+            existing.is_hidden = False
+            if cleaned_description is not None:
+                existing.description = cleaned_description
         else:
             db.add(
                 models.AtlForm(
                     code=cleaned_code,
                     title=catalog["title"],
+                    description=cleaned_description,
                     filename=Path(file.filename).name,
                     stored_name=stored_name,
                     uploaded_by=current_account.get("name"),
+                    is_hidden=False,
                 )
             )
         db.commit()
@@ -3824,6 +3881,7 @@ async def replace_atl_form(
     form_id: int,
     file: UploadFile = File(...),
     title: str = Form(""),
+    description: str = Form(""),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
@@ -3845,13 +3903,58 @@ async def replace_atl_form(
         form.filename = Path(file.filename).name
         form.stored_name = stored_name
         form.uploaded_by = current_account.get("name")
+        form.is_hidden = False
         cleaned_title = title.strip()
         if cleaned_title:
             form.title = cleaned_title
+        cleaned_description = _clean_form_description(description)
+        if description.strip() or form.description:
+            form.description = cleaned_description
         db.commit()
         form_label = form.code or form.title
 
     return _dashboard_redirect(f"{form_label} replaced successfully.")
+
+
+@app.post("/forms/official/{form_code}/delete")
+async def hide_official_atl_form(request: Request, form_code: str):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _can_manage_forms(request):
+        return _dashboard_redirect("Only admin or master trainers can manage forms.", "error")
+
+    cleaned_code = form_code.strip().upper()
+    catalog = next((item for item in ATL_MER_FORMS if item["code"].upper() == cleaned_code), None)
+    if not catalog:
+        return _dashboard_redirect("Unknown official form code.", "error")
+
+    current_account = _current_account(request) or {"name": "Admin"}
+    with SessionLocal() as db:
+        existing = (
+            db.query(models.AtlForm)
+            .filter(func.upper(models.AtlForm.code) == cleaned_code)
+            .first()
+        )
+        if existing:
+            _remove_form_file(existing.stored_name)
+            existing.is_hidden = True
+            existing.stored_name = ""
+            existing.filename = ""
+            existing.uploaded_by = current_account.get("name")
+        else:
+            db.add(
+                models.AtlForm(
+                    code=cleaned_code,
+                    title=catalog["title"],
+                    filename="",
+                    stored_name="",
+                    uploaded_by=current_account.get("name"),
+                    is_hidden=True,
+                )
+            )
+        db.commit()
+
+    return _dashboard_redirect(f"{cleaned_code} removed from the forms list.")
 
 
 @app.post("/forms/{form_id}/delete")
