@@ -2158,6 +2158,35 @@ tbody tr:hover td {
   align-self: flex-start;
 }
 
+.form-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.form-replace-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.file-input-compact span {
+  font-size: 12px;
+}
+
+.btn-danger-ghost {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.btn-danger-ghost:hover {
+  color: #fff;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
 .forms-upload-panel {
   margin-bottom: 22px;
 }

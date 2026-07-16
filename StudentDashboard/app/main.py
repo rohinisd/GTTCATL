@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import secrets
@@ -22,6 +21,13 @@ from app.curriculum_import import seed_curriculum_content
 from app.forms_catalog import ATL_MER_FORMS
 from app.handbook_import import VOLUME_COURSES, seed_handbook_volume_courses
 from app.seed import DEFAULT_TRAINER_PASSWORD, seed_initial_data, seed_trainer_accounts
+from app.student_options import (
+    CATEGORY_OPTIONS,
+    RELIGION_OPTIONS,
+    category_display,
+    normalize_category,
+    normalize_religion,
+)
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -213,7 +219,49 @@ def _is_master_trainer(request: Request):
 
 
 def _can_manage_forms(request: Request):
-    return _is_master_trainer(request)
+    return _is_admin(request) or _is_master_trainer(request)
+
+
+def _official_form_codes():
+    return {form["code"].upper() for form in ATL_MER_FORMS}
+
+
+def _validate_form_upload(file: UploadFile | None):
+    if not file or not file.filename:
+        raise ValueError("Please choose a form file to upload.")
+    extension = Path(file.filename).suffix.lower()
+    if extension not in ATL_FORM_EXTENSIONS:
+        allowed = ", ".join(sorted(ATL_FORM_EXTENSIONS))
+        raise ValueError(f"Invalid file type. Allowed: {allowed}.")
+
+
+async def _read_form_upload(file: UploadFile) -> bytes:
+    _validate_form_upload(file)
+    content = await file.read()
+    if not content:
+        raise ValueError("Uploaded form file is empty.")
+    return content
+
+
+def _write_form_file(stored_name: str, content: bytes):
+    target = FORMS_UPLOAD_DIR / stored_name
+    target.write_bytes(content)
+    return target
+
+
+def _remove_form_file(stored_name: str | None):
+    if not stored_name:
+        return
+    target = FORMS_UPLOAD_DIR / stored_name
+    if target.exists():
+        target.unlink()
+
+
+def _atl_form_record(db, form_id: int):
+    form = db.query(models.AtlForm).filter(models.AtlForm.id == form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found.")
+    return form
 
 
 def _can_manage_courses(request: Request):
@@ -587,7 +635,23 @@ def _school_scope_filter(query, column, scope_school_ids):
 
 def _matches_report_filters(row: dict, filters: dict):
     for key, value in filters.items():
-        if not value or key not in row:
+        if not value:
+            continue
+        if key == "category":
+            row_code = normalize_category(row.get("category"))
+            filter_code = normalize_category(value)
+            if row_code and filter_code:
+                if row_code != filter_code:
+                    return False
+                continue
+        if key == "religion":
+            row_religion = normalize_religion(row.get("religion"))
+            filter_religion = normalize_religion(value)
+            if row_religion and filter_religion:
+                if row_religion.lower() != filter_religion.lower():
+                    return False
+                continue
+        if key not in row:
             continue
         row_value = str(row.get(key) or "").strip()
         if row_value.lower() != str(value).strip().lower():
@@ -660,8 +724,8 @@ REPORT_TABLE_COLUMNS = {
     "student_medium_summary": [
         ("school", "School"), ("district", "District"), ("medium", "Medium"), ("total", "Students"),
     ],
-    "student_caste_category_summary": [
-        ("school", "School"), ("district", "District"), ("caste", "Caste"), ("category", "Category"), ("total", "Students"),
+    "student_religion_category_summary": [
+        ("school", "School"), ("district", "District"), ("religion", "Religion"), ("category", "Category"), ("total", "Students"),
     ],
     "student_combination_summary": [
         ("school", "School"), ("district", "District"), ("gender", "Gender"), ("income_status", "Income"),
@@ -669,7 +733,7 @@ REPORT_TABLE_COLUMNS = {
     ],
     "student_detail_list": [
         ("name", "Name"), ("email", "Email"), ("grade", "Grade"), ("father_name", "Father"), ("mother_name", "Mother"),
-        ("age", "Age"), ("gender", "Gender"), ("caste", "Caste"), ("category", "Category"), ("phone", "Phone"),
+        ("age", "Age"), ("gender", "Gender"), ("religion", "Religion"), ("category", "Category"), ("phone", "Phone"),
         ("urban_rural", "Urban/Rural"), ("income_status", "Income"), ("physically_challenged", "Physically Challenged"),
         ("medium", "Medium"), ("state", "State"), ("district", "District"), ("taluk", "Taluk"), ("village", "Village"),
         ("pincode", "Pincode"), ("school", "School"), ("trainer", "Trainer"),
@@ -708,7 +772,7 @@ REPORT_TABLE_TITLES = {
     "student_income_summary": "Students by APL/BPL",
     "student_physical_summary": "Students by Physically Challenged Status",
     "student_medium_summary": "Students by Medium",
-    "student_caste_category_summary": "Students by Caste and Category",
+    "student_religion_category_summary": "Students by Religion and Category",
     "student_combination_summary": "Student Detail Combination Report",
     "student_detail_list": "Matching Students",
     "trainer_summary": "Trainer Assignment Summary",
@@ -803,7 +867,7 @@ def _build_reports_payload(db, current_account):
     student_income_groups = {}
     student_physical_groups = {}
     student_medium_groups = {}
-    student_caste_category_groups = {}
+    student_religion_category_groups = {}
     student_combination_groups = {}
     for student, school in students:
         school_name = school.name if school else "Unknown"
@@ -816,8 +880,9 @@ def _build_reports_payload(db, current_account):
         income_label = _report_label(student.income_status)
         challenged_label = _report_label(student.physically_challenged)
         medium_label = _report_label(student.medium)
-        caste_label = _report_label(student.caste)
-        category_label = _report_label(student.category)
+        religion_label = _report_label(normalize_religion(student.caste) or student.caste)
+        category_code = normalize_category(student.category) or student.category
+        category_label_value = category_display(category_code) if category_code else "Unknown"
         urban_rural_label = _report_label(student.urban_rural)
         gender = _report_key(student.gender)
         income = _report_key(student.income_status)
@@ -853,7 +918,7 @@ def _build_reports_payload(db, current_account):
             ("Physically Challenged", student.physically_challenged),
             ("Urban/Rural", student.urban_rural),
             ("Medium", student.medium),
-            ("Caste", student.caste),
+            ("Religion", student.caste),
             ("Category", student.category),
         ]:
             _report_increment(
@@ -883,9 +948,15 @@ def _build_reports_payload(db, current_account):
             {"school_id": student.school_id or "", "school": school_name, "district": district, "medium": medium_label},
         )
         _report_increment(
-            student_caste_category_groups,
-            (student.school_id or "unknown", district.lower(), _report_key(caste_label), _report_key(category_label)),
-            {"school_id": student.school_id or "", "school": school_name, "district": district, "caste": caste_label, "category": category_label},
+            student_religion_category_groups,
+            (student.school_id or "unknown", district.lower(), _report_key(religion_label), _report_key(category_code or category_label_value)),
+            {
+                "school_id": student.school_id or "",
+                "school": school_name,
+                "district": district,
+                "religion": religion_label,
+                "category": category_code or "",
+            },
         )
         _report_increment(
             student_combination_groups,
@@ -910,8 +981,8 @@ def _build_reports_payload(db, current_account):
                 "physically_challenged": challenged_label,
                 "medium": medium_label,
                 "urban_rural": urban_rural_label,
-                "caste": caste_label,
-                "category": category_label,
+                "religion": religion_label,
+                "category": category_code or "",
             },
         )
 
@@ -922,7 +993,7 @@ def _build_reports_payload(db, current_account):
     student_income_summary = list(student_income_groups.values())
     student_physical_summary = list(student_physical_groups.values())
     student_medium_summary = list(student_medium_groups.values())
-    student_caste_category_summary = list(student_caste_category_groups.values())
+    student_religion_category_summary = list(student_religion_category_groups.values())
     student_combination_summary = list(student_combination_groups.values())
     student_detail_list = [
         {
@@ -933,8 +1004,8 @@ def _build_reports_payload(db, current_account):
             "mother_name": student.mother_name or "",
             "age": student.age or "",
             "gender": _report_label(student.gender),
-            "caste": _report_label(student.caste),
-            "category": _report_label(student.category),
+            "religion": _report_label(normalize_religion(student.caste) or student.caste),
+            "category": normalize_category(student.category) or "",
             "phone": student.phone or "",
             "urban_rural": _report_label(student.urban_rural),
             "income_status": _report_label(student.income_status),
@@ -1045,7 +1116,7 @@ def _build_reports_payload(db, current_account):
         "student_income_summary": student_income_summary,
         "student_physical_summary": student_physical_summary,
         "student_medium_summary": student_medium_summary,
-        "student_caste_category_summary": student_caste_category_summary,
+        "student_religion_category_summary": student_religion_category_summary,
         "student_combination_summary": student_combination_summary,
         "student_detail_list": student_detail_list,
         "student_location_summary": student_location_summary,
@@ -1105,8 +1176,15 @@ def _build_reports_payload(db, current_account):
             "income_statuses": _report_filter_options((student.income_status for student, _school in students), ("APL", "BPL")),
             "physically_challenged": _report_filter_options((student.physically_challenged for student, _school in students), ("Yes", "No")),
             "urban_rural": _report_filter_options((student.urban_rural for student, _school in students), ("Urban", "Rural")),
-            "castes": _report_filter_options((student.caste for student, _school in students)),
-            "categories": _report_filter_options((student.category for student, _school in students)),
+            "religions": _report_filter_options(
+                (normalize_religion(student.caste) or student.caste for student, _school in students),
+                RELIGION_OPTIONS,
+            ),
+            "categories": _report_filter_options(
+                (normalize_category(student.category) or student.category for student, _school in students),
+                [code for code, _label in CATEGORY_OPTIONS],
+            ),
+            "category_labels": {code: label for code, label in CATEGORY_OPTIONS},
         },
         "sections": sections,
         "tables": tables,
@@ -1250,20 +1328,49 @@ def _safe_upload_name(filename: str):
 
 
 def _build_atl_forms(db):
-    forms = [
-        {
-            "id": None,
-            "code": form["code"],
-            "title": form["title"],
-            "filename": form["filename"],
-            "url": form["url"],
-            "source": "official",
-            "uploaded_by": None,
-        }
-        for form in ATL_MER_FORMS
-    ]
+    official_codes = _official_form_codes()
     uploaded = db.query(models.AtlForm).order_by(models.AtlForm.created_at.desc(), models.AtlForm.title).all()
+    overrides = {}
+    custom_forms = []
     for form in uploaded:
+        code_key = (form.code or "").strip().upper()
+        if code_key and code_key in official_codes:
+            overrides[code_key] = form
+        else:
+            custom_forms.append(form)
+
+    forms = []
+    for catalog in ATL_MER_FORMS:
+        code = catalog["code"]
+        override = overrides.get(code.upper())
+        if override:
+            forms.append(
+                {
+                    "id": override.id,
+                    "code": code,
+                    "title": override.title or catalog["title"],
+                    "filename": override.filename,
+                    "url": f"/forms/download/{override.id}",
+                    "source": "official_override",
+                    "uploaded_by": override.uploaded_by,
+                    "is_deletable": True,
+                }
+            )
+        else:
+            forms.append(
+                {
+                    "id": None,
+                    "code": code,
+                    "title": catalog["title"],
+                    "filename": catalog["filename"],
+                    "url": catalog["url"],
+                    "source": "official",
+                    "uploaded_by": None,
+                    "is_deletable": False,
+                }
+            )
+
+    for form in custom_forms:
         forms.append(
             {
                 "id": form.id,
@@ -1273,6 +1380,7 @@ def _build_atl_forms(db):
                 "url": f"/forms/download/{form.id}",
                 "source": "uploaded",
                 "uploaded_by": form.uploaded_by,
+                "is_deletable": True,
             }
         )
     return forms
@@ -1503,12 +1611,12 @@ async def bulk_template(record_type: str, request: Request):
             "sheet": "Students",
             "headers": [
                 "name", "email", "grade", "school_udise_code", "father_name", "mother_name",
-                "age", "gender", "caste", "category", "phone", "urban_rural", "income_status",
+                "age", "gender", "religion", "category", "phone", "urban_rural", "income_status",
                 "physically_challenged", "medium", "state", "district", "taluk", "village", "pincode",
             ],
             "sample": [
                 "Student Full Name", "student@example.com", "8", "29XXXXXXXXX", "Father Name",
-                "Mother Name", "13", "female", "SC", "Category A", "+91 9876543210", "rural",
+                "Mother Name", "13", "female", "Hindu", "GM", "+91 9876543210", "rural",
                 "BPL", "no", "Kannada", "Karnataka", "Bengaluru Urban", "Bengaluru South",
                 "Jayanagar", "560011",
             ],
@@ -1596,7 +1704,7 @@ async def export_records(record_type: str, request: Request):
         elif record_type == "students":
             headers = [
                 "name", "email", "grade", "school_name", "school_udise_code", "father_name",
-                "mother_name", "age", "gender", "caste", "category", "phone", "urban_rural",
+                "mother_name", "age", "gender", "religion", "category", "phone", "urban_rural",
                 "income_status", "physically_challenged", "medium", "state", "district",
                 "taluk", "village", "pincode", "address",
             ]
@@ -1617,8 +1725,8 @@ async def export_records(record_type: str, request: Request):
                     "mother_name": student.mother_name,
                     "age": student.age,
                     "gender": student.gender,
-                    "caste": student.caste,
-                    "category": student.category,
+                    "religion": normalize_religion(student.caste) or student.caste,
+                    "category": normalize_category(student.category) or student.category,
                     "phone": student.phone,
                     "urban_rural": student.urban_rural,
                     "income_status": student.income_status,
@@ -1797,7 +1905,7 @@ async def add_student(
     mother_name: str = Form(""),
     age: str = Form(""),
     gender: str = Form(""),
-    caste: str = Form(""),
+    religion: str = Form(""),
     category: str = Form(""),
     phone: str = Form(""),
     urban_rural: str = Form(""),
@@ -1836,8 +1944,8 @@ async def add_student(
                 mother_name=mother_name.strip() or None,
                 age=_parse_int(age),
                 gender=gender.strip() or None,
-                caste=caste.strip() or None,
-                category=category.strip() or None,
+                caste=normalize_religion(religion),
+                category=normalize_category(category),
                 phone=phone.strip() or None,
                 urban_rural=urban_rural.strip() or None,
                 income_status=income_status.strip() or None,
@@ -1981,8 +2089,8 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                             mother_name=col(row, "mother_name") or col(row, "mothers_name") or None,
                             age=_parse_int(col(row, "age")),
                             gender=col(row, "gender") or None,
-                            caste=col(row, "caste") or None,
-                            category=col(row, "category") or None,
+                            caste=normalize_religion(col(row, "religion") or col(row, "caste")),
+                            category=normalize_category(col(row, "category")),
                             phone=col(row, "phone") or col(row, "phone_number") or None,
                             urban_rural=col(row, "urban_rural") or None,
                             income_status=col(row, "income_status") or None,
@@ -2990,7 +3098,7 @@ async def export_generated_report(
         "income_status": request.query_params.get("income_status", ""),
         "physically_challenged": request.query_params.get("physically_challenged", ""),
         "urban_rural": request.query_params.get("urban_rural", ""),
-        "caste": request.query_params.get("caste", ""),
+        "religion": request.query_params.get("religion", "") or request.query_params.get("caste", ""),
         "category": request.query_params.get("category", ""),
     }
     parsed_start = _parse_date(start_date)
@@ -3016,7 +3124,7 @@ async def export_generated_report(
         # Also keep direct filter matches so location filters (taluk/village/etc.) still apply.
         location_filters = {
             key: filters.get(key, "")
-            for key in ("taluk", "village", "trainer", "caste", "category")
+            for key in ("taluk", "village", "trainer", "religion", "category")
             if filters.get(key)
         }
         detail_rows = []
@@ -3099,8 +3207,9 @@ async def dashboard(request: Request):
                 "mother_name": student.mother_name,
                 "age": student.age,
                 "gender": student.gender,
-                "caste": student.caste,
-                "category": student.category,
+                "religion": normalize_religion(student.caste) or student.caste,
+                "category": normalize_category(student.category) or student.category,
+                "category_display": category_display(normalize_category(student.category) or student.category),
                 "phone": student.phone,
                 "urban_rural": student.urban_rural,
                 "income_status": student.income_status,
@@ -3554,6 +3663,9 @@ async def dashboard(request: Request):
             "can_change_password": current_account.get("role") == "trainer",
             "default_trainer_password": DEFAULT_TRAINER_PASSWORD,
             "reports_data": reports_data,
+            "religion_options": RELIGION_OPTIONS,
+            "category_options": CATEGORY_OPTIONS,
+            "category_label_map": {code: f"{code} — {label}" for code, label in CATEGORY_OPTIONS},
             "dashboard_analytics": dashboard_analytics,
             "attendance_status_map": attendance_status_map,
             "today": date.today().isoformat(),
@@ -3607,42 +3719,159 @@ async def upload_atl_form(
     if not _is_authenticated(request):
         return RedirectResponse("/login")
     if not _can_manage_forms(request):
-        return _dashboard_redirect("Only master trainers can add new forms.", "error")
+        return _dashboard_redirect("Only admin or master trainers can manage forms.", "error")
 
     cleaned_title = title.strip()
     cleaned_code = code.strip().upper()
     if len(cleaned_title) < 3:
         return _dashboard_redirect("Form title must be at least 3 characters.", "error")
-    if not file or not file.filename:
-        return _dashboard_redirect("Please choose a form file to upload.", "error")
 
-    extension = Path(file.filename).suffix.lower()
-    if extension not in ATL_FORM_EXTENSIONS:
-        allowed = ", ".join(sorted(ATL_FORM_EXTENSIONS))
-        return _dashboard_redirect(f"Invalid file type. Allowed: {allowed}.", "error")
-
-    content = await file.read()
-    if not content:
-        return _dashboard_redirect("Uploaded form file is empty.", "error")
+    try:
+        content = await _read_form_upload(file)
+    except ValueError as exc:
+        return _dashboard_redirect(str(exc), "error")
 
     stored_name = _safe_upload_name(file.filename)
-    target = FORMS_UPLOAD_DIR / stored_name
-    target.write_bytes(content)
+    _write_form_file(stored_name, content)
+    current_account = _current_account(request) or {"name": "Admin"}
 
-    current_account = _current_account(request) or {"name": "Master Trainer"}
     with SessionLocal() as db:
-        db.add(
-            models.AtlForm(
-                code=cleaned_code or None,
-                title=cleaned_title,
-                filename=Path(file.filename).name,
-                stored_name=stored_name,
-                uploaded_by=current_account.get("name"),
+        existing = None
+        if cleaned_code:
+            existing = (
+                db.query(models.AtlForm)
+                .filter(func.upper(models.AtlForm.code) == cleaned_code)
+                .first()
             )
-        )
+        if existing:
+            _remove_form_file(existing.stored_name)
+            existing.title = cleaned_title
+            existing.filename = Path(file.filename).name
+            existing.stored_name = stored_name
+            existing.uploaded_by = current_account.get("name")
+        else:
+            db.add(
+                models.AtlForm(
+                    code=cleaned_code or None,
+                    title=cleaned_title,
+                    filename=Path(file.filename).name,
+                    stored_name=stored_name,
+                    uploaded_by=current_account.get("name"),
+                )
+            )
         db.commit()
 
+    if cleaned_code in _official_form_codes():
+        return _dashboard_redirect(f"Official form {cleaned_code} updated successfully.")
     return _dashboard_redirect("Form uploaded successfully.")
+
+
+@app.post("/forms/official/{form_code}/replace")
+async def replace_official_atl_form(
+    request: Request,
+    form_code: str,
+    file: UploadFile = File(...),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _can_manage_forms(request):
+        return _dashboard_redirect("Only admin or master trainers can manage forms.", "error")
+
+    cleaned_code = form_code.strip().upper()
+    catalog = next((item for item in ATL_MER_FORMS if item["code"].upper() == cleaned_code), None)
+    if not catalog:
+        return _dashboard_redirect("Unknown official form code.", "error")
+
+    try:
+        content = await _read_form_upload(file)
+    except ValueError as exc:
+        return _dashboard_redirect(str(exc), "error")
+
+    stored_name = _safe_upload_name(file.filename)
+    _write_form_file(stored_name, content)
+    current_account = _current_account(request) or {"name": "Admin"}
+
+    with SessionLocal() as db:
+        existing = (
+            db.query(models.AtlForm)
+            .filter(func.upper(models.AtlForm.code) == cleaned_code)
+            .first()
+        )
+        if existing:
+            _remove_form_file(existing.stored_name)
+            existing.title = catalog["title"]
+            existing.filename = Path(file.filename).name
+            existing.stored_name = stored_name
+            existing.uploaded_by = current_account.get("name")
+        else:
+            db.add(
+                models.AtlForm(
+                    code=cleaned_code,
+                    title=catalog["title"],
+                    filename=Path(file.filename).name,
+                    stored_name=stored_name,
+                    uploaded_by=current_account.get("name"),
+                )
+            )
+        db.commit()
+
+    return _dashboard_redirect(f"{cleaned_code} replaced successfully.")
+
+
+@app.post("/forms/{form_id}/replace")
+async def replace_atl_form(
+    request: Request,
+    form_id: int,
+    file: UploadFile = File(...),
+    title: str = Form(""),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _can_manage_forms(request):
+        return _dashboard_redirect("Only admin or master trainers can manage forms.", "error")
+
+    try:
+        content = await _read_form_upload(file)
+    except ValueError as exc:
+        return _dashboard_redirect(str(exc), "error")
+
+    stored_name = _safe_upload_name(file.filename)
+    current_account = _current_account(request) or {"name": "Admin"}
+
+    with SessionLocal() as db:
+        form = _atl_form_record(db, form_id)
+        _remove_form_file(form.stored_name)
+        _write_form_file(stored_name, content)
+        form.filename = Path(file.filename).name
+        form.stored_name = stored_name
+        form.uploaded_by = current_account.get("name")
+        cleaned_title = title.strip()
+        if cleaned_title:
+            form.title = cleaned_title
+        db.commit()
+        form_label = form.code or form.title
+
+    return _dashboard_redirect(f"{form_label} replaced successfully.")
+
+
+@app.post("/forms/{form_id}/delete")
+async def delete_atl_form(request: Request, form_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _can_manage_forms(request):
+        return _dashboard_redirect("Only admin or master trainers can manage forms.", "error")
+
+    with SessionLocal() as db:
+        form = _atl_form_record(db, form_id)
+        form_label = form.code or form.title
+        is_official_override = (form.code or "").strip().upper() in _official_form_codes()
+        _remove_form_file(form.stored_name)
+        db.delete(form)
+        db.commit()
+
+    if is_official_override:
+        return _dashboard_redirect(f"{form_label} restored to the default official version.")
+    return _dashboard_redirect(f"{form_label} deleted successfully.")
 
 
 @app.get("/forms/download/{form_id}")

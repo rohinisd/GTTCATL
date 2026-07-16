@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260715-analytics">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20260716-forms-religion">
 </head>
 <body>
   <div id="app">
@@ -543,8 +543,18 @@
                   <option value="male">Male</option>
                   <option value="other">Other</option>
                 </select>
-                <input name="caste" placeholder="Caste">
-                <input name="category" placeholder="Category">
+                <select name="religion">
+                  <option value="">Religion</option>
+                  {% for religion in religion_options %}
+                  <option value="{{ religion }}">{{ religion }}</option>
+                  {% endfor %}
+                </select>
+                <select name="category">
+                  <option value="">Category</option>
+                  {% for code, label in category_options %}
+                  <option value="{{ code }}">{{ code }} — {{ label }}</option>
+                  {% endfor %}
+                </select>
                 <input name="phone" placeholder="Phone number">
                 <select name="urban_rural">
                   <option value="">Urban / Rural</option>
@@ -593,6 +603,7 @@
                 <option value="grade">Sort by Grade</option>
                 <option value="father_name">Sort by Father</option>
                 <option value="gender">Sort by Gender</option>
+                <option value="religion">Sort by Religion</option>
                 <option value="category">Sort by Category</option>
                 <option value="urban_rural">Sort by Urban/Rural</option>
                 <option value="income_status">Sort by Income</option>
@@ -618,7 +629,7 @@
                   <th>Mother</th>
                   <th>Age</th>
                   <th data-sort-key="gender">Gender</th>
-                  <th>Caste</th>
+                  <th data-sort-key="religion">Religion</th>
                   <th data-sort-key="category">Category</th>
                   <th>Phone</th>
                   <th data-sort-key="urban_rural">Urban/Rural</th>
@@ -644,8 +655,8 @@
                   <td>{{ student.mother_name or '-' }}</td>
                   <td>{{ student.age or '-' }}</td>
                   <td>{{ student.gender or '-' }}</td>
-                  <td>{{ student.caste or '-' }}</td>
-                  <td>{{ student.category or '-' }}</td>
+                  <td>{{ student.religion or '-' }}</td>
+                  <td>{{ student.category_display or student.category or '-' }}</td>
                   <td>{{ student.phone or '-' }}</td>
                   <td>{{ student.urban_rural or '-' }}</td>
                   <td>{{ student.income_status or '-' }}</td>
@@ -1526,16 +1537,16 @@
                 {% endif %}
                 {% endfor %}
               </select>
-              <select data-generated-report-filter="caste">
-                <option value="">All Castes</option>
-                {% for caste in reports_data.filters.castes %}
-                <option value="{{ caste }}">{{ caste }}</option>
+              <select data-generated-report-filter="religion">
+                <option value="">All Religions</option>
+                {% for religion in religion_options %}
+                <option value="{{ religion }}">{{ religion }}</option>
                 {% endfor %}
               </select>
               <select data-generated-report-filter="category">
                 <option value="">All Categories</option>
-                {% for category in reports_data.filters.categories %}
-                <option value="{{ category }}">{{ category }}</option>
+                {% for code, label in category_options %}
+                <option value="{{ code }}">{{ code }} — {{ label }}</option>
                 {% endfor %}
               </select>
               <input type="date" data-generated-report-date="start" aria-label="Report start date">
@@ -1584,7 +1595,7 @@
                     data-report-income-status="{{ row.income_status or '' }}"
                     data-report-physically-challenged="{{ row.physically_challenged or '' }}"
                     data-report-urban-rural="{{ row.urban_rural or '' }}"
-                    data-report-caste="{{ row.caste or '' }}"
+                    data-report-religion="{{ row.religion or '' }}"
                     data-report-category="{{ row.category or '' }}"
                     data-report-dimension="{{ row.dimension or '' }}"
                     data-report-start-date="{{ row.start_date or '' }}"
@@ -1629,10 +1640,16 @@
                     data-report-income-status="{{ row.income_status or '' }}"
                     data-report-physically-challenged="{{ row.physically_challenged or '' }}"
                     data-report-urban-rural="{{ row.urban_rural or '' }}"
-                    data-report-caste="{{ row.caste or '' }}"
+                    data-report-religion="{{ row.religion or '' }}"
                     data-report-category="{{ row.category or '' }}">
                   {% for column in section.detail_columns %}
-                  <td>{{ row[column.key] if row[column.key] is not none and row[column.key] != '' else '-' }}</td>
+                  <td>
+                    {% if column.key == 'category' %}
+                      {{ category_label_map.get(row[column.key], row[column.key] or '-') }}
+                    {% else %}
+                      {{ row[column.key] if row[column.key] is not none and row[column.key] != '' else '-' }}
+                    {% endif %}
+                  </td>
                   {% endfor %}
                 </tr>
                 {% endfor %}
@@ -1878,7 +1895,7 @@
           {% if can_manage_forms %}
           <div class="card forms-upload-panel">
             <h3><i class="ti ti-upload"></i> Add New Form</h3>
-            <p class="forms-upload-note">Master trainers can upload additional Word, PDF, or Excel forms for all users to download and print.</p>
+            <p class="forms-upload-note">Admin and master trainers can upload additional Word, PDF, or Excel forms. Use the same MER code (e.g. MER-11) to replace an existing custom form.</p>
             <form class="compact-form forms-upload-form" method="post" action="/forms/upload" enctype="multipart/form-data">
               <input name="title" placeholder="Form title" required>
               <input name="code" placeholder="Form code (optional, e.g. MER-11)">
@@ -1895,20 +1912,48 @@
             {% for form in atl_forms %}
             <article class="form-card">
               <div class="form-card-head">
-                <span class="badge {% if form.source == 'uploaded' %}badge-success{% else %}badge-info{% endif %}">{{ form.code }}</span>
+                <span class="badge {% if form.source == 'uploaded' %}badge-success{% elif form.source == 'official_override' %}badge-warning{% else %}badge-info{% endif %}">{{ form.code }}</span>
                 <i class="ti ti-file-description"></i>
               </div>
               <h3>{{ form.title }}</h3>
               <p>
-                {% if form.source == 'uploaded' %}
-                Added by {{ form.uploaded_by or 'Master Trainer' }}. Download, print, and complete manually.
+                {% if form.source == 'official_override' %}
+                Updated by {{ form.uploaded_by or 'Admin' }}. This replaces the default official file until restored.
+                {% elif form.source == 'uploaded' %}
+                Added by {{ form.uploaded_by or 'Admin' }}. Download, print, and complete manually.
                 {% else %}
                 Official ATL form ready for printing and manual completion.
                 {% endif %}
               </p>
-              <a class="btn-primary" href="{{ form.url }}" {% if form.source == 'official' %}download="{{ form.filename }}"{% endif %}>
-                <i class="ti ti-download"></i> Download
-              </a>
+              <div class="form-card-actions">
+                <a class="btn-primary" href="{{ form.url }}" {% if form.source == 'official' %}download="{{ form.filename }}"{% endif %}>
+                  <i class="ti ti-download"></i> Download
+                </a>
+                {% if can_manage_forms %}
+                {% if form.id %}
+                <form class="form-replace-form" method="post" action="/forms/{{ form.id }}/replace" enctype="multipart/form-data">
+                  <label class="file-input file-input-compact">
+                    <span>Choose updated file</span>
+                    <input name="file" type="file" accept=".doc,.docx,.pdf,.xlsx" required>
+                  </label>
+                  <button class="btn-ghost" type="submit"><i class="ti ti-refresh"></i> Replace</button>
+                </form>
+                {% if form.is_deletable %}
+                <form method="post" action="/forms/{{ form.id }}/delete" onsubmit="return confirm('Remove {{ form.code }}?{% if form.source == 'official_override' %} The default official version will be restored.{% else %} This cannot be undone.{% endif %}');">
+                  <button class="btn-ghost btn-danger-ghost" type="submit"><i class="ti ti-trash"></i> Delete</button>
+                </form>
+                {% endif %}
+                {% else %}
+                <form class="form-replace-form" method="post" action="/forms/official/{{ form.code }}/replace" enctype="multipart/form-data">
+                  <label class="file-input file-input-compact">
+                    <span>Upload edited official file</span>
+                    <input name="file" type="file" accept=".doc,.docx,.pdf,.xlsx" required>
+                  </label>
+                  <button class="btn-ghost" type="submit"><i class="ti ti-refresh"></i> Replace</button>
+                </form>
+                {% endif %}
+                {% endif %}
+              </div>
             </article>
             {% endfor %}
           </div>
@@ -1999,6 +2044,6 @@
 
   <script id="dashboard-analytics-data" type="application/json">{{ dashboard_analytics|tojson }}</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/static/js/portal.js?v=20260715-analytics"></script>
+  <script src="/static/js/portal.js?v=20260716-forms-religion"></script>
 </body>
 </html>

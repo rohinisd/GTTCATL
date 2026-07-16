@@ -708,7 +708,7 @@ function initGeneratedReports() {
       'incomeStatus',
       'physicallyChallenged',
       'urbanRural',
-      'caste',
+      'religion',
       'category',
     ].every(key => !filters[key] || normalize(row.dataset[`report${key[0].toUpperCase()}${key.slice(1)}`]) === normalize(filters[key]));
     return datasetMatches && rowMatchesDate(row, filters);
@@ -728,7 +728,7 @@ function initGeneratedReports() {
         incomeStatus: 'income_status',
         physicallyChallenged: 'physically_challenged',
         urbanRural: 'urban_rural',
-        caste: 'caste',
+        religion: 'religion',
         category: 'category',
       };
       Object.entries(paramMap).forEach(([filterKey, paramKey]) => {
