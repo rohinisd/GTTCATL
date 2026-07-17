@@ -217,7 +217,8 @@ function initContentViewer() {
         : '<div class="content-empty">This video link cannot be embedded here. Use Open resource to view it.</div>';
     }
     if (effectiveType === 'pdf') {
-      return `<iframe src="${url}" title="PDF preview"></iframe>`;
+      // Prefer native PDF rendering; avoid embedding Vercel protection / login HTML in the frame.
+      return `<iframe src="${url}#toolbar=1" title="PDF preview"></iframe>`;
     }
     if (effectiveType === 'ppt') {
       return `<div class="content-empty">PPT/PPTX preview depends on browser support. Use Open resource to view or download it.</div>`;

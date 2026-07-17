@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -238,4 +238,15 @@ class AtlForm(Base):
     stored_name = Column(String(220), nullable=False, default="")
     uploaded_by = Column(String(160))
     is_hidden = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class MediaFile(Base):
+    __tablename__ = "media_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    stored_name = Column(String(220), unique=True, index=True, nullable=False)
+    original_name = Column(String(220))
+    content_type = Column(String(120))
+    data = Column(LargeBinary, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

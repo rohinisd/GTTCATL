@@ -1,10 +1,14 @@
+import json
+import mimetypes
 import os
 import re
 import secrets
+import urllib.error
+import urllib.request
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import urlencode, urlparse
+from urllib.parse import quote, urlencode, urlparse
 
 import bcrypt
 import openpyxl
@@ -163,7 +167,6 @@ app = FastAPI(
     version="0.1.0",
 )
 
-app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=APP_DIR / "templates")
 
 default_upload_dir = "/tmp/student-dashboard/uploads/lms" if os.getenv("VERCEL") else str(APP_DIR / "static" / "uploads" / "lms")
@@ -175,6 +178,145 @@ FORMS_UPLOAD_DIR = Path(os.getenv("STUDENT_DASHBOARD_FORMS_UPLOAD_DIR", default_
 FORMS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ATL_FORM_EXTENSIONS = {".doc", ".docx", ".pdf", ".xlsx"}
+BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN", "").strip()
+
+
+def _media_type_for_name(filename: str) -> str:
+    guessed, _encoding = mimetypes.guess_type(filename)
+    return guessed or "application/octet-stream"
+
+
+def _resolve_lms_upload_path(filename: str) -> Path | None:
+    safe_name = Path(str(filename or "")).name
+    if not safe_name or safe_name in {".", ".."}:
+        return None
+    candidates = [
+        UPLOAD_DIR / safe_name,
+        APP_DIR / "static" / "uploads" / "lms" / safe_name,
+    ]
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return None
+
+
+def _store_lms_upload_in_db(safe_name: str, content: bytes, content_type: str):
+    with SessionLocal() as db:
+        existing = db.query(models.MediaFile).filter(models.MediaFile.stored_name == safe_name).first()
+        if existing:
+            existing.data = content
+            existing.content_type = content_type
+            existing.original_name = safe_name
+        else:
+            db.add(
+                models.MediaFile(
+                    stored_name=safe_name,
+                    original_name=safe_name,
+                    content_type=content_type,
+                    data=content,
+                )
+            )
+        db.commit()
+
+
+def _load_lms_upload_from_db(safe_name: str) -> tuple[bytes, str] | None:
+    with SessionLocal() as db:
+        row = db.query(models.MediaFile).filter(models.MediaFile.stored_name == safe_name).first()
+        if not row or not row.data:
+            return None
+        return bytes(row.data), (row.content_type or _media_type_for_name(safe_name))
+
+
+def _upload_to_vercel_blob(safe_name: str, content: bytes, content_type: str) -> str | None:
+    if not BLOB_READ_WRITE_TOKEN:
+        return None
+    pathname = quote(f"lms/{safe_name}", safe="/")
+    request = urllib.request.Request(
+        f"https://blob.vercel-storage.com/{pathname}",
+        data=content,
+        method="PUT",
+        headers={
+            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
+            "x-api-version": "7",
+            "x-content-type": content_type,
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    url = str(payload.get("url") or "").strip()
+    return url or None
+
+
+def _persist_lms_upload(safe_name: str, content: bytes) -> str:
+    """Store an uploaded LMS file and return a URL that can be opened in the app."""
+    content_type = _media_type_for_name(safe_name)
+    blob_url = _upload_to_vercel_blob(safe_name, content, content_type)
+    if blob_url:
+        return blob_url
+
+    target = UPLOAD_DIR / safe_name
+    target.write_bytes(content)
+    # Persist in DB so Vercel /tmp cold starts do not lose uploaded PDFs.
+    try:
+        _store_lms_upload_in_db(safe_name, content, content_type)
+    except Exception:
+        pass
+    return f"/media/lms/{safe_name}"
+
+
+def _serve_lms_file(filename: str):
+    safe_name = Path(str(filename or "")).name
+    if not safe_name or safe_name in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid file name.")
+
+    target = _resolve_lms_upload_path(safe_name)
+    if target:
+        return FileResponse(
+            target,
+            filename=target.name,
+            media_type=_media_type_for_name(target.name),
+            headers={"Content-Disposition": f'inline; filename="{target.name}"'},
+        )
+
+    stored = _load_lms_upload_from_db(safe_name)
+    if stored:
+        data, content_type = stored
+        # Warm local cache for subsequent requests on this instance.
+        try:
+            (UPLOAD_DIR / safe_name).write_bytes(data)
+        except Exception:
+            pass
+        return StreamingResponse(
+            BytesIO(data),
+            media_type=content_type,
+            headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail="Uploaded file not found. Please re-upload the PDF/resource from Content Library.",
+    )
+
+
+@app.get("/media/lms/{filename}")
+async def serve_lms_media(filename: str, request: Request):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    return _serve_lms_file(filename)
+
+
+@app.get("/static/uploads/lms/{filename}")
+async def serve_legacy_lms_static(filename: str, request: Request):
+    """Serve previously saved /static/uploads/lms URLs from disk or database."""
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    return _serve_lms_file(filename)
+
+
+app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 
 SESSION_COOKIE = "student_dashboard_session"
 SESSION_VALUE = os.getenv("STUDENT_DASHBOARD_SESSION", "student-dashboard-local-session")
@@ -1493,12 +1635,10 @@ async def _save_content_upload(content_type: str, upload: UploadFile | None, res
         return resource_url.strip()
     if upload and upload.filename:
         safe_name = _safe_upload_name(upload.filename)
-        target = UPLOAD_DIR / safe_name
         content = await upload.read()
         if not content:
             raise ValueError("Uploaded file is empty.")
-        target.write_bytes(content)
-        return f"/static/uploads/lms/{safe_name}"
+        return _persist_lms_upload(safe_name, content)
     return ""
 
 
@@ -2182,12 +2322,10 @@ async def create_course(
         if Path(pdf_file.filename).suffix.lower() != ".pdf":
             return _dashboard_redirect("Course PDF must be a .pdf file.", "error")
         safe_name = _safe_upload_name(pdf_file.filename)
-        target = UPLOAD_DIR / safe_name
         content = await pdf_file.read()
         if not content:
             return _dashboard_redirect("Course PDF file is empty.", "error")
-        target.write_bytes(content)
-        course_pdf_url = f"/static/uploads/lms/{safe_name}"
+        course_pdf_url = _persist_lms_upload(safe_name, content)
     form = await request.form()
     item_titles = [str(value).strip() for value in form.getlist("item_title")]
     item_descriptions = [str(value).strip() for value in form.getlist("item_description")]
@@ -2246,14 +2384,13 @@ async def upload_course_pdf(request: Request, course_id: int, pdf_file: UploadFi
         return _dashboard_redirect("Course PDF file is empty.", "error")
 
     safe_name = _safe_upload_name(pdf_file.filename)
-    target = UPLOAD_DIR / safe_name
-    target.write_bytes(content)
+    saved_url = _persist_lms_upload(safe_name, content)
 
     with SessionLocal() as db:
         course = db.query(models.Course).filter(models.Course.id == course_id).first()
         if not course:
             return _dashboard_redirect("Selected course was not found.", "error")
-        course.resource_url = f"/static/uploads/lms/{safe_name}"
+        course.resource_url = saved_url
         db.commit()
 
     return _dashboard_redirect("Course PDF added successfully.")
@@ -2517,12 +2654,10 @@ async def upload_course_content(
     saved_url = cleaned_url
     if content_type != "video_link" and file and file.filename:
         safe_name = _safe_upload_name(file.filename)
-        target = UPLOAD_DIR / safe_name
         content = await file.read()
         if not content:
             return _dashboard_redirect("Uploaded file is empty.", "error")
-        target.write_bytes(content)
-        saved_url = f"/static/uploads/lms/{safe_name}"
+        saved_url = _persist_lms_upload(safe_name, content)
 
     with SessionLocal() as db:
         course = db.query(models.Course).filter(models.Course.id == course_id).first()
