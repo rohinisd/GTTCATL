@@ -3987,7 +3987,7 @@ async def download_atl_form(request: Request, form_id: int):
         if not form:
             raise HTTPException(status_code=404, detail="Form not found.")
         target = FORMS_UPLOAD_DIR / form.stored_name
-        if not target.exists():
+        if not form.stored_name or not target.exists():
             raise HTTPException(status_code=404, detail="Form file not found.")
 
     return FileResponse(target, filename=form.filename, media_type="application/octet-stream")
