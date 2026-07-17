@@ -1639,16 +1639,12 @@ async def bulk_template(record_type: str, request: Request):
         "schools": {
             "sheet": "Schools",
             "headers": [
-                "udise_code", "atl_lab_code", "name", "district", "division", "state",
-                "pin_code", "school_type", "lab_type", "education_type", "max_grade",
-                "principal_name", "principal_email", "principal_phone", "lab_area_sqft",
-                "lab_launch_date", "assigned_trainer",
+                "udise_code", "atl_lab_code", "name", "district", "division",
+                "pin_code", "principal_name", "assigned_trainer",
             ],
             "sample": [
                 "29XXXXXXXXX", "ATL-KA-999", "Government High School Example", "Mysore",
-                "Mysuru", "Karnataka", "570001", "government", "atl", "secondary", "10",
-                "Dr. Principal Name", "principal@example.edu", "+91 9876543210", "1200",
-                "2023-01-15", "Trainer Full Name",
+                "Mysuru", "570001", "Dr. Principal Name", "Trainer Full Name",
             ],
         },
         "students": {
@@ -2092,17 +2088,8 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                             name=name,
                             district=col(row, "district") or None,
                             division=col(row, "division") or None,
-                            state=col(row, "state") or "Karnataka",
                             pin_code=col(row, "pin_code") or None,
-                            school_type=col(row, "school_type") or "government",
-                            lab_type=col(row, "lab_type") or "atl",
-                            education_type=col(row, "education_type") or "secondary",
-                            max_grade=_parse_int(col(row, "max_grade"), 10),
                             principal_name=col(row, "principal_name") or None,
-                            principal_email=col(row, "principal_email") or None,
-                            principal_phone=col(row, "principal_phone") or None,
-                            lab_area_sqft=_parse_int(col(row, "lab_area_sqft")),
-                            lab_launch_date=_parse_date(col(row, "lab_launch_date")),
                             assigned_trainer=col(row, "assigned_trainer") or col(row, "trainer_name") or None,
                         )
                     )
