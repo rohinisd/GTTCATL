@@ -509,6 +509,16 @@ function initAttendanceBulkForm() {
     }
   }
 
+  let batchStudentMap = {};
+  const batchStudentData = document.getElementById('attendanceBatchStudentData');
+  if (batchStudentData) {
+    try {
+      batchStudentMap = JSON.parse(batchStudentData.textContent || '{}');
+    } catch (_error) {
+      batchStudentMap = {};
+    }
+  }
+
   const updateExports = () => {
     const schoolId = schoolSelect?.value || '';
     const batchId = batchSelect.value || '';
@@ -566,11 +576,11 @@ function initAttendanceBulkForm() {
   };
 
   const updateRows = () => {
-    const selected = batchSelect.selectedOptions[0];
-    const schoolId = selected?.dataset.schoolId || '';
+    const batchId = batchSelect.value || '';
+    const enrolledStudentIds = (batchStudentMap[batchId] || []).map(String);
     let visibleCount = 0;
     rows.forEach(row => {
-      const isMatch = row.dataset.attendanceSchool === schoolId;
+      const isMatch = batchId !== '' && enrolledStudentIds.includes(row.dataset.attendanceStudent || '');
       row.style.display = isMatch ? '' : 'none';
       row.querySelectorAll('input').forEach(input => {
         input.disabled = !isMatch;

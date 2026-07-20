@@ -3139,7 +3139,14 @@ async def mark_bulk_attendance(request: Request):
             return _dashboard_redirect("Selected batch was not found.", "error")
         if not _school_in_scope(scope_school_ids, batch.school_id):
             return _dashboard_redirect("You can mark attendance only for your assigned schools.", "error")
-        students = db.query(models.Student).filter(models.Student.school_id == batch.school_id).order_by(models.Student.name).all()
+        students = (
+            db.query(models.Student)
+            .join(models.Enrollment, models.Enrollment.student_id == models.Student.id)
+            .filter(models.Enrollment.batch_id == batch.id)
+            .distinct()
+            .order_by(models.Student.name)
+            .all()
+        )
         for student in students:
             selected_status = form.get(f"status_{student.id}")
             if selected_status not in {"present", "absent"}:
@@ -3728,6 +3735,11 @@ async def dashboard(request: Request):
             }
             for enrollment, student, course, school, batch in enrollments
         ]
+        batch_student_map = {}
+        for enrollment, student, _course, _school, _batch in enrollments:
+            if enrollment.batch_id:
+                batch_student_map.setdefault(enrollment.batch_id, set()).add(student.id)
+        batch_student_map = {batch_id: sorted(student_ids) for batch_id, student_ids in batch_student_map.items()}
         batches_query = (
             db.query(models.Batch, models.School)
             .join(models.School, models.School.id == models.Batch.school_id)
@@ -3958,6 +3970,7 @@ async def dashboard(request: Request):
             "enrollments": enrollment_rows,
             "enrollments_count": len(enrollment_rows),
             "batches": batch_rows,
+            "batch_student_map": batch_student_map,
             "attendance_rows": attendance_rows[:30],
             "attendance_report": attendance_report,
             "individual_attendance_report": individual_attendance_report,

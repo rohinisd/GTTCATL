@@ -1193,7 +1193,7 @@
                     <label><input type="radio" name="status_{{ student.id }}" value="absent"> A</label>
                   </div>
                   {% endfor %}
-                  <div class="attendance-empty" data-attendance-empty>No students found for the selected batch school.</div>
+                  <div class="attendance-empty" data-attendance-empty>No students enrolled in the selected batch.</div>
                 </div>
                 <div class="attendance-downloads">
                   <a class="btn-ghost" data-attendance-export="day-individual" href="/attendance/export?scope=day&group=individual">Download Day Individual</a>
@@ -1202,6 +1202,7 @@
                   <a class="btn-ghost" data-attendance-export="full-batch" href="/attendance/export?scope=full&group=batch">Download Full Batch</a>
                 </div>
                 <script type="application/json" id="attendanceStatusData">{{ attendance_status_map|tojson }}</script>
+                <script type="application/json" id="attendanceBatchStudentData">{{ batch_student_map|tojson }}</script>
                 <button class="btn-primary" type="submit"><i class="ti ti-calendar-check"></i> Save Attendance</button>
               </form>
             </div>
