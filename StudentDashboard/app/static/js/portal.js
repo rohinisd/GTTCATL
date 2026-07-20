@@ -1256,6 +1256,35 @@ function initTableScroll() {
   });
 }
 
+function confirmBulkDeleteStudents() {
+  const form = document.querySelector('[data-student-bulk-delete-form]');
+  if (!form) return false;
+  const checked = form.querySelectorAll('input[name="student_ids"]:checked');
+  if (!checked.length) {
+    alert('Select at least one student to delete.');
+    return false;
+  }
+  return confirm(`Delete ${checked.length} selected student(s)? This also deletes their attendance, enrollment, and badge records. This cannot be undone.`);
+}
+
+function initStudentBulkDelete() {
+  const selectAll = document.querySelector('[data-student-select-all]');
+  const form = document.querySelector('[data-student-bulk-delete-form]');
+  if (!selectAll || !form) return;
+
+  selectAll.addEventListener('change', () => {
+    form.querySelectorAll('input[name="student_ids"]').forEach(checkbox => {
+      checkbox.checked = selectAll.checked;
+    });
+  });
+
+  form.querySelectorAll('input[name="student_ids"]').forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      if (!checkbox.checked) selectAll.checked = false;
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateThemeButtons();
   resetSearchFields();
@@ -1293,4 +1322,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initEnrollmentForm();
   initTableScroll();
   initDashboardAnalytics();
+  initStudentBulkDelete();
 });

@@ -2295,6 +2295,63 @@ async def add_student(
     return _dashboard_redirect("Student added successfully.")
 
 
+@app.post("/students/{student_id}/delete")
+async def delete_student(request: Request, student_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can delete students. Admins and master trainers can view student details.", "error")
+
+    with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
+        student = db.query(models.Student).filter(models.Student.id == student_id).first()
+        if not student:
+            return _dashboard_redirect("Selected student was not found.", "error")
+        if not _school_in_scope(scope_school_ids, student.school_id):
+            return _dashboard_redirect("You can delete students only from your assigned schools.", "error")
+
+        student_name = student.name
+        db.query(models.AttendanceRecord).filter(models.AttendanceRecord.student_id == student.id).delete()
+        db.query(models.StudentTeamworkBadge).filter(models.StudentTeamworkBadge.student_id == student.id).delete()
+        db.query(models.Enrollment).filter(models.Enrollment.student_id == student.id).delete()
+        db.delete(student)
+        db.commit()
+
+    return _dashboard_redirect(f"Student {student_name} and their attendance, enrollment, and badge records were deleted.")
+
+
+@app.post("/students/bulk-delete")
+async def bulk_delete_students(request: Request):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can delete students. Admins and master trainers can view student details.", "error")
+
+    form = await request.form()
+    raw_ids = form.getlist("student_ids")
+    student_ids = {int(value) for value in raw_ids if str(value).strip().isdigit()}
+    if not student_ids:
+        return _dashboard_redirect("Select at least one student to delete.", "error")
+
+    deleted_count = 0
+    with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
+        students = db.query(models.Student).filter(models.Student.id.in_(student_ids)).all()
+        for student in students:
+            if not _school_in_scope(scope_school_ids, student.school_id):
+                continue
+            db.query(models.AttendanceRecord).filter(models.AttendanceRecord.student_id == student.id).delete()
+            db.query(models.StudentTeamworkBadge).filter(models.StudentTeamworkBadge.student_id == student.id).delete()
+            db.query(models.Enrollment).filter(models.Enrollment.student_id == student.id).delete()
+            db.delete(student)
+            deleted_count += 1
+        db.commit()
+
+    if not deleted_count:
+        return _dashboard_redirect("No students were deleted. They may be outside your assigned schools.", "error")
+    return _dashboard_redirect(f"Deleted {deleted_count} student(s) and their attendance, enrollment, and badge records.")
+
+
 @app.post("/bulk-upload/{record_type}")
 async def bulk_upload(record_type: str, request: Request, file: UploadFile = File(...)):
     if not _is_authenticated(request):

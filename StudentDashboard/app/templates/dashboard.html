@@ -630,10 +630,16 @@
               </select>
               <a class="btn-ghost" href="/export/students" data-table-export="students"><i class="ti ti-file-spreadsheet"></i> Download Excel</a>
             </div>
+            {% if is_atl_trainer %}
+            <form method="post" action="/students/bulk-delete" data-student-bulk-delete-form>
+            {% endif %}
             <div class="table-scroll">
             <table class="managed-table" data-table="students">
               <thead>
                 <tr>
+                  {% if is_atl_trainer %}
+                  <th><input type="checkbox" data-student-select-all title="Select all students"></th>
+                  {% endif %}
                   <th data-sort-key="name">Name</th>
                   <th data-sort-key="email">Email</th>
                   <th data-sort-key="grade">Grade</th>
@@ -655,11 +661,17 @@
                   <th>Pincode</th>
                   <th data-sort-key="school_name">School</th>
                   <th data-sort-key="school_udise_code">UDISE</th>
+                  {% if is_atl_trainer %}
+                  <th>Actions</th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
                 {% for student in students %}
                 <tr>
+                  {% if is_atl_trainer %}
+                  <td><input type="checkbox" name="student_ids" value="{{ student.id }}" data-student-select-row></td>
+                  {% endif %}
                   <td>{{ student.name }}</td>
                   <td>{{ student.email or '-' }}</td>
                   <td>{{ student.grade or '-' }}</td>
@@ -681,16 +693,32 @@
                   <td>{{ student.pincode or '-' }}</td>
                   <td>{{ student.school_name or '-' }}</td>
                   <td>{{ student.school_udise_code or '-' }}</td>
+                  {% if is_atl_trainer %}
+                  <td>
+                    <button
+                      class="btn-ghost btn-danger-ghost"
+                      type="submit"
+                      formaction="/students/{{ student.id }}/delete"
+                      onclick='return confirm({{ ("Delete " ~ student.name ~ "? This also deletes their attendance, enrollment, and badge records. This cannot be undone.")|tojson }});'
+                    ><i class="ti ti-trash"></i> Delete</button>
+                  </td>
+                  {% endif %}
                 </tr>
                 {% endfor %}
                 {% if not students %}
                 <tr>
-                  <td colspan="21">No individual student records yet. Add one manually or upload an Excel sheet.</td>
+                  <td colspan="{% if is_atl_trainer %}23{% else %}21{% endif %}">No individual student records yet. Add one manually or upload an Excel sheet.</td>
                 </tr>
                 {% endif %}
               </tbody>
             </table>
             </div>
+            {% if is_atl_trainer %}
+            <button class="btn-danger" type="submit" data-student-bulk-delete-submit onclick="return confirmBulkDeleteStudents();">
+              <i class="ti ti-trash"></i> Delete Selected
+            </button>
+            </form>
+            {% endif %}
           </div>
         </section>
 
