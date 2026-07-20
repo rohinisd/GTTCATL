@@ -974,7 +974,8 @@
           <div class="bulk-grid">
             <div class="card">
               <h3>Create School Batch</h3>
-              <p>Create the school batch first. Batches created here (by you, admin, or master trainer) will appear for the assigned trainer under that school.</p>
+              {% if is_atl_trainer %}
+              <p>Create the school batch first. It will appear here for you to enroll students and mark attendance.</p>
               <form class="compact-form" method="post" action="/attendance/batches/create">
                 <label class="form-field-label">
                   <span>School</span>
@@ -986,21 +987,7 @@
                   </select>
                 </label>
                 <input name="name" placeholder="Batch name, e.g. Batch A / Grade 8 Robotics" required>
-                {% if not is_atl_trainer %}
-                <label class="form-field-label">
-                  <span>Assigned Trainer</span>
-                  <select name="trainer_name" required>
-                    <option value="" disabled selected hidden>Select trainer</option>
-                    {% for trainer in trainers %}
-                    {% if trainer.role != 'master_trainer' and trainer.is_active is not sameas false %}
-                    <option value="{{ trainer.name }}">{{ trainer.name }}{% if trainer.email %} ({{ trainer.email }}){% endif %}</option>
-                    {% endif %}
-                    {% endfor %}
-                  </select>
-                </label>
-                {% else %}
                 <input name="trainer_name" placeholder="Trainer name" value="{{ current_account.name }}" readonly>
-                {% endif %}
                 <label class="form-field-label">
                   <span>Training Start Date</span>
                   <input name="start_date" type="date" aria-label="Training start date">
@@ -1011,6 +998,12 @@
                 </label>
                 <button class="btn-primary" type="submit"><i class="ti ti-users-plus"></i> Create Batch</button>
               </form>
+              {% else %}
+              <div class="notice notice-error">
+                <i class="ti ti-lock"></i>
+                Only trainers can create batches. Admins and master trainers can view batches below.
+              </div>
+              {% endif %}
             </div>
             <div class="card">
               <h3>Assign Student to Course</h3>

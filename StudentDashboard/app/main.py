@@ -3032,6 +3032,8 @@ async def create_attendance_batch(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can create batches. Admins and master trainers can view batches.", "error")
 
     cleaned_name = name.strip()
     if not cleaned_name:
@@ -3041,10 +3043,7 @@ async def create_attendance_batch(
     if parsed_start_date and parsed_end_date and parsed_end_date < parsed_start_date:
         return _dashboard_redirect("Batch end date cannot be before start date.", "error")
     current_account = _current_account(request) or {"name": "Trainer", "role": "trainer"}
-    if _is_atl_trainer_account(request):
-        saved_trainer_name = current_account["name"]
-    else:
-        saved_trainer_name = trainer_name.strip() or current_account["name"]
+    saved_trainer_name = current_account["name"]
 
     with SessionLocal() as db:
         scope_school_ids = _request_school_scope_ids(request, db)
@@ -3053,8 +3052,6 @@ async def create_attendance_batch(
             return _dashboard_redirect("Selected school was not found.", "error")
         if not _school_in_scope(scope_school_ids, school.id):
             return _dashboard_redirect("You can create batches only for your assigned schools.", "error")
-        if not _is_atl_trainer_account(request) and not trainer_name.strip():
-            return _dashboard_redirect("Select the trainer this batch belongs to.", "error")
         exists = (
             db.query(models.Batch)
             .filter(models.Batch.school_id == school_id, func.lower(models.Batch.name) == cleaned_name.lower())
