@@ -22,6 +22,28 @@ MONTH_NAMES = ["","January","February","March","April","May","June",
                "July","August","September","October","November","December"]
 
 
+def get_available_school_ids(school_ids, assigned_school_ids):
+    assigned = set(assigned_school_ids or [])
+    return [school_id for school_id in school_ids if school_id not in assigned]
+
+
+def _apply_school_scope(q, db: Session, current_user) -> object:
+    if current_user.role == RoleEnum.master_trainer:
+        districts = current_user.districts or []
+        if districts:
+            return q.filter(School.district.in_(districts))
+        return q.filter(False)
+    if current_user.role == RoleEnum.atl_trainer:
+        ids = [st.school_id for st in db.query(SchoolTrainer).filter(
+            SchoolTrainer.user_id == current_user.id, SchoolTrainer.is_current == True).all()]
+        return q.filter(School.id.in_(ids))
+    if current_user.role == RoleEnum.principal:
+        ids = [sp.school_id for sp in db.query(SchoolPrincipal).filter(
+            SchoolPrincipal.user_id == current_user.id, SchoolPrincipal.is_current == True).all()]
+        return q.filter(School.id.in_(ids))
+    return q
+
+
 # ════════════════════════════════════════════════════════
 # DIVISIONS
 # ════════════════════════════════════════════════════════
@@ -270,6 +292,32 @@ def get_trainer_schools(
     return result
 
 
+@router.get("/users/{user_id}/assignable-schools")
+def get_assignable_schools(
+    user_id: int,
+    db: Session = Depends(get_db), current_user=Depends(require_sub_and_above),
+):
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u or u.role != RoleEnum.atl_trainer:
+        raise HTTPException(404, "Trainer not found")
+
+    q = db.query(School).filter(School.is_active == True)
+    q = _apply_school_scope(q, db, current_user)
+
+    assigned_ids = {row.school_id for row in db.query(SchoolTrainer.school_id).filter(SchoolTrainer.is_current == True).all()}
+    if assigned_ids:
+        q = q.filter(School.id.notin_(list(assigned_ids)))
+
+    schools = q.order_by(School.name).all()
+    return [{
+        "id": s.id,
+        "name": s.name,
+        "udise_code": s.udise_code,
+        "district": s.district,
+        "division_id": s.division_id,
+    } for s in schools]
+
+
 @router.post("/users/{user_id}/assign-school")
 def assign_school_to_trainer(
     user_id: int,
@@ -287,12 +335,15 @@ def assign_school_to_trainer(
     s = db.query(School).filter(School.id == school_id, School.is_active == True).first()
     if not s:
         raise HTTPException(404, "School not found")
-    already = db.query(SchoolTrainer).filter(
-        SchoolTrainer.user_id == user_id, SchoolTrainer.school_id == school_id,
-        SchoolTrainer.is_current == True,
+
+    existing_assignment = db.query(SchoolTrainer).filter(
+        SchoolTrainer.school_id == school_id, SchoolTrainer.is_current == True,
     ).first()
-    if already:
-        raise HTTPException(400, "This school is already assigned to the trainer")
+    if existing_assignment:
+        if existing_assignment.user_id == user_id:
+            raise HTTPException(400, "This school is already assigned to the trainer")
+        raise HTTPException(400, "This school already has an active trainer assignment")
+
     db.add(SchoolTrainer(school_id=school_id, user_id=user_id,
                          assigned_from=date.today(), is_current=True))
     ActivityLog.log(db, current_user.id, "school_assigned",
@@ -337,20 +388,7 @@ def list_schools(
     db: Session = Depends(get_db), current_user=Depends(require_any),
 ):
     q = db.query(School).filter(School.is_active == True)
-    if current_user.role == RoleEnum.master_trainer:
-        districts = current_user.districts or []
-        if districts:
-            q = q.filter(School.district.in_(districts))
-        else:
-            q = q.filter(False)
-    elif current_user.role == RoleEnum.atl_trainer:
-        ids = [st.school_id for st in db.query(SchoolTrainer).filter(
-            SchoolTrainer.user_id == current_user.id, SchoolTrainer.is_current == True).all()]
-        q = q.filter(School.id.in_(ids))
-    elif current_user.role == RoleEnum.principal:
-        ids = [sp.school_id for sp in db.query(SchoolPrincipal).filter(
-            SchoolPrincipal.user_id == current_user.id, SchoolPrincipal.is_current == True).all()]
-        q = q.filter(School.id.in_(ids))
+    q = _apply_school_scope(q, db, current_user)
     if division_id:     q = q.filter(School.division_id == division_id)
     if sub_division_id: q = q.filter(School.sub_division_id == sub_division_id)
     if district: q = q.filter(School.district.ilike(f"%{district}%"))

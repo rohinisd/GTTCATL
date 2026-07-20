@@ -5178,11 +5178,11 @@ async function openAssignSchool(userId, userName) {
   <div id="asc-body"><div class="pulse" style="text-align:center;padding:24px;color:var(--text3)">Loading…</div></div>`);
 
   try {
-    const [assignments, allSchools] = await Promise.all([
+    const [assignments, assignableSchools] = await Promise.all([
       api(`/api/admin/users/${userId}/schools`),
-      api('/api/admin/schools?limit=500'),
+      api(`/api/admin/users/${userId}/assignable-schools`),
     ]);
-    window._ascState = { userId, userName, assignments, allSchools };
+    window._ascState = { userId, userName, assignments, assignableSchools };
     _renderAssignSchoolBody();
   } catch(e) {
     const b = document.getElementById('asc-body');
@@ -5191,7 +5191,7 @@ async function openAssignSchool(userId, userName) {
 }
 
 function _renderAssignSchoolBody() {
-  const { userId, userName, assignments, allSchools } = window._ascState || {};
+  const { userId, userName, assignments, assignableSchools } = window._ascState || {};
   const body = document.getElementById('asc-body');
   if (!body) return;
 
@@ -5216,8 +5216,7 @@ function _renderAssignSchoolBody() {
         <label class="form-label">Add School <span style="color:var(--text3)">(${assignedIds.length}/2 assigned)</span></label>
         <select class="input" id="asc-school-sel">
           <option value="">— select a school —</option>
-          ${(allSchools || []).filter(s => !assignedIds.includes(s.id))
-            .map(s => `<option value="${s.id}">${s.name} — ${s.district}</option>`).join('')}
+          ${(assignableSchools || []).map(s => `<option value="${s.id}">${s.name} — ${s.district}</option>`).join('')}
         </select>
         <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addSchoolAssignment(${userId},'${userName}')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>

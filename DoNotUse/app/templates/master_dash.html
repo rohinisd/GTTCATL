@@ -1971,8 +1971,81 @@ function filterUsersTable() {
     <td><span class="badge ${u.is_active?'badge-success':'badge-danger'}">${u.is_active?'Active':'Inactive'}</span></td>
     <td>
       <button class="btn btn-sm btn-ghost" onclick="openEditUser(${u.id})">Edit</button>
+      ${u.role === 'atl_trainer' ? `<button class="btn btn-sm btn-primary" onclick="openAssignTrainerSchools(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}')">Schools</button>` : ''}
     </td>
   </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">No users found</td></tr>';
+}
+
+async function openAssignTrainerSchools(userId, userName) {
+  openModal(`<div class="modal-hdr"><h2>School Assignments — ${userName}</h2><button class="btn btn-ghost btn-sm" onclick="closeModal()"><i class="ti ti-x"></i></button></div><div id="mts-body"><div class="pulse" style="text-align:center;padding:24px;color:var(--text3)">Loading…</div></div>`);
+
+  try {
+    const [assignments, assignableSchools] = await Promise.all([
+      api(`/api/admin/users/${userId}/schools`),
+      api(`/api/admin/users/${userId}/assignable-schools`),
+    ]);
+    window._mtsState = { userId, userName, assignments, assignableSchools };
+    renderAssignTrainerSchools();
+  } catch (e) {
+    document.getElementById('mts-body').innerHTML = `<div class="notice notice-red">${e.message}</div>`;
+  }
+}
+
+function renderAssignTrainerSchools() {
+  const { userId, userName, assignments, assignableSchools } = window._mtsState || {};
+  const body = document.getElementById('mts-body');
+  if (!body) return;
+
+  const assignedIds = (assignments || []).map(a => a.school_id);
+  const currentHtml = (assignments || []).length
+    ? (assignments || []).map(a => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;gap:10px">
+        <div style="min-width:0">
+          <div style="font-weight:600;font-size:13px">${a.school_name}</div>
+          <div style="font-size:11px;color:var(--text3)">${a.district || '—'} — ${a.udise_code || '—'}</div>
+        </div>
+        <button class="btn btn-xs btn-danger" onclick="removeTrainerSchoolAssignment(${userId},${a.school_id},'${userName}')">Remove</button>
+      </div>`).join('')
+    : '<p style="color:var(--text3);font-size:13px;margin-bottom:12px">No schools assigned yet.</p>';
+
+  const addHtml = assignedIds.length < 2
+    ? `<div style="margin-top:14px">
+        <label class="form-label">Add School</label>
+        <select class="input" id="mts-school-sel">
+          <option value="">— select a school —</option>
+          ${(assignableSchools || []).map(s => `<option value="${s.id}">${s.name} — ${s.district || '—'}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addTrainerSchoolAssignment(${userId},'${userName}')">Assign School</button>
+      </div>`
+    : '<div class="notice notice-blue" style="margin-top:12px;font-size:12px">Maximum 2 schools assigned. Remove one to assign a different school.</div>';
+
+  body.innerHTML = `
+    <p style="font-size:11px;color:var(--text3);margin-bottom:8px">Current School Assignments (max 2)</p>
+    ${currentHtml}
+    ${addHtml}`;
+}
+
+async function addTrainerSchoolAssignment(userId, userName) {
+  const schoolId = parseInt(document.getElementById('mts-school-sel')?.value);
+  if (!schoolId) { toast('Please select a school', 'error'); return; }
+  try {
+    await api(`/api/admin/users/${userId}/assign-school`, { method:'POST', body:{ school_id: schoolId } });
+    toast('School assigned successfully', 'success');
+    openAssignTrainerSchools(userId, userName);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function removeTrainerSchoolAssignment(userId, schoolId, userName) {
+  if (!confirm('Remove this school assignment from the trainer?')) return;
+  try {
+    await api(`/api/admin/users/${userId}/schools/${schoolId}`, { method:'DELETE' });
+    toast('School assignment removed', 'success');
+    openAssignTrainerSchools(userId, userName);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 // ── Open create modal pre-set to a role ──
