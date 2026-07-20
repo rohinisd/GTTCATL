@@ -1919,7 +1919,8 @@ function filterSchoolTable() {
 //  USERS PAGE
 // ══════════════════════════════════════════
 function canManageUsers() {
-  return ['state_admin', 'division_master', 'master_trainer'].includes(STATE.me?.role);
+  const role = (STATE.me && STATE.me.role) || (STATE.role || '');
+  return ['state_admin', 'division_master', 'master_trainer'].includes(role);
 }
 
 function pageUsers(el) {
@@ -1974,9 +1975,11 @@ function filterUsersTable() {
     <td style="font-size:.8rem">${u.email||'—'}</td>
     <td><span class="badge ${u.is_active?'badge-success':'badge-danger'}">${u.is_active?'Active':'Inactive'}</span></td>
     <td>
-      ${canManageUsers() && u.role !== 'state_admin' ? `<button class="btn btn-sm btn-ghost" onclick="openEditUser(${u.id})">Edit</button>` : ''}
-      ${u.role === 'atl_trainer' && canManageUsers() ? `<button class="btn btn-sm btn-primary" onclick="openAssignTrainerSchools(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}')">Schools</button>` : ''}
-      ${canManageUsers() && u.role !== 'state_admin' ? `<button class="btn btn-sm ${u.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleUserStatus(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>` : ''}
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        ${canManageUsers() && u.role !== 'state_admin' ? `<button class="btn btn-sm btn-ghost" onclick="openEditUser(${u.id})">Edit</button>` : ''}
+        ${u.role === 'atl_trainer' && canManageUsers() ? `<button class="btn btn-sm btn-primary" onclick="openAssignTrainerSchools(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}')">Schools</button>` : ''}
+        ${canManageUsers() && u.role !== 'state_admin' ? `<button class="btn btn-sm ${u.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleUserStatus(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>` : ''}
+      </div>
     </td>
   </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">No users found</td></tr>';
 }
