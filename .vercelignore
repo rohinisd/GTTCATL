@@ -1,0 +1,6 @@
+# These handbook PDFs are tracked in git for the future non-Vercel server
+# deployment, but they push the Vercel serverless function bundle over its
+# 225MB limit, so they're excluded from Vercel deployments specifically.
+StudentDashboard/app/static/uploads/curriculum/atl-handbook-vol-i-karnataka.pdf
+StudentDashboard/app/static/uploads/curriculum/atl-handbook-vol-ii-karnataka.pdf
+StudentDashboard/app/static/uploads/curriculum/atl-handbook-vol-iii-karnataka.pdf
