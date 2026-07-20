@@ -1918,6 +1918,10 @@ function filterSchoolTable() {
 // ══════════════════════════════════════════
 //  USERS PAGE
 // ══════════════════════════════════════════
+function canManageUsers() {
+  return ['state_admin', 'division_master', 'master_trainer'].includes(STATE.me?.role);
+}
+
 function pageUsers(el) {
   el.innerHTML = `
     <div class="table-card">
@@ -1929,7 +1933,7 @@ function pageUsers(el) {
             <option value="atl_trainer">ATL Trainer</option>
             <option value="principal">HM-ATL-School (Principal)</option>
           </select>
-          <button class="btn btn-primary btn-sm" onclick="openCreateUser()">+ Create User</button>
+          ${canManageUsers() ? '<button class="btn btn-primary btn-sm" onclick="openCreateUser()">+ Create User</button>' : ''}
         </div>
       </div>
       <div style="overflow-x:auto">
@@ -1970,8 +1974,9 @@ function filterUsersTable() {
     <td style="font-size:.8rem">${u.email||'—'}</td>
     <td><span class="badge ${u.is_active?'badge-success':'badge-danger'}">${u.is_active?'Active':'Inactive'}</span></td>
     <td>
-      <button class="btn btn-sm btn-ghost" onclick="openEditUser(${u.id})">Edit</button>
-      ${u.role === 'atl_trainer' ? `<button class="btn btn-sm btn-primary" onclick="openAssignTrainerSchools(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}')">Schools</button>` : ''}
+      ${canManageUsers() && u.role !== 'state_admin' ? `<button class="btn btn-sm btn-ghost" onclick="openEditUser(${u.id})">Edit</button>` : ''}
+      ${u.role === 'atl_trainer' && canManageUsers() ? `<button class="btn btn-sm btn-primary" onclick="openAssignTrainerSchools(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}')">Schools</button>` : ''}
+      ${canManageUsers() && u.role !== 'state_admin' ? `<button class="btn btn-sm ${u.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleUserStatus(${u.id}, '${(u.name||'').replace(/'/g,"\\'")}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>` : ''}
     </td>
   </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">No users found</td></tr>';
 }
@@ -2135,6 +2140,7 @@ async function submitCreateUser() {
 
 // ── Edit User Modal ──
 function openEditUser(id) {
+  if (!canManageUsers()) return;
   const user = (STATE._allUsers||[]).find(u => u.id===id);
   if (!user) return;
   STATE._editingUserId = id;
@@ -2143,6 +2149,18 @@ function openEditUser(id) {
   document.getElementById('eu_phone').value = user.phone || '';
   document.getElementById('eu_is_active').value = user.is_active ? 'true' : 'false';
   openModal('editUserModal');
+}
+
+async function toggleUserStatus(id, name, isActive) {
+  if (!canManageUsers()) return;
+  if (!confirm(`${isActive ? 'Deactivate' : 'Activate'} user "${name}"?`)) return;
+  try {
+    const res = await api(`/api/admin/users/${id}/toggle-active`, { method:'PATCH' });
+    toast(`User ${res.is_active ? 'activated' : 'deactivated'}`, 'success');
+    await loadUsers();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 async function saveUser() {
