@@ -516,6 +516,7 @@
 
         <section class="page-section" id="page-students">
           <div class="bulk-grid">
+            {% if is_atl_trainer %}
             <div class="card">
               <h3>Bulk Upload Students</h3>
               <p>Download the student template and map students to schools by UDISE code.</p>
@@ -594,6 +595,12 @@
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Student</button>
               </form>
             </div>
+            {% else %}
+            <div class="notice notice-error">
+              <i class="ti ti-lock"></i>
+              Only trainers can add students. Admins and master trainers can view student details below.
+            </div>
+            {% endif %}
           </div>
           <div class="table-card">
             <div class="table-header">

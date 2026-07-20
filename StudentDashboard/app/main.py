@@ -2250,6 +2250,8 @@ async def add_student(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can add students. Admins and master trainers can view student details.", "error")
 
     with SessionLocal() as db:
         scope_school_ids = _request_school_scope_ids(request, db)
@@ -2304,6 +2306,8 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
         return _dashboard_redirect("Only admins and master trainers can bulk upload trainers.", "error")
     if record_type == "schools" and not _is_admin(request):
         return _dashboard_redirect("Only admin can bulk upload school records.", "error")
+    if record_type == "students" and not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can bulk upload students. Admins and master trainers can view student details.", "error")
 
     rows, col = _worksheet_rows(await file.read())
     success, failed, errors = 0, 0, []
