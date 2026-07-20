@@ -392,7 +392,7 @@
                   {% if can_manage_trainers %}
                   <td>
                     <div class="trainer-status-cell" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-                      <button class="btn-ghost" type="button" onclick="openTrainerEditModal({{ trainer.id }}, {{ trainer.name|tojson }}, {{ trainer.email|tojson }}, {{ trainer.phone|default('', true)|tojson }}, {{ trainer.role|tojson }}, {{ trainer.division|default('', true)|tojson }}, {{ trainer.districts|default('', true)|tojson }}, {{ trainer.assigned_school|default('', true)|tojson }})">
+                      <button class="btn-ghost" type="button" onclick='openTrainerEditModal({{ trainer.id }}, {{ trainer.name|tojson }}, {{ trainer.email|tojson }}, {{ trainer.phone|default("", true)|tojson }}, {{ trainer.role|tojson }}, {{ trainer.division|default("", true)|tojson }}, {{ trainer.districts|default("", true)|tojson }}, {{ trainer.assigned_school|default("", true)|tojson }})'>
                         <i class="ti ti-edit"></i> Edit
                       </button>
                       {% set login_password = trainer_password_map.get(trainer.email.lower() if trainer.email else '', default_trainer_password) %}
