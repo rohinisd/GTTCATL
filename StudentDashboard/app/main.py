@@ -3073,6 +3073,32 @@ async def create_attendance_batch(
     return _dashboard_redirect("Attendance batch created successfully.")
 
 
+@app.post("/attendance/batches/{batch_id}/delete")
+async def delete_batch(request: Request, batch_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can delete batches. Admins and master trainers can view batches.", "error")
+
+    with SessionLocal() as db:
+        scope_school_ids = _request_school_scope_ids(request, db)
+        batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
+        if not batch:
+            return _dashboard_redirect("Selected batch was not found.", "error")
+        if not _school_in_scope(scope_school_ids, batch.school_id):
+            return _dashboard_redirect("You can delete batches only for your assigned schools.", "error")
+
+        batch_name = batch.name
+        db.query(models.AttendanceRecord).filter(models.AttendanceRecord.batch_id == batch.id).delete()
+        db.query(models.BatchPerformanceAssessment).filter(models.BatchPerformanceAssessment.batch_id == batch.id).delete()
+        db.query(models.StudentTeamworkBadge).filter(models.StudentTeamworkBadge.batch_id == batch.id).delete()
+        db.query(models.Enrollment).filter(models.Enrollment.batch_id == batch.id).delete()
+        db.delete(batch)
+        db.commit()
+
+    return _dashboard_redirect(f"Batch {batch_name} and its attendance, assessment, and enrollment records were deleted.")
+
+
 @app.post("/attendance/mark")
 async def mark_attendance(
     request: Request,

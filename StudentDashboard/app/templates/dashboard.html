@@ -1082,6 +1082,9 @@
                   <th>Assigned Trainer</th>
                   <th>Start</th>
                   <th>End</th>
+                  {% if is_atl_trainer %}
+                  <th>Actions</th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -1092,11 +1095,18 @@
                   <td>{{ batch.trainer_name or '-' }}</td>
                   <td>{{ batch.start_date or '-' }}</td>
                   <td>{{ batch.end_date or '-' }}</td>
+                  {% if is_atl_trainer %}
+                  <td>
+                    <form method="post" action="/attendance/batches/{{ batch.id }}/delete" onsubmit="return confirm('Delete batch {{ batch.name }}? This also deletes its attendance, performance assessment, and enrollment records. This cannot be undone.');">
+                      <button class="btn-ghost btn-danger-ghost" type="submit"><i class="ti ti-trash"></i> Delete</button>
+                    </form>
+                  </td>
+                  {% endif %}
                 </tr>
                 {% endfor %}
                 {% if not batches %}
                 <tr>
-                  <td colspan="5">No batches yet for your assigned schools. Create a batch above, or ask admin/master trainer to create one for your school.</td>
+                  <td colspan="{% if is_atl_trainer %}6{% else %}5{% endif %}">No batches yet for your assigned schools. Create a batch above, or ask admin/master trainer to create one for your school.</td>
                 </tr>
                 {% endif %}
               </tbody>
