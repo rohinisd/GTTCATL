@@ -542,6 +542,69 @@ def _join_assigned_schools(*values):
     return ", ".join(schools) or None
 
 
+def _school_ids_from_assigned_school_value(db, value: str | None):
+    if not value:
+        return []
+
+    school_lookup = {school.id: school for school in db.query(models.School).all() if school.id is not None}
+    matched_ids = []
+    seen_ids = set()
+    for token in _split_assigned_schools(value):
+        cleaned = token.strip()
+        if not cleaned:
+            continue
+        if cleaned.isdigit():
+            school_id = int(cleaned)
+            if school_id in school_lookup and school_id not in seen_ids:
+                matched_ids.append(school_id)
+                seen_ids.add(school_id)
+            continue
+
+        token_l = cleaned.lower()
+        for school_id, school in school_lookup.items():
+            school_name = (school.name or "").strip().lower()
+            school_label = f"{school_name} - {(school.district or '').strip().lower()}".strip(" -")
+            if school_name and (
+                school_name == token_l
+                or school_label == token_l
+                or school_name.startswith(token_l)
+                or token_l.startswith(school_name)
+            ):
+                if school_id not in seen_ids:
+                    matched_ids.append(school_id)
+                    seen_ids.add(school_id)
+                break
+    return matched_ids
+
+
+def _validate_trainer_assignment_selection(db, selected_school_ids, current_trainer_id=None):
+    selected_ids = {int(school_id) for school_id in selected_school_ids if str(school_id).strip()}
+    if not selected_ids:
+        return None
+
+    active_trainers = (
+        db.query(models.Trainer)
+        .filter(models.Trainer.is_active.is_(True))
+        .all()
+    )
+    for trainer in active_trainers:
+        if current_trainer_id is not None and trainer.id == current_trainer_id:
+            continue
+        assigned_ids = set(_school_ids_from_assigned_school_value(db, trainer.assigned_school))
+        if assigned_ids & selected_ids:
+            return f"{trainer.name} already has one of the selected schools assigned."
+    return None
+
+
+def _active_school_assignment_map(db):
+    assignment_map = {}
+    active_trainers = db.query(models.Trainer).filter(models.Trainer.is_active.is_(True)).all()
+    for trainer in active_trainers:
+        for school_id in _school_ids_from_assigned_school_value(db, trainer.assigned_school):
+            assignment_map.setdefault(school_id, trainer.id)
+    return assignment_map
+
+
 def _trainer_school_scope_ids(db, account):
     if not account or account.get("role") != "trainer":
         return None
@@ -1978,6 +2041,14 @@ async def add_trainer(
             return _dashboard_redirect(f"Trainer email already exists: {email}", "error")
         if db.query(models.Account).filter(func.lower(models.Account.email) == normalized_email).first():
             return _dashboard_redirect(f"A login account already exists for: {email}", "error")
+
+        selected_school_ids = [
+            value for value in [assigned_school_1, assigned_school_2, assigned_school_3] if value
+        ]
+        conflict_message = _validate_trainer_assignment_selection(db, selected_school_ids)
+        if conflict_message:
+            return _dashboard_redirect(conflict_message, "error")
+
         assigned_schools = _join_assigned_schools(
             assigned_school_1,
             assigned_school_2,
@@ -2036,6 +2107,84 @@ async def toggle_trainer_active(request: Request, trainer_id: int):
         state = "activated" if trainer.is_active else "deactivated"
 
     return _dashboard_redirect(f"Trainer {trainer_name} has been {state}.")
+
+
+@app.post("/trainers/{trainer_id}/update")
+async def update_trainer(
+    request: Request,
+    trainer_id: int,
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(""),
+    role: str = Form("atl_trainer"),
+    division: str = Form(""),
+    districts: str = Form(""),
+    assigned_school: str = Form(""),
+    assigned_school_1: str = Form(""),
+    assigned_school_2: str = Form(""),
+    assigned_school_3: str = Form(""),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _can_manage_trainers(request):
+        return _dashboard_redirect("Only admins and master trainers can edit trainer details.", "error")
+
+    cleaned_name = name.strip()
+    normalized_email = email.strip().lower()
+    allowed_trainer_roles = {"atl_trainer", "master_trainer"}
+
+    if len(cleaned_name) < 2:
+        return _dashboard_redirect("Trainer name is required.", "error")
+    if "@" not in normalized_email:
+        return _dashboard_redirect("Trainer email must be valid.", "error")
+
+    with SessionLocal() as db:
+        trainer = db.query(models.Trainer).filter(models.Trainer.id == trainer_id).first()
+        if not trainer:
+            return _dashboard_redirect("Trainer was not found.", "error")
+        if not _is_admin(request) and trainer.role == "master_trainer":
+            return _dashboard_redirect("Only admin can edit master trainer roles.", "error")
+
+        existing_trainer = (
+            db.query(models.Trainer)
+            .filter(models.Trainer.id != trainer_id, func.lower(models.Trainer.email) == normalized_email)
+            .first()
+        )
+        if existing_trainer:
+            return _dashboard_redirect(f"Trainer email already exists: {email}", "error")
+
+        existing_account = db.query(models.Account).filter(func.lower(models.Account.email) == normalized_email).first()
+        if existing_account and existing_account.email.lower() != trainer.email.lower():
+            return _dashboard_redirect(f"A login account already exists for: {email}", "error")
+
+        selected_school_ids = [
+            value for value in [assigned_school_1, assigned_school_2, assigned_school_3] if value
+        ]
+        conflict_message = _validate_trainer_assignment_selection(db, selected_school_ids, trainer.id)
+        if conflict_message:
+            return _dashboard_redirect(conflict_message, "error")
+
+        selected_role = trainer.role
+        if _is_admin(request) and role in allowed_trainer_roles:
+            selected_role = role
+
+        trainer.name = cleaned_name
+        trainer.email = normalized_email
+        trainer.phone = phone.strip() or None
+        trainer.role = selected_role
+        trainer.division = division.strip() or None
+        trainer.districts = districts.strip() or None
+        trainer.assigned_school = _join_assigned_schools(*selected_school_ids)
+        trainer.specialization = trainer.specialization or "ATL trainer"
+        db.commit()
+
+        account = db.query(models.Account).filter(func.lower(models.Account.email) == trainer.email.lower()).first()
+        if account:
+            account.name = cleaned_name
+            account.email = normalized_email
+            db.commit()
+
+    return _dashboard_redirect(f"Trainer {cleaned_name} was updated successfully.")
 
 
 @app.post("/manual/school")
@@ -3352,6 +3501,8 @@ async def dashboard(request: Request):
         scope_school_ids = _trainer_school_scope_ids(db, current_account)
         schools = [school for school in all_schools if _school_in_scope(scope_school_ids, school.id)]
         assignment_schools = all_schools if _can_manage_trainers(request) else schools
+        school_assignment_map = _active_school_assignment_map(db)
+        unassigned_schools = [school for school in assignment_schools if school.id not in school_assignment_map]
         is_atl_trainer = bool(
             current_account.get("role") == "trainer"
             and scope_school_ids is not None
@@ -3791,6 +3942,8 @@ async def dashboard(request: Request):
             "trainer_password_map": trainer_password_map,
             "schools": schools,
             "assignment_schools": assignment_schools,
+            "unassigned_schools": unassigned_schools,
+            "school_assignment_map": {str(school_id): trainer_id for school_id, trainer_id in school_assignment_map.items()},
             "trainers_count": len(trainers),
             "schools_count": len(schools),
             "students_count": students_count,

@@ -306,19 +306,19 @@
                 <input name="districts" placeholder="Districts / District">
                 <select name="assigned_school_1">
                   <option value="">Assigned school 1</option>
-                  {% for school in assignment_schools %}
+                  {% for school in unassigned_schools %}
                   <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
                   {% endfor %}
                 </select>
                 <select name="assigned_school_2">
                   <option value="">Assigned school 2</option>
-                  {% for school in assignment_schools %}
+                  {% for school in unassigned_schools %}
                   <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
                   {% endfor %}
                 </select>
                 <select name="assigned_school_3">
                   <option value="">Assigned school 3</option>
-                  {% for school in assignment_schools %}
+                  {% for school in unassigned_schools %}
                   <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
                   {% endfor %}
                 </select>
@@ -369,7 +369,7 @@
                   <th data-sort-key="districts">Districts / District</th>
                   <th data-sort-key="assigned_school">Assigned Schools</th>
                   {% if can_manage_trainers %}
-                  <th>Password</th>
+                  <th>Actions</th>
                   <th>Status</th>
                   {% endif %}
                 </tr>
@@ -391,13 +391,18 @@
                   <td>{{ trainer.assigned_school_display or trainer.assigned_school or '-' }}</td>
                   {% if can_manage_trainers %}
                   <td>
-                    {% set login_password = trainer_password_map.get(trainer.email.lower() if trainer.email else '', default_trainer_password) %}
-                    <div class="password-reveal" data-password-reveal>
-                      <span class="password-masked" data-password-masked>••••••••</span>
-                      <span class="password-value" data-password-value hidden>{{ login_password }}</span>
-                      <button class="btn-ghost password-toggle" type="button" data-password-toggle aria-label="Show password">
-                        <i class="ti ti-eye"></i> View
+                    <div class="trainer-status-cell" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                      <button class="btn-ghost" type="button" onclick="openTrainerEditModal({{ trainer.id }}, {{ trainer.name|tojson }}, {{ trainer.email|tojson }}, {{ trainer.phone|default('', true)|tojson }}, {{ trainer.role|tojson }}, {{ trainer.division|default('', true)|tojson }}, {{ trainer.districts|default('', true)|tojson }}, {{ trainer.assigned_school|default('', true)|tojson }})">
+                        <i class="ti ti-edit"></i> Edit
                       </button>
+                      {% set login_password = trainer_password_map.get(trainer.email.lower() if trainer.email else '', default_trainer_password) %}
+                      <div class="password-reveal" data-password-reveal>
+                        <span class="password-masked" data-password-masked>••••••••</span>
+                        <span class="password-value" data-password-value hidden>{{ login_password }}</span>
+                        <button class="btn-ghost password-toggle" type="button" data-password-toggle aria-label="Show password">
+                          <i class="ti ti-eye"></i> View
+                        </button>
+                      </div>
                     </div>
                   </td>
                   <td>
@@ -2038,7 +2043,128 @@
     </div>
   </div>
 
+  <div class="profile-modal" id="trainerEditModal" hidden>
+    <div class="profile-modal-backdrop" data-trainer-edit-close></div>
+    <div class="profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="trainerEditModalTitle">
+      <div class="profile-modal-header">
+        <div class="profile-modal-avatar"><i class="ti ti-user-edit"></i></div>
+        <div>
+          <h2 id="trainerEditModalTitle">Edit Trainer</h2>
+          <p>Update trainer profile and assignment details.</p>
+        </div>
+        <button class="profile-modal-close" type="button" data-trainer-edit-close aria-label="Close edit modal">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <form class="compact-form" id="trainerEditForm" method="post">
+        <input name="name" id="trainerEditName" placeholder="Trainer name" required>
+        <input name="email" id="trainerEditEmail" type="email" placeholder="Email" required>
+        <input name="phone" id="trainerEditPhone" placeholder="Phone">
+        {% if is_admin %}
+        <select name="role" id="trainerEditRole">
+          <option value="atl_trainer">ATL Trainer</option>
+          <option value="master_trainer">Master Trainer</option>
+        </select>
+        {% endif %}
+        <input name="division" id="trainerEditDivision" placeholder="Division">
+        <input name="districts" id="trainerEditDistricts" placeholder="Districts / District">
+        <select name="assigned_school_1" id="trainerEditAssignedSchool1">
+          <option value="">Assigned school 1</option>
+          {% for school in assignment_schools %}
+          <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <select name="assigned_school_2" id="trainerEditAssignedSchool2">
+          <option value="">Assigned school 2</option>
+          {% for school in assignment_schools %}
+          <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <select name="assigned_school_3" id="trainerEditAssignedSchool3">
+          <option value="">Assigned school 3</option>
+          {% for school in assignment_schools %}
+          <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
+      </form>
+    </div>
+  </div>
+
   <script id="dashboard-analytics-data" type="application/json">{{ dashboard_analytics|tojson }}</script>
+  <script id="school-assignment-data" type="application/json">{{ school_assignment_map|tojson }}</script>
+  <script>
+    const schoolAssignmentMap = JSON.parse(document.getElementById('school-assignment-data').textContent || '{}');
+
+    function refreshAssignedSchoolOptions(trainerId, keepSchoolIds) {
+      const schoolSelects = [
+        document.getElementById('trainerEditAssignedSchool1'),
+        document.getElementById('trainerEditAssignedSchool2'),
+        document.getElementById('trainerEditAssignedSchool3'),
+      ];
+      schoolSelects.forEach((select) => {
+        if (!select) return;
+        Array.from(select.options).forEach((option) => {
+          if (!option.value) return;
+          const ownerTrainerId = schoolAssignmentMap[option.value];
+          const takenByOther = ownerTrainerId !== undefined
+            && ownerTrainerId !== trainerId
+            && !keepSchoolIds.includes(option.value);
+          option.hidden = takenByOther;
+          option.disabled = takenByOther;
+        });
+      });
+    }
+
+    function openTrainerEditModal(trainerId, name, email, phone, role, division, districts, assignedSchool) {
+      const modal = document.getElementById('trainerEditModal');
+      const form = document.getElementById('trainerEditForm');
+      if (!modal || !form) return;
+      form.action = `/trainers/${trainerId}/update`;
+      document.getElementById('trainerEditName').value = name || '';
+      document.getElementById('trainerEditEmail').value = email || '';
+      document.getElementById('trainerEditPhone').value = phone || '';
+      const roleSelect = document.getElementById('trainerEditRole');
+      if (roleSelect) {
+        roleSelect.value = role || 'atl_trainer';
+      }
+      document.getElementById('trainerEditDivision').value = division || '';
+      document.getElementById('trainerEditDistricts').value = districts || '';
+      const schoolValues = (assignedSchool || '').split(/\s*(?:,|;|\|)\s*/).filter(Boolean);
+      const schoolSelects = [
+        document.getElementById('trainerEditAssignedSchool1'),
+        document.getElementById('trainerEditAssignedSchool2'),
+        document.getElementById('trainerEditAssignedSchool3'),
+      ];
+      schoolSelects.forEach((select) => {
+        if (!select) return;
+        select.value = '';
+      });
+      refreshAssignedSchoolOptions(trainerId, schoolValues);
+      schoolValues.forEach((value, index) => {
+        if (schoolSelects[index]) {
+          schoolSelects[index].value = value;
+        }
+      });
+      modal.hidden = false;
+    }
+
+    function closeTrainerEditModal() {
+      const modal = document.getElementById('trainerEditModal');
+      if (modal) modal.hidden = true;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-trainer-edit-close]').forEach((button) => {
+        button.addEventListener('click', closeTrainerEditModal);
+      });
+      document.getElementById('trainerEditModal')?.addEventListener('click', (event) => {
+        if (event.target.id === 'trainerEditModal') {
+          closeTrainerEditModal();
+        }
+      });
+    });
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/static/js/portal.js?v=20260717-pdf-media"></script>
 </body>
