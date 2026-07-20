@@ -1171,6 +1171,7 @@
           <div class="bulk-grid">
             <div class="card">
               <h3>Mark Attendance</h3>
+              {% if is_atl_trainer %}
               <form class="compact-form attendance-bulk-form" method="post" action="/attendance/mark-bulk">
                 <select data-attendance-school-select required>
                   {% for school in schools %}
@@ -1212,6 +1213,12 @@
                 <script type="application/json" id="attendanceBatchStudentData">{{ batch_student_map|tojson }}</script>
                 <button class="btn-primary" type="submit"><i class="ti ti-calendar-check"></i> Save Attendance</button>
               </form>
+              {% else %}
+              <div class="notice notice-error">
+                <i class="ti ti-lock"></i>
+                Only trainers can mark attendance. Admins and master trainers can view attendance using the report filters below.
+              </div>
+              {% endif %}
             </div>
           </div>
 

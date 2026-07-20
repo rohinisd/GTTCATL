@@ -3085,6 +3085,8 @@ async def mark_attendance(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can mark attendance. Admins and master trainers can view attendance.", "error")
 
     selected_date = _parse_date(attendance_date)
     if not selected_date:
@@ -3125,6 +3127,8 @@ async def mark_attendance(
 async def mark_bulk_attendance(request: Request):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can mark attendance. Admins and master trainers can view attendance.", "error")
 
     form = await request.form()
     batch_id = _parse_int(form.get("batch_id"))
