@@ -1971,7 +1971,7 @@
             {% for form in atl_forms %}
             <article class="form-card">
               <div class="form-card-head">
-                <span class="badge {% if form.source == 'uploaded' %}badge-success{% elif form.source == 'official_override' %}badge-warn{% else %}badge-info{% endif %}">{{ form.code }}</span>
+                <span class="badge {% if form.source == 'official_override' %}badge-warn{% else %}badge-info{% endif %}">{{ form.code }}</span>
                 <i class="ti ti-file-description"></i>
               </div>
               <h3>{{ form.title }}</h3>
