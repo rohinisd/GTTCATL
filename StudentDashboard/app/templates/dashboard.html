@@ -1014,6 +1014,7 @@
             </div>
             <div class="card">
               <h3>Assign Student to Course</h3>
+              {% if is_atl_trainer %}
               <p>Select school and batch first, then choose a student from that school and the course to enroll them in.</p>
               <form class="compact-form" method="post" action="/enrollments/create" data-enrollment-form>
                 <label class="form-field-label">
@@ -1059,6 +1060,12 @@
                 <input type="hidden" name="assigned_by" value="{{ current_account.name }}">
                 <button class="btn-primary" type="submit"><i class="ti ti-user-check"></i> Enroll Student</button>
               </form>
+              {% else %}
+              <div class="notice notice-error">
+                <i class="ti ti-lock"></i>
+                Only trainers can enroll students into courses. Admins and master trainers can view enrollments below.
+              </div>
+              {% endif %}
             </div>
             <div class="card">
               <h3>Enrollment Summary</h3>

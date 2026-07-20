@@ -2939,6 +2939,8 @@ async def create_enrollment(
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
+    if not _is_atl_trainer_account(request):
+        return _dashboard_redirect("Only trainers can enroll students into courses. Admins and master trainers can view enrollments.", "error")
 
     current_account = _current_account(request) or {"name": "Trainer"}
     assigned_by_name = assigned_by.strip() or current_account.get("name") or "Trainer"
