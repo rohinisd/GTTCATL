@@ -304,24 +304,17 @@
                 {% endif %}
                 <input name="division" placeholder="Division">
                 <input name="districts" placeholder="Districts / District">
-                <select name="assigned_school_1">
-                  <option value="">Assigned school 1</option>
-                  {% for school in unassigned_schools %}
-                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <select name="assigned_school_2">
-                  <option value="">Assigned school 2</option>
-                  {% for school in unassigned_schools %}
-                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-                <select name="assigned_school_3">
-                  <option value="">Assigned school 3</option>
-                  {% for school in unassigned_schools %}
-                  <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-                  {% endfor %}
-                </select>
+                <label class="form-field-label">
+                  <span>Assigned Schools</span>
+                  <div class="checkbox-list">
+                    {% for school in unassigned_schools %}
+                    <label class="checkbox-list-row">
+                      <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}">
+                      {{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}
+                    </label>
+                    {% endfor %}
+                  </div>
+                </label>
                 {% if is_admin %}
                 <input name="password" type="password" placeholder="Login password" autocomplete="new-password" required>
                 <input name="confirm_password" type="password" placeholder="Confirm login password" autocomplete="new-password" required>
@@ -1034,9 +1027,9 @@
               {% endif %}
             </div>
             <div class="card">
-              <h3>Assign Student to Course</h3>
+              <h3>Enroll Students into Courses</h3>
               {% if is_atl_trainer %}
-              <p>Select school and batch first, then choose a student from that school and the course to enroll them in.</p>
+              <p>Select school and batch first, then check one or more students and one or more courses. Every checked student is enrolled into every checked course.</p>
               <form class="compact-form" method="post" action="/enrollments/create" data-enrollment-form>
                 <label class="form-field-label">
                   <span>School</span>
@@ -1059,27 +1052,38 @@
                   </select>
                 </label>
                 <label class="form-field-label">
-                  <span>Student</span>
-                  <select name="student_id" data-enrollment-student required>
-                    <option value="">Select student</option>
+                  <span>Students</span>
+                  <div class="checkbox-list" data-enrollment-student-list>
+                    <label class="checkbox-list-head">
+                      <input type="checkbox" data-enrollment-student-select-all>
+                      Select all
+                    </label>
                     {% for student in students %}
-                    <option value="{{ student.id }}" data-school-id="{{ student.school_id or '' }}">
+                    <label class="checkbox-list-row" data-enrollment-student-row data-enrollment-school="{{ student.school_id or '' }}">
+                      <input type="checkbox" name="student_ids" value="{{ student.id }}" data-enrollment-student-checkbox>
                       {{ student.name }}{% if student.grade %} - Grade {{ student.grade }}{% endif %}
-                    </option>
+                    </label>
                     {% endfor %}
-                  </select>
+                    <div class="checkbox-list-empty" data-enrollment-student-empty>No students in the selected school.</div>
+                  </div>
                 </label>
                 <label class="form-field-label">
-                  <span>Course / Experiment / Curriculum</span>
-                  <select name="course_id" required>
-                    <option value="" disabled selected hidden>Select course</option>
+                  <span>Courses / Experiments / Curriculum</span>
+                  <div class="checkbox-list" data-enrollment-course-list>
+                    <label class="checkbox-list-head">
+                      <input type="checkbox" data-enrollment-course-select-all>
+                      Select all
+                    </label>
                     {% for course in courses %}
-                    <option value="{{ course.id }}">{{ course.title }}</option>
+                    <label class="checkbox-list-row">
+                      <input type="checkbox" name="course_ids" value="{{ course.id }}" data-enrollment-course-checkbox>
+                      {{ course.title }}
+                    </label>
                     {% endfor %}
-                  </select>
+                  </div>
                 </label>
                 <input type="hidden" name="assigned_by" value="{{ current_account.name }}">
-                <button class="btn-primary" type="submit"><i class="ti ti-user-check"></i> Enroll Student</button>
+                <button class="btn-primary" type="submit" onclick="return confirmCreateEnrollments();"><i class="ti ti-user-check"></i> Enroll Selected Students</button>
               </form>
               {% else %}
               <div class="notice notice-error">
@@ -1515,101 +1519,125 @@
 
           <div class="card report-filter-card" data-generated-report-filters>
             <h3>Report Filters</h3>
-            <p>Select at least one dropdown option, then click Generate Report. Only the matching student report and Excel download will appear below.</p>
+            <p>Check one or more options per filter, then click Generate Report. Checking multiple values in one filter includes any of them (OR); checking values across different filters narrows the report (AND).</p>
             <div class="report-filter-controls">
-              <select data-generated-report-filter="schoolId">
-                <option value="">All Schools</option>
-                {% for school in reports_data.filters.schools %}
-                <option value="{{ school.id }}">{{ school.name }}</option>
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="district">
-                <option value="">All Districts</option>
-                {% for district in reports_data.filters.districts %}
-                <option value="{{ district }}">{{ district }}</option>
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="taluk">
-                <option value="">All Taluks</option>
-                {% for taluk in reports_data.filters.taluks %}
-                <option value="{{ taluk }}">{{ taluk }}</option>
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="village">
-                <option value="">All Villages</option>
-                {% for village in reports_data.filters.villages %}
-                <option value="{{ village }}">{{ village }}</option>
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="trainer">
-                <option value="">All Trainers</option>
-                {% for trainer in reports_data.filters.trainers %}
-                <option value="{{ trainer }}">{{ trainer }}</option>
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="medium">
-                <option value="">All Mediums</option>
-                <option value="Kannada">Kannada</option>
-                <option value="English">English</option>
-                {% for medium in reports_data.filters.mediums %}
-                {% if medium not in ["Kannada", "English"] %}
-                <option value="{{ medium }}">{{ medium }}</option>
-                {% endif %}
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="gender">
-                <option value="">All Genders</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-                {% for gender in reports_data.filters.genders %}
-                {% if gender not in ["Male", "Female", "Other"] %}
-                <option value="{{ gender }}">{{ gender }}</option>
-                {% endif %}
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="incomeStatus">
-                <option value="">All APL/BPL</option>
-                <option value="APL">APL</option>
-                <option value="BPL">BPL</option>
-                {% for income in reports_data.filters.income_statuses %}
-                {% if income not in ["APL", "BPL"] %}
-                <option value="{{ income }}">{{ income }}</option>
-                {% endif %}
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="physicallyChallenged">
-                <option value="">All Physically Challenged</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-                {% for challenged in reports_data.filters.physically_challenged %}
-                {% if challenged not in ["Yes", "No"] %}
-                <option value="{{ challenged }}">{{ challenged }}</option>
-                {% endif %}
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="urbanRural">
-                <option value="">All Urban/Rural</option>
-                <option value="Urban">Urban</option>
-                <option value="Rural">Rural</option>
-                {% for value in reports_data.filters.urban_rural %}
-                {% if value not in ["Urban", "Rural"] %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endif %}
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="religion">
-                <option value="">All Religions</option>
-                {% for religion in religion_options %}
-                <option value="{{ religion }}">{{ religion }}</option>
-                {% endfor %}
-              </select>
-              <select data-generated-report-filter="category">
-                <option value="">All Categories</option>
-                {% for code, label in category_options %}
-                <option value="{{ code }}">{{ code }} — {{ label }}</option>
-                {% endfor %}
-              </select>
+              <div class="multiselect" data-multiselect data-generated-report-filter="schoolId" data-multiselect-empty-label="All Schools">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Schools</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  {% for school in reports_data.filters.schools %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ school.id }}"> {{ school.name }}</label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="district" data-multiselect-empty-label="All Districts">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Districts</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  {% for district in reports_data.filters.districts %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ district }}"> {{ district }}</label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="taluk" data-multiselect-empty-label="All Taluks">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Taluks</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  {% for taluk in reports_data.filters.taluks %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ taluk }}"> {{ taluk }}</label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="village" data-multiselect-empty-label="All Villages">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Villages</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  {% for village in reports_data.filters.villages %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ village }}"> {{ village }}</label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="trainer" data-multiselect-empty-label="All Trainers">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Trainers</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  {% for trainer in reports_data.filters.trainers %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ trainer }}"> {{ trainer }}</label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="medium" data-multiselect-empty-label="All Mediums">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Mediums</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  <label class="multiselect-option"><input type="checkbox" value="Kannada"> Kannada</label>
+                  <label class="multiselect-option"><input type="checkbox" value="English"> English</label>
+                  {% for medium in reports_data.filters.mediums %}
+                  {% if medium not in ["Kannada", "English"] %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ medium }}"> {{ medium }}</label>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="gender" data-multiselect-empty-label="All Genders">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Genders</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  <label class="multiselect-option"><input type="checkbox" value="Male"> Male</label>
+                  <label class="multiselect-option"><input type="checkbox" value="Female"> Female</label>
+                  <label class="multiselect-option"><input type="checkbox" value="Other"> Other</label>
+                  {% for gender in reports_data.filters.genders %}
+                  {% if gender not in ["Male", "Female", "Other"] %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ gender }}"> {{ gender }}</label>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="incomeStatus" data-multiselect-empty-label="All APL/BPL">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All APL/BPL</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  <label class="multiselect-option"><input type="checkbox" value="APL"> APL</label>
+                  <label class="multiselect-option"><input type="checkbox" value="BPL"> BPL</label>
+                  {% for income in reports_data.filters.income_statuses %}
+                  {% if income not in ["APL", "BPL"] %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ income }}"> {{ income }}</label>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="physicallyChallenged" data-multiselect-empty-label="All Physically Challenged">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Physically Challenged</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  <label class="multiselect-option"><input type="checkbox" value="Yes"> Yes</label>
+                  <label class="multiselect-option"><input type="checkbox" value="No"> No</label>
+                  {% for challenged in reports_data.filters.physically_challenged %}
+                  {% if challenged not in ["Yes", "No"] %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ challenged }}"> {{ challenged }}</label>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="urbanRural" data-multiselect-empty-label="All Urban/Rural">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Urban/Rural</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  <label class="multiselect-option"><input type="checkbox" value="Urban"> Urban</label>
+                  <label class="multiselect-option"><input type="checkbox" value="Rural"> Rural</label>
+                  {% for value in reports_data.filters.urban_rural %}
+                  {% if value not in ["Urban", "Rural"] %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ value }}"> {{ value }}</label>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="religion" data-multiselect-empty-label="All Religions">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Religions</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  {% for religion in religion_options %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ religion }}"> {{ religion }}</label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="multiselect" data-multiselect data-generated-report-filter="category" data-multiselect-empty-label="All Categories">
+                <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>All Categories</span><i class="ti ti-chevron-down"></i></button>
+                <div class="multiselect-panel" data-multiselect-panel hidden>
+                  {% for code, label in category_options %}
+                  <label class="multiselect-option"><input type="checkbox" value="{{ code }}"> {{ code }} — {{ label }}</label>
+                  {% endfor %}
+                </div>
+              </div>
               <input type="date" data-generated-report-date="start" aria-label="Report start date">
               <input type="date" data-generated-report-date="end" aria-label="Report end date">
             </div>
@@ -2124,24 +2152,17 @@
         {% endif %}
         <input name="division" id="trainerEditDivision" placeholder="Division">
         <input name="districts" id="trainerEditDistricts" placeholder="Districts / District">
-        <select name="assigned_school_1" id="trainerEditAssignedSchool1">
-          <option value="">Assigned school 1</option>
-          {% for school in assignment_schools %}
-          <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-          {% endfor %}
-        </select>
-        <select name="assigned_school_2" id="trainerEditAssignedSchool2">
-          <option value="">Assigned school 2</option>
-          {% for school in assignment_schools %}
-          <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-          {% endfor %}
-        </select>
-        <select name="assigned_school_3" id="trainerEditAssignedSchool3">
-          <option value="">Assigned school 3</option>
-          {% for school in assignment_schools %}
-          <option value="{{ school.id }}">{{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}</option>
-          {% endfor %}
-        </select>
+        <label class="form-field-label">
+          <span>Assigned Schools</span>
+          <div class="checkbox-list" id="trainerEditAssignedSchools">
+            {% for school in assignment_schools %}
+            <label class="checkbox-list-row">
+              <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}" data-trainer-edit-school-checkbox>
+              {{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}
+            </label>
+            {% endfor %}
+          </div>
+        </label>
         <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
       </form>
     </div>
@@ -2153,22 +2174,13 @@
     const schoolAssignmentMap = JSON.parse(document.getElementById('school-assignment-data').textContent || '{}');
 
     function refreshAssignedSchoolOptions(trainerId, keepSchoolIds) {
-      const schoolSelects = [
-        document.getElementById('trainerEditAssignedSchool1'),
-        document.getElementById('trainerEditAssignedSchool2'),
-        document.getElementById('trainerEditAssignedSchool3'),
-      ];
-      schoolSelects.forEach((select) => {
-        if (!select) return;
-        Array.from(select.options).forEach((option) => {
-          if (!option.value) return;
-          const ownerTrainerId = schoolAssignmentMap[option.value];
-          const takenByOther = ownerTrainerId !== undefined
-            && ownerTrainerId !== trainerId
-            && !keepSchoolIds.includes(option.value);
-          option.hidden = takenByOther;
-          option.disabled = takenByOther;
-        });
+      document.querySelectorAll('[data-trainer-edit-school-checkbox]').forEach((checkbox) => {
+        const ownerTrainerId = schoolAssignmentMap[checkbox.value];
+        const takenByOther = ownerTrainerId !== undefined
+          && ownerTrainerId !== trainerId
+          && !keepSchoolIds.includes(checkbox.value);
+        checkbox.closest('label').hidden = takenByOther;
+        checkbox.disabled = takenByOther;
       });
     }
 
@@ -2187,21 +2199,10 @@
       document.getElementById('trainerEditDivision').value = division || '';
       document.getElementById('trainerEditDistricts').value = districts || '';
       const schoolValues = (assignedSchool || '').split(/\s*(?:,|;|\|)\s*/).filter(Boolean);
-      const schoolSelects = [
-        document.getElementById('trainerEditAssignedSchool1'),
-        document.getElementById('trainerEditAssignedSchool2'),
-        document.getElementById('trainerEditAssignedSchool3'),
-      ];
-      schoolSelects.forEach((select) => {
-        if (!select) return;
-        select.value = '';
+      document.querySelectorAll('[data-trainer-edit-school-checkbox]').forEach((checkbox) => {
+        checkbox.checked = schoolValues.includes(checkbox.value);
       });
       refreshAssignedSchoolOptions(trainerId, schoolValues);
-      schoolValues.forEach((value, index) => {
-        if (schoolSelects[index]) {
-          schoolSelects[index].value = value;
-        }
-      });
       modal.hidden = false;
     }
 

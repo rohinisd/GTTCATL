@@ -537,8 +537,6 @@ def _join_assigned_schools(*values):
         for school in _split_assigned_schools(value):
             if school and school.lower() not in {item.lower() for item in schools}:
                 schools.append(school)
-            if len(schools) == 3:
-                return ", ".join(schools)
     return ", ".join(schools) or None
 
 
@@ -871,27 +869,28 @@ def _school_scope_filter(query, column, scope_school_ids):
 
 
 def _matches_report_filters(row: dict, filters: dict):
-    for key, value in filters.items():
-        if not value:
+    for key, raw_values in filters.items():
+        values = [v for v in (raw_values if isinstance(raw_values, (list, tuple, set)) else [raw_values]) if v]
+        if not values:
             continue
         if key == "category":
             row_code = normalize_category(row.get("category"))
-            filter_code = normalize_category(value)
-            if row_code and filter_code:
-                if row_code != filter_code:
+            filter_codes = {normalize_category(v) for v in values}
+            if row_code and filter_codes:
+                if row_code not in filter_codes:
                     return False
                 continue
         if key == "religion":
             row_religion = normalize_religion(row.get("religion"))
-            filter_religion = normalize_religion(value)
-            if row_religion and filter_religion:
-                if row_religion.lower() != filter_religion.lower():
+            filter_religions = {(normalize_religion(v) or "").lower() for v in values}
+            if row_religion and filter_religions:
+                if row_religion.lower() not in filter_religions:
                     return False
                 continue
         if key not in row:
             continue
-        row_value = str(row.get(key) or "").strip()
-        if row_value.lower() != str(value).strip().lower():
+        row_value = str(row.get(key) or "").strip().lower()
+        if not any(row_value == str(v).strip().lower() for v in values):
             return False
     return True
 
@@ -2013,9 +2012,6 @@ async def add_trainer(
     division: str = Form(""),
     districts: str = Form(""),
     assigned_school: str = Form(""),
-    assigned_school_1: str = Form(""),
-    assigned_school_2: str = Form(""),
-    assigned_school_3: str = Form(""),
     password: str = Form(""),
     confirm_password: str = Form(""),
 ):
@@ -2023,6 +2019,9 @@ async def add_trainer(
         return RedirectResponse("/login")
     if not _can_manage_trainers(request):
         return _dashboard_redirect("Only admins and master trainers can add trainers.", "error")
+
+    form = await request.form()
+    assigned_school_ids = [value for value in form.getlist("assigned_school_ids") if str(value).strip()]
 
     normalized_email = email.strip().lower()
     cleaned_name = name.strip()
@@ -2049,19 +2048,11 @@ async def add_trainer(
         if db.query(models.Account).filter(func.lower(models.Account.email) == normalized_email).first():
             return _dashboard_redirect(f"A login account already exists for: {email}", "error")
 
-        selected_school_ids = [
-            value for value in [assigned_school_1, assigned_school_2, assigned_school_3] if value
-        ]
-        conflict_message = _validate_trainer_assignment_selection(db, selected_school_ids)
+        conflict_message = _validate_trainer_assignment_selection(db, assigned_school_ids)
         if conflict_message:
             return _dashboard_redirect(conflict_message, "error")
 
-        assigned_schools = _join_assigned_schools(
-            assigned_school_1,
-            assigned_school_2,
-            assigned_school_3,
-            assigned_school,
-        )
+        assigned_schools = _join_assigned_schools(*assigned_school_ids, assigned_school)
         db.add(
             models.Trainer(
                 name=cleaned_name,
@@ -2127,14 +2118,14 @@ async def update_trainer(
     division: str = Form(""),
     districts: str = Form(""),
     assigned_school: str = Form(""),
-    assigned_school_1: str = Form(""),
-    assigned_school_2: str = Form(""),
-    assigned_school_3: str = Form(""),
 ):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
     if not _can_manage_trainers(request):
         return _dashboard_redirect("Only admins and master trainers can edit trainer details.", "error")
+
+    form = await request.form()
+    assigned_school_ids = [value for value in form.getlist("assigned_school_ids") if str(value).strip()]
 
     cleaned_name = name.strip()
     normalized_email = email.strip().lower()
@@ -2164,10 +2155,7 @@ async def update_trainer(
         if existing_account and existing_account.email.lower() != trainer.email.lower():
             return _dashboard_redirect(f"A login account already exists for: {email}", "error")
 
-        selected_school_ids = [
-            value for value in [assigned_school_1, assigned_school_2, assigned_school_3] if value
-        ]
-        conflict_message = _validate_trainer_assignment_selection(db, selected_school_ids, trainer.id)
+        conflict_message = _validate_trainer_assignment_selection(db, assigned_school_ids, trainer.id)
         if conflict_message:
             return _dashboard_redirect(conflict_message, "error")
 
@@ -2181,7 +2169,7 @@ async def update_trainer(
         trainer.role = selected_role
         trainer.division = division.strip() or None
         trainer.districts = districts.strip() or None
-        trainer.assigned_school = _join_assigned_schools(*selected_school_ids)
+        trainer.assigned_school = _join_assigned_schools(*assigned_school_ids)
         trainer.specialization = trainer.specialization or "ATL trainer"
         db.commit()
 
@@ -2994,62 +2982,80 @@ async def delete_course_content(request: Request, content_kind: str, content_id:
 
 
 @app.post("/enrollments/create")
-async def create_enrollment(
-    request: Request,
-    student_id: int = Form(...),
-    course_id: int = Form(...),
-    batch_id: int = Form(...),
-    assigned_by: str = Form(""),
-):
+async def create_enrollment(request: Request):
     if not _is_authenticated(request):
         return RedirectResponse("/login")
     if not _is_atl_trainer_account(request):
         return _dashboard_redirect("Only trainers can enroll students into courses. Admins and master trainers can view enrollments.", "error")
 
     current_account = _current_account(request) or {"name": "Trainer"}
-    assigned_by_name = assigned_by.strip() or current_account.get("name") or "Trainer"
+    form = await request.form()
+    assigned_by_name = (form.get("assigned_by") or "").strip() or current_account.get("name") or "Trainer"
+    batch_id = _parse_int(form.get("batch_id"))
+    student_ids = {int(value) for value in form.getlist("student_ids") if str(value).strip().isdigit()}
+    course_ids = {int(value) for value in form.getlist("course_ids") if str(value).strip().isdigit()}
 
+    if not batch_id:
+        return _dashboard_redirect("Select a batch before enrolling students.", "error")
+    if not student_ids:
+        return _dashboard_redirect("Select at least one student to enroll.", "error")
+    if not course_ids:
+        return _dashboard_redirect("Select at least one course to enroll into.", "error")
+
+    created_count = 0
+    skipped_count = 0
     with SessionLocal() as db:
         scope_school_ids = _request_school_scope_ids(request, db)
-        student = db.query(models.Student).filter(models.Student.id == student_id).first()
-        course = db.query(models.Course).filter(models.Course.id == course_id).first()
         batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
-        if not student:
-            return _dashboard_redirect("Selected student was not found.", "error")
-        if not course:
-            return _dashboard_redirect("Selected course was not found.", "error")
         if not batch:
             return _dashboard_redirect("Selected batch was not found.", "error")
-        if not _school_in_scope(scope_school_ids, student.school_id):
-            return _dashboard_redirect("You can enroll students only from your assigned schools.", "error")
         if not _school_in_scope(scope_school_ids, batch.school_id):
             return _dashboard_redirect("You can enroll only into batches from your assigned schools.", "error")
-        if student.school_id and student.school_id != batch.school_id:
-            return _dashboard_redirect("Selected student does not belong to the selected batch school.", "error")
-        existing = (
-            db.query(models.Enrollment)
-            .filter(
-                models.Enrollment.student_id == student_id,
-                models.Enrollment.course_id == course_id,
+
+        students = db.query(models.Student).filter(models.Student.id.in_(student_ids)).all()
+        course_by_id = {
+            course.id: course
+            for course in db.query(models.Course).filter(models.Course.id.in_(course_ids)).all()
+        }
+        existing_pairs = {
+            (enrollment.student_id, enrollment.course_id)
+            for enrollment in db.query(models.Enrollment).filter(
                 models.Enrollment.batch_id == batch.id,
+                models.Enrollment.student_id.in_(student_ids),
+                models.Enrollment.course_id.in_(course_ids),
             )
-            .first()
-        )
-        if existing:
-            return _dashboard_redirect("This student is already enrolled in the selected course for this batch.", "error")
-        db.add(
-            models.Enrollment(
-                student_id=student_id,
-                course_id=course_id,
-                batch_id=batch.id,
-                status="assigned",
-                progress=0,
-                assigned_by=assigned_by_name,
+        }
+
+        for student in students:
+            eligible = (
+                _school_in_scope(scope_school_ids, student.school_id)
+                and (not student.school_id or student.school_id == batch.school_id)
             )
-        )
+            for course_id in course_ids:
+                if not eligible or course_id not in course_by_id or (student.id, course_id) in existing_pairs:
+                    skipped_count += 1
+                    continue
+                db.add(
+                    models.Enrollment(
+                        student_id=student.id,
+                        course_id=course_id,
+                        batch_id=batch.id,
+                        status="assigned",
+                        progress=0,
+                        assigned_by=assigned_by_name,
+                    )
+                )
+                existing_pairs.add((student.id, course_id))
+                created_count += 1
+        skipped_count += (len(student_ids) - len(students)) * len(course_ids)
         db.commit()
 
-    return _dashboard_redirect("Student enrolled into course successfully.")
+    if not created_count:
+        return _dashboard_redirect("No new enrollments were created. Selected students may already be enrolled or outside your assigned schools.", "error")
+    message = f"Created {created_count} enrollment(s)."
+    if skipped_count:
+        message += f" Skipped {skipped_count} that were already enrolled, invalid, or out of scope."
+    return _dashboard_redirect(message)
 
 
 @app.post("/enrollments/update")
@@ -3552,13 +3558,6 @@ async def export_attendance(
 async def export_generated_report(
     report_type: str,
     request: Request,
-    school_id: str = "",
-    district: str = "",
-    taluk: str = "",
-    village: str = "",
-    trainer: str = "",
-    medium: str = "",
-    dimension: str = "",
     start_date: str = "",
     end_date: str = "",
 ):
@@ -3567,20 +3566,21 @@ async def export_generated_report(
     if report_type not in REPORT_TABLE_COLUMNS:
         raise HTTPException(404, "Unknown report type")
 
+    qp = request.query_params
     filters = {
-        "school_id": school_id,
-        "district": district,
-        "taluk": taluk,
-        "village": village,
-        "trainer": trainer,
-        "medium": medium,
-        "dimension": dimension,
-        "gender": request.query_params.get("gender", ""),
-        "income_status": request.query_params.get("income_status", ""),
-        "physically_challenged": request.query_params.get("physically_challenged", ""),
-        "urban_rural": request.query_params.get("urban_rural", ""),
-        "religion": request.query_params.get("religion", "") or request.query_params.get("caste", ""),
-        "category": request.query_params.get("category", ""),
+        "school_id": qp.getlist("school_id"),
+        "district": qp.getlist("district"),
+        "taluk": qp.getlist("taluk"),
+        "village": qp.getlist("village"),
+        "trainer": qp.getlist("trainer"),
+        "medium": qp.getlist("medium"),
+        "dimension": qp.getlist("dimension"),
+        "gender": qp.getlist("gender"),
+        "income_status": qp.getlist("income_status"),
+        "physically_challenged": qp.getlist("physically_challenged"),
+        "urban_rural": qp.getlist("urban_rural"),
+        "religion": qp.getlist("religion") or qp.getlist("caste"),
+        "category": qp.getlist("category"),
     }
     parsed_start = _parse_date(start_date)
     parsed_end = _parse_date(end_date)

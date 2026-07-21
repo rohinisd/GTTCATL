@@ -673,6 +673,53 @@ function initReportFilters() {
   applyFilters();
 }
 
+function initMultiSelectDropdowns(root = document) {
+  const widgets = Array.from(root.querySelectorAll('[data-multiselect]'));
+  widgets.forEach(widget => {
+    const toggle = widget.querySelector('[data-multiselect-toggle]');
+    const panel = widget.querySelector('[data-multiselect-panel]');
+    const label = widget.querySelector('[data-multiselect-label]');
+    const emptyText = widget.dataset.multiselectEmptyLabel || label?.textContent.trim() || 'All';
+    if (!toggle || !panel || !label) return;
+
+    const updateLabel = () => {
+      const checked = Array.from(panel.querySelectorAll('input[type="checkbox"]:checked'));
+      if (!checked.length) {
+        label.textContent = emptyText;
+      } else if (checked.length === 1) {
+        label.textContent = checked[0].closest('label')?.textContent.trim() || '1 selected';
+      } else {
+        label.textContent = `${checked.length} selected`;
+      }
+    };
+
+    toggle.addEventListener('click', event => {
+      event.stopPropagation();
+      const isOpen = !panel.hidden;
+      document.querySelectorAll('[data-multiselect-panel]').forEach(otherPanel => {
+        if (otherPanel !== panel) otherPanel.hidden = true;
+      });
+      panel.hidden = isOpen;
+    });
+
+    panel.addEventListener('click', event => event.stopPropagation());
+    panel.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', updateLabel);
+    });
+
+    updateLabel();
+  });
+
+  if (widgets.length && !document.body.dataset.multiselectOutsideBound) {
+    document.body.dataset.multiselectOutsideBound = 'true';
+    document.addEventListener('click', () => {
+      document.querySelectorAll('[data-multiselect-panel]').forEach(panel => {
+        panel.hidden = true;
+      });
+    });
+  }
+}
+
 function initGeneratedReports() {
   const filterShell = document.querySelector('[data-generated-report-filters]');
   const rows = Array.from(document.querySelectorAll('[data-generated-report-row]'));
@@ -689,7 +736,8 @@ function initGeneratedReports() {
   const getFilters = () => {
     const filters = {};
     controls.forEach(control => {
-      filters[control.dataset.generatedReportFilter] = control.value || '';
+      const checked = Array.from(control.querySelectorAll('input[type="checkbox"]:checked')).map(box => box.value);
+      filters[control.dataset.generatedReportFilter] = checked;
     });
     filters.startDate = startDate?.value || '';
     filters.endDate = endDate?.value || '';
@@ -721,7 +769,12 @@ function initGeneratedReports() {
       'urbanRural',
       'religion',
       'category',
-    ].every(key => !filters[key] || normalize(row.dataset[`report${key[0].toUpperCase()}${key.slice(1)}`]) === normalize(filters[key]));
+    ].every(key => {
+      const selected = filters[key] || [];
+      if (!selected.length) return true;
+      const rowValue = normalize(row.dataset[`report${key[0].toUpperCase()}${key.slice(1)}`]);
+      return selected.some(value => normalize(value) === rowValue);
+    });
     return datasetMatches && rowMatchesDate(row, filters);
   };
 
@@ -743,7 +796,7 @@ function initGeneratedReports() {
         category: 'category',
       };
       Object.entries(paramMap).forEach(([filterKey, paramKey]) => {
-        if (filters[filterKey]) params.set(paramKey, filters[filterKey]);
+        (filters[filterKey] || []).forEach(value => params.append(paramKey, value));
       });
       if (filters.startDate) params.set('start_date', filters.startDate);
       if (filters.endDate) params.set('end_date', filters.endDate);
@@ -752,7 +805,10 @@ function initGeneratedReports() {
     });
   };
 
-  const hasActiveFilters = filters => Object.values(filters).some(value => String(value || '').trim());
+  const hasActiveFilters = filters => Object.entries(filters).some(([key, value]) => {
+    if (key === 'startDate' || key === 'endDate') return Boolean(value);
+    return Array.isArray(value) && value.length > 0;
+  });
 
   const hideGeneratedResults = () => {
     document.querySelectorAll('[data-generated-report-table]').forEach(table => {
@@ -1068,18 +1124,38 @@ function initPasswordReveal() {
   });
 }
 
+function confirmCreateEnrollments() {
+  const form = document.querySelector('[data-enrollment-form]');
+  if (!form) return false;
+  const students = form.querySelectorAll('input[name="student_ids"]:checked');
+  const courses = form.querySelectorAll('input[name="course_ids"]:checked');
+  if (!students.length) {
+    alert('Select at least one student to enroll.');
+    return false;
+  }
+  if (!courses.length) {
+    alert('Select at least one course to enroll into.');
+    return false;
+  }
+  const total = students.length * courses.length;
+  return confirm(`Enroll ${students.length} student(s) into ${courses.length} course(s)? This creates up to ${total} enrollment record(s).`);
+}
+
 function initEnrollmentForm() {
   const form = document.querySelector('[data-enrollment-form]');
   if (!form) return;
   const schoolSelect = form.querySelector('[data-enrollment-school]');
   const batchSelect = form.querySelector('[data-enrollment-batch]');
-  const studentSelect = form.querySelector('[data-enrollment-student]');
-  if (!schoolSelect || !studentSelect) return;
+  const studentRows = Array.from(form.querySelectorAll('[data-enrollment-student-row]'));
+  const studentEmpty = form.querySelector('[data-enrollment-student-empty]');
+  const studentSelectAll = form.querySelector('[data-enrollment-student-select-all]');
+  const courseSelectAll = form.querySelector('[data-enrollment-course-select-all]');
+  if (!schoolSelect) return;
 
-  const syncBySchool = (selectEl) => {
-    if (!selectEl) return;
+  const syncBatchBySchool = () => {
+    if (!batchSelect) return;
     const schoolId = schoolSelect.value || '';
-    Array.from(selectEl.options).forEach(option => {
+    Array.from(batchSelect.options).forEach(option => {
       if (!option.value) {
         option.hidden = false;
         option.disabled = false;
@@ -1089,15 +1165,46 @@ function initEnrollmentForm() {
       option.hidden = !isMatch;
       option.disabled = !isMatch;
     });
-    if (!schoolId || !selectEl.value || selectEl.selectedOptions[0]?.disabled) {
-      selectEl.value = '';
+    if (!schoolId || !batchSelect.value || batchSelect.selectedOptions[0]?.disabled) {
+      batchSelect.value = '';
     }
   };
 
-  const syncEnrollmentOptions = () => {
-    syncBySchool(batchSelect);
-    syncBySchool(studentSelect);
+  const syncStudentsBySchool = () => {
+    const schoolId = schoolSelect.value || '';
+    let visibleCount = 0;
+    studentRows.forEach(row => {
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      const isMatch = schoolId && row.dataset.enrollmentSchool === schoolId;
+      row.style.display = isMatch ? '' : 'none';
+      if (checkbox) {
+        checkbox.disabled = !isMatch;
+        if (!isMatch) checkbox.checked = false;
+      }
+      if (isMatch) visibleCount += 1;
+    });
+    if (studentEmpty) studentEmpty.style.display = visibleCount ? 'none' : '';
+    if (studentSelectAll) studentSelectAll.checked = false;
   };
+
+  const syncEnrollmentOptions = () => {
+    syncBatchBySchool();
+    syncStudentsBySchool();
+  };
+
+  studentSelectAll?.addEventListener('change', () => {
+    studentRows.forEach(row => {
+      if (row.style.display === 'none') return;
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      if (checkbox) checkbox.checked = studentSelectAll.checked;
+    });
+  });
+
+  courseSelectAll?.addEventListener('change', () => {
+    form.querySelectorAll('[data-enrollment-course-checkbox]').forEach(checkbox => {
+      checkbox.checked = courseSelectAll.checked;
+    });
+  });
 
   schoolSelect.addEventListener('change', syncEnrollmentOptions);
   syncEnrollmentOptions();
@@ -1312,6 +1419,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLessonSelect();
   initAttendanceBulkForm();
   initReportFilters();
+  initMultiSelectDropdowns();
   initGeneratedReports();
   initPerformanceForms();
   initAddCourseToggle();
