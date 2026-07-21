@@ -1345,15 +1345,17 @@
                 <h3>Individual Attendance Report</h3>
                 <span class="badge badge-info">{{ individual_attendance_report|length }} Students</span>
               </div>
+              <p class="muted">Days present/absent for each student across their batch's full start-to-end date range.</p>
               <table>
                 <thead>
                   <tr>
                     <th>Student</th>
                     <th>School</th>
                     <th>Batch</th>
-                    <th>Total</th>
+                    <th>Batch Days</th>
                     <th>Present</th>
                     <th>Absent</th>
+                    <th>Not Marked</th>
                     <th>Present %</th>
                   </tr>
                 </thead>
@@ -1363,14 +1365,15 @@
                     <td>{{ row.student_name }}</td>
                     <td>{{ row.school_name }}</td>
                     <td>{{ row.batch_name }}</td>
-                    <td>{{ row.total }}</td>
+                    <td>{{ row.total_days }}</td>
                     <td>{{ row.present }}</td>
                     <td>{{ row.absent }}</td>
+                    <td>{{ row.not_marked }}</td>
                     <td>{{ row.present_percent }}%</td>
                   </tr>
                   {% endfor %}
                   {% if not individual_attendance_report %}
-                  <tr><td colspan="7">No individual attendance report yet.</td></tr>
+                  <tr><td colspan="8">No individual attendance report yet. Batches need both a start and end date set.</td></tr>
                   {% endif %}
                 </tbody>
               </table>

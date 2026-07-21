@@ -5,7 +5,7 @@ import re
 import secrets
 import urllib.error
 import urllib.request
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote, urlencode, urlparse
@@ -743,6 +743,13 @@ def _matches_search(row: dict, search: str):
         return True
     needle = search.lower()
     return any(needle in str(value or "").lower() for value in row.values())
+
+
+def _date_range_inclusive(start: date, end: date) -> list[date]:
+    if not start or not end or end < start:
+        return []
+    days = (end - start).days
+    return [start + timedelta(days=offset) for offset in range(days + 1)]
 
 
 def _export_workbook(sheet_name: str, headers: list[str], rows: list[dict], filename: str):
@@ -3406,6 +3413,55 @@ async def export_attendance(
             query = query.filter(models.AttendanceRecord.attendance_date == selected_date)
         records = query.order_by(models.School.name, models.Batch.name, models.Student.name, models.AttendanceRecord.attendance_date).all()
 
+        enrollment_rows = []
+        if scope == "full" and group in {"individual", "batch"}:
+            enroll_query = (
+                db.query(models.Enrollment, models.Student, models.Batch, models.School)
+                .join(models.Student, models.Student.id == models.Enrollment.student_id)
+                .join(models.Batch, models.Batch.id == models.Enrollment.batch_id)
+                .join(models.School, models.School.id == models.Batch.school_id)
+            )
+            if school_id:
+                enroll_query = enroll_query.filter(models.Batch.school_id == school_id)
+            elif scope_school_ids is not None:
+                enroll_query = enroll_query.filter(models.Batch.school_id.in_(scope_school_ids))
+            if batch_id:
+                enroll_query = enroll_query.filter(models.Enrollment.batch_id == batch_id)
+            enrollment_rows = enroll_query.order_by(models.School.name, models.Batch.name, models.Student.name).all()
+
+    if group == "batch" and scope == "full":
+        if not batch_id:
+            return _dashboard_redirect("Select a batch before downloading the full batch attendance grid.", "error")
+        if not batch.start_date or not batch.end_date:
+            return _dashboard_redirect("Selected batch does not have start and end dates set.", "error")
+        date_list = _date_range_inclusive(batch.start_date, batch.end_date)
+        status_lookup = {}
+        for record, _batch, student, _school in records:
+            status_lookup[(student.id, record.attendance_date)] = record.status
+        seen_student_ids = set()
+        rows = []
+        for _enrollment, student, _batch, _school in enrollment_rows:
+            if student.id in seen_student_ids:
+                continue
+            seen_student_ids.add(student.id)
+            row = {"student": student.name}
+            for day in date_list:
+                status = status_lookup.get((student.id, day))
+                if status == "present":
+                    row[day.isoformat()] = "Present"
+                elif status == "absent":
+                    row[day.isoformat()] = "Absent"
+                else:
+                    row[day.isoformat()] = "Not Marked"
+            rows.append(row)
+        headers = ["student"] + [day.isoformat() for day in date_list]
+        return _export_workbook(
+            "Full Batch Attendance",
+            headers,
+            rows,
+            f"attendance-full-batch-{batch.name}.xlsx",
+        )
+
     if group == "batch":
         summary = {}
         for record, batch, _student, school in records:
@@ -3440,42 +3496,55 @@ async def export_attendance(
             f"attendance-{scope}-batch.xlsx",
         )
 
-    summary = {}
-    for record, batch, student, school in records:
-        if scope == "day":
-            summary[(batch.id, student.id, record.attendance_date)] = {
-                "date": record.attendance_date,
-                "school": school.name,
-                "batch": batch.name,
-                "student": student.name,
-                "status": record.status,
-                "marked_by": record.marked_by or "",
-                "remarks": record.remarks or "",
-            }
-        else:
+    if scope == "full":
+        seen_student_ids = set()
+        status_lookup = {}
+        for record, batch, student, _school in records:
+            status_lookup[(batch.id, student.id, record.attendance_date)] = record.status
+        rows = []
+        for _enrollment, student, batch, school in enrollment_rows:
             key = (batch.id, student.id)
-            bucket = summary.setdefault(
-                key,
-                {"school": school.name, "batch": batch.name, "student": student.name, "total": 0, "present": 0, "absent": 0},
+            if key in seen_student_ids:
+                continue
+            seen_student_ids.add(key)
+            date_list = _date_range_inclusive(batch.start_date, batch.end_date)
+            total_days = len(date_list)
+            present = absent = 0
+            for day in date_list:
+                status = status_lookup.get((batch.id, student.id, day))
+                if status == "present":
+                    present += 1
+                elif status == "absent":
+                    absent += 1
+            not_marked = total_days - present - absent
+            rows.append(
+                {
+                    "school": school.name,
+                    "batch": batch.name,
+                    "student": student.name,
+                    "total_days": total_days,
+                    "present": present,
+                    "absent": absent,
+                    "not_marked": not_marked,
+                    "present_percent": round((present / total_days) * 100) if total_days else 0,
+                }
             )
-            bucket["total"] += 1
-            if record.status == "present":
-                bucket["present"] += 1
-            elif record.status == "absent":
-                bucket["absent"] += 1
+        headers = ["school", "batch", "student", "total_days", "present", "absent", "not_marked", "present_percent"]
+        return _export_workbook("Individual Attendance", headers, rows, f"attendance-{scope}-individual.xlsx")
 
-    if scope == "day":
-        rows = list(summary.values())
-        headers = ["date", "school", "batch", "student", "status", "marked_by", "remarks"]
-    else:
-        rows = [
-            {
-                **item,
-                "present_percent": round((item["present"] / item["total"]) * 100) if item["total"] else 0,
-            }
-            for item in summary.values()
-        ]
-        headers = ["school", "batch", "student", "total", "present", "absent", "present_percent"]
+    rows = [
+        {
+            "date": record.attendance_date,
+            "school": school.name,
+            "batch": batch.name,
+            "student": student.name,
+            "status": record.status,
+            "marked_by": record.marked_by or "",
+            "remarks": record.remarks or "",
+        }
+        for record, batch, student, school in records
+    ]
+    headers = ["date", "school", "batch", "student", "status", "marked_by", "remarks"]
     return _export_workbook("Individual Attendance", headers, rows, f"attendance-{scope}-individual.xlsx")
 
 
@@ -3869,7 +3938,6 @@ async def dashboard(request: Request):
             attendance_query = attendance_query.filter(models.Batch.school_id.in_(scope_school_ids))
         attendance_records = attendance_query.order_by(models.AttendanceRecord.attendance_date.desc(), models.School.name, models.Batch.name, models.Student.name).all()
         report_map = {}
-        student_report_map = {}
         batch_performance_map = {}
         attendance_status_map = {}
         attendance_rows = []
@@ -3882,21 +3950,6 @@ async def dashboard(request: Request):
             batch_bucket = school_bucket["batches"].setdefault(
                 batch.id,
                 {"batch_id": batch.id, "batch_name": batch.name, "trainer_name": batch.trainer_name, "total": 0, "present": 0, "absent": 0, "late": 0, "excused": 0, "dates": set()},
-            )
-            student_bucket = student_report_map.setdefault(
-                (batch.id, student.id),
-                {
-                    "school_id": school.id,
-                    "batch_id": batch.id,
-                    "student_name": student.name,
-                    "school_name": school.name,
-                    "batch_name": batch.name,
-                    "total": 0,
-                    "present": 0,
-                    "absent": 0,
-                    "late": 0,
-                    "excused": 0,
-                },
             )
             performance_bucket = batch_performance_map.setdefault(
                 batch.id,
@@ -3917,13 +3970,11 @@ async def dashboard(request: Request):
             school_bucket["total"] += 1
             batch_bucket["total"] += 1
             batch_bucket["dates"].add(record.attendance_date)
-            student_bucket["total"] += 1
             performance_bucket["total"] += 1
             performance_bucket["dates"].add(record.attendance_date)
             if record.status in {"present", "absent", "late", "excused"}:
                 school_bucket[record.status] += 1
                 batch_bucket[record.status] += 1
-                student_bucket[record.status] += 1
                 performance_bucket[record.status] += 1
             attendance_rows.append(
                 {
@@ -3952,13 +4003,39 @@ async def dashboard(request: Request):
             }
             for school_data in report_map.values()
         ]
-        individual_attendance_report = [
-            {
-                **student_data,
-                "present_percent": round((student_data["present"] / student_data["total"]) * 100) if student_data["total"] else 0,
-            }
-            for student_data in student_report_map.values()
-        ]
+        student_lookup = {student.id: student for _enrollment, student, _course, _school, _batch in enrollments}
+        individual_attendance_report = []
+        for batch, school in batches:
+            if not batch.start_date or not batch.end_date:
+                continue
+            date_list = _date_range_inclusive(batch.start_date, batch.end_date)
+            total_days = len(date_list)
+            for student_id in batch_student_map.get(batch.id, []):
+                student = student_lookup.get(student_id)
+                if not student:
+                    continue
+                present = absent = 0
+                for day in date_list:
+                    status = attendance_status_map.get(f"{batch.id}:{day.isoformat()}:{student_id}")
+                    if status == "present":
+                        present += 1
+                    elif status == "absent":
+                        absent += 1
+                not_marked = total_days - present - absent
+                individual_attendance_report.append(
+                    {
+                        "school_id": school.id,
+                        "batch_id": batch.id,
+                        "student_name": student.name,
+                        "school_name": school.name,
+                        "batch_name": batch.name,
+                        "total_days": total_days,
+                        "present": present,
+                        "absent": absent,
+                        "not_marked": not_marked,
+                        "present_percent": round((present / total_days) * 100) if total_days else 0,
+                    }
+                )
         batch_performance_report = [
             {
                 **batch_data,
