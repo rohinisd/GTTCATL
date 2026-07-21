@@ -1711,6 +1711,14 @@ async def _save_content_upload(content_type: str, upload: UploadFile | None, res
     return ""
 
 
+def _is_primary_course_title(course_title: str) -> bool:
+    if (course_title or "").startswith("Experiment "):
+        return False
+    if course_title == "ATL Curriculum and Innovation Calendar 2026-27":
+        return False
+    return True
+
+
 def _content_group(course_title: str, content_type: str):
     if course_title == "Volume I - Learning by Doing":
         return "volume-1"
@@ -3724,6 +3732,7 @@ async def dashboard(request: Request):
             }
             for course in courses
         ]
+        enrollment_courses = [row for row in course_rows if _is_primary_course_title(row["title"])]
         lesson_options_by_course = {
             str(course.id): [
                 {"id": lesson.id, "title": lesson.title}
@@ -4130,6 +4139,7 @@ async def dashboard(request: Request):
             "courses_count": courses_count,
             "lessons_count": lessons_count,
             "courses": course_rows,
+            "enrollment_courses": enrollment_courses,
             "lesson_options_by_course": lesson_options_by_course,
             "volume_columns": volume_columns,
             "content_rows": content_rows,

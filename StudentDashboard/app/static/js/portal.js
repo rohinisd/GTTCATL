@@ -679,11 +679,14 @@ function initMultiSelectDropdowns(root = document) {
     const toggle = widget.querySelector('[data-multiselect-toggle]');
     const panel = widget.querySelector('[data-multiselect-panel]');
     const label = widget.querySelector('[data-multiselect-label]');
+    const selectAll = panel?.querySelector('[data-multiselect-select-all]');
     const emptyText = widget.dataset.multiselectEmptyLabel || label?.textContent.trim() || 'All';
     if (!toggle || !panel || !label) return;
 
+    const options = () => Array.from(panel.querySelectorAll('input[type="checkbox"]:not([data-multiselect-select-all])'));
+
     const updateLabel = () => {
-      const checked = Array.from(panel.querySelectorAll('input[type="checkbox"]:checked'));
+      const checked = options().filter(box => box.checked);
       if (!checked.length) {
         label.textContent = emptyText;
       } else if (checked.length === 1) {
@@ -691,6 +694,7 @@ function initMultiSelectDropdowns(root = document) {
       } else {
         label.textContent = `${checked.length} selected`;
       }
+      if (selectAll) selectAll.checked = checked.length > 0 && checked.length === options().length;
     };
 
     toggle.addEventListener('click', event => {
@@ -703,8 +707,12 @@ function initMultiSelectDropdowns(root = document) {
     });
 
     panel.addEventListener('click', event => event.stopPropagation());
-    panel.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+    options().forEach(checkbox => {
       checkbox.addEventListener('change', updateLabel);
+    });
+    selectAll?.addEventListener('change', () => {
+      options().forEach(checkbox => { checkbox.checked = selectAll.checked; });
+      updateLabel();
     });
 
     updateLabel();
@@ -1149,7 +1157,6 @@ function initEnrollmentForm() {
   const studentRows = Array.from(form.querySelectorAll('[data-enrollment-student-row]'));
   const studentEmpty = form.querySelector('[data-enrollment-student-empty]');
   const studentSelectAll = form.querySelector('[data-enrollment-student-select-all]');
-  const courseSelectAll = form.querySelector('[data-enrollment-course-select-all]');
   if (!schoolSelect) return;
 
   const syncBatchBySchool = () => {
@@ -1197,12 +1204,6 @@ function initEnrollmentForm() {
       if (row.style.display === 'none') return;
       const checkbox = row.querySelector('input[type="checkbox"]');
       if (checkbox) checkbox.checked = studentSelectAll.checked;
-    });
-  });
-
-  courseSelectAll?.addEventListener('change', () => {
-    form.querySelectorAll('[data-enrollment-course-checkbox]').forEach(checkbox => {
-      checkbox.checked = courseSelectAll.checked;
     });
   });
 

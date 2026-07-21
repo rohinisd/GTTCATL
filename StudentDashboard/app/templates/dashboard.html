@@ -1068,18 +1068,15 @@
                   </div>
                 </label>
                 <label class="form-field-label">
-                  <span>Courses / Experiments / Curriculum</span>
-                  <div class="checkbox-list" data-enrollment-course-list>
-                    <label class="checkbox-list-head">
-                      <input type="checkbox" data-enrollment-course-select-all>
-                      Select all
-                    </label>
-                    {% for course in courses %}
-                    <label class="checkbox-list-row">
-                      <input type="checkbox" name="course_ids" value="{{ course.id }}" data-enrollment-course-checkbox>
-                      {{ course.title }}
-                    </label>
-                    {% endfor %}
+                  <span>Courses</span>
+                  <div class="multiselect" data-multiselect data-multiselect-empty-label="Select courses">
+                    <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>Select courses</span><i class="ti ti-chevron-down"></i></button>
+                    <div class="multiselect-panel" data-multiselect-panel hidden>
+                      <label class="multiselect-option"><input type="checkbox" data-multiselect-select-all> Select all</label>
+                      {% for course in enrollment_courses %}
+                      <label class="multiselect-option"><input type="checkbox" name="course_ids" value="{{ course.id }}"> {{ course.title }}</label>
+                      {% endfor %}
+                    </div>
                   </div>
                 </label>
                 <input type="hidden" name="assigned_by" value="{{ current_account.name }}">
