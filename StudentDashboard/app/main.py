@@ -3724,9 +3724,9 @@ async def dashboard(request: Request):
             for student, school_name, school_udise_code in students
         ]
         students_count = len(student_rows)
-        courses_count = db.query(func.count(models.Course.id)).scalar() or 0
         lessons_count = db.query(func.count(models.Lesson.id)).scalar() or 0
         courses = db.query(models.Course).order_by(models.Course.id).all()
+        courses_count = sum(1 for course in courses if _is_primary_course_title(course.title))
         course_rows = [
             {
                 "id": course.id,
