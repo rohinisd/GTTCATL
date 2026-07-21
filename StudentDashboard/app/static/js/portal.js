@@ -605,6 +605,7 @@ function initAttendanceBulkForm() {
 function initReportFilters() {
   const schoolSelect = document.querySelector('[data-report-school]');
   const batchSelect = document.querySelector('[data-report-batch]');
+  const reportDateInput = document.querySelector('[data-report-date]');
   if (!schoolSelect || !batchSelect) return;
 
   const updateBatchOptions = () => {
@@ -627,7 +628,7 @@ function initReportFilters() {
   const updateExports = () => {
     const schoolId = schoolSelect.value || '';
     const batchId = batchSelect.value || '';
-    const attendanceDate = document.querySelector('[data-attendance-date]')?.value || '';
+    const attendanceDate = document.querySelector('[data-attendance-date]')?.value || reportDateInput?.value || '';
     document.querySelectorAll('[data-report-export]').forEach(link => {
       const [scope, group] = link.dataset.reportExport.split('-');
       const params = new URLSearchParams({ scope, group });
@@ -650,10 +651,12 @@ function initReportFilters() {
   const applyFilters = () => {
     const schoolId = schoolSelect.value || '';
     const batchId = batchSelect.value || '';
+    const reportDate = reportDateInput?.value || '';
     document.querySelectorAll('[data-report-row]').forEach(row => {
       const schoolMatch = !schoolId || row.dataset.schoolId === schoolId;
       const batchMatch = !batchId || row.dataset.batchId === batchId;
-      row.style.display = schoolMatch && batchMatch ? '' : 'none';
+      const dateMatch = !reportDate || row.dataset.date === undefined || row.dataset.date === reportDate;
+      row.style.display = schoolMatch && batchMatch && dateMatch ? '' : 'none';
     });
     document.querySelectorAll('[data-report-school-card]').forEach(card => {
       const schoolMatch = !schoolId || card.dataset.schoolId === schoolId;
@@ -669,6 +672,7 @@ function initReportFilters() {
   });
   batchSelect.addEventListener('change', applyFilters);
   document.querySelector('[data-attendance-date]')?.addEventListener('change', updateExports);
+  reportDateInput?.addEventListener('change', applyFilters);
   updateBatchOptions();
   applyFilters();
 }

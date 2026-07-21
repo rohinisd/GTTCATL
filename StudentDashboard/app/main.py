@@ -80,6 +80,7 @@ def _ensure_columns():
             "principal_phone": "VARCHAR(40)",
             "lab_area_sqft": "INTEGER",
             "lab_launch_date": "DATE",
+            "atl_incharge": "VARCHAR(160)",
             "assigned_trainer": "VARCHAR(160)",
             "current_students": "INTEGER DEFAULT 0",
             "girls_count": "INTEGER DEFAULT 0",
@@ -1857,11 +1858,11 @@ async def bulk_template(record_type: str, request: Request):
             "sheet": "Schools",
             "headers": [
                 "udise_code", "atl_lab_code", "name", "district", "division",
-                "pin_code", "principal_name", "assigned_trainer",
+                "pin_code", "principal_name", "atl_incharge", "assigned_trainer",
             ],
             "sample": [
                 "29XXXXXXXXX", "ATL-KA-999", "Government High School Example", "Mysore",
-                "Mysuru", "570001", "Dr. Principal Name", "Trainer Full Name",
+                "Mysuru", "570001", "Dr. Principal Name", "ATL Incharge Full Name", "Trainer Full Name",
             ],
         },
         "students": {
@@ -1939,7 +1940,7 @@ async def export_records(record_type: str, request: Request):
         elif record_type == "schools":
             headers = [
                 "udise_code", "atl_lab_code", "name", "division", "district", "principal_name",
-                "assigned_trainer",
+                "atl_incharge", "assigned_trainer",
             ]
             school_query = db.query(models.School)
             if scope_school_ids is not None:
@@ -1952,6 +1953,7 @@ async def export_records(record_type: str, request: Request):
                     "division": school.division,
                     "district": school.district,
                     "principal_name": school.principal_name,
+                    "atl_incharge": school.atl_incharge,
                     "assigned_trainer": school.assigned_trainer,
                 }
                 for school in school_query.all()
@@ -2200,6 +2202,7 @@ async def add_school(
     division: str = Form(""),
     pin_code: str = Form(""),
     principal_name: str = Form(""),
+    atl_incharge: str = Form(""),
     assigned_trainer: str = Form(""),
 ):
     if not _is_authenticated(request):
@@ -2219,6 +2222,7 @@ async def add_school(
                 division=division.strip() or None,
                 pin_code=pin_code.strip() or None,
                 principal_name=principal_name.strip() or None,
+                atl_incharge=atl_incharge.strip() or None,
                 assigned_trainer=assigned_trainer.strip() or None,
             )
         )
@@ -2443,6 +2447,7 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                             division=col(row, "division") or None,
                             pin_code=col(row, "pin_code") or None,
                             principal_name=col(row, "principal_name") or None,
+                            atl_incharge=col(row, "atl_incharge") or None,
                             assigned_trainer=col(row, "assigned_trainer") or col(row, "trainer_name") or None,
                         )
                     )

@@ -59,4 +59,10 @@ ATL_MER_FORMS = [
         "filename": "mer-10.docx",
         "url": "/static/uploads/forms/mer-10.docx",
     },
+    {
+        "code": "ATL-CAL-2026",
+        "title": "ATL Calendar 2026",
+        "filename": "atl-calendar-2026.pdf",
+        "url": "/static/uploads/forms/atl-calendar-2026.pdf",
+    },
 ]

@@ -426,7 +426,7 @@
             {% if is_admin %}
             <div class="card">
               <h3>Bulk Upload Schools</h3>
-              <p>Download the school Excel template — same fields as Add Single School: UDISE, ATL lab code, name, district, division, PIN, principal, and assigned trainer.</p>
+              <p>Download the school Excel template — same fields as Add Single School: UDISE, ATL lab code, name, district, division, PIN, principal, ATL incharge, and assigned trainer.</p>
               <div class="bulk-actions">
                 <a class="btn-ghost" href="/bulk-template/schools"><i class="ti ti-download"></i> Download Template</a>
               </div>
@@ -445,6 +445,7 @@
                 <input name="division" placeholder="Division">
                 <input name="pin_code" placeholder="PIN code">
                 <input name="principal_name" placeholder="Principal name">
+                <input name="atl_incharge" placeholder="ATL Incharge">
                 <input name="assigned_trainer" placeholder="Assigned trainer">
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add School</button>
               </form>
@@ -470,6 +471,7 @@
                 <option value="division">Sort by Division</option>
                 <option value="district">Sort by District</option>
                 <option value="principal_name">Sort by Principal</option>
+                <option value="atl_incharge">Sort by ATL Incharge</option>
                 <option value="assigned_trainer">Sort by Trainer</option>
               </select>
               <select data-table-direction="schools">
@@ -487,6 +489,7 @@
                   <th data-sort-key="division">Division</th>
                   <th data-sort-key="district">District</th>
                   <th data-sort-key="principal_name">Principal</th>
+                  <th data-sort-key="atl_incharge">ATL Incharge</th>
                   <th data-sort-key="assigned_trainer">Trainer</th>
                 </tr>
               </thead>
@@ -499,6 +502,7 @@
                   <td>{{ school.division }}</td>
                   <td>{{ school.district }}</td>
                   <td>{{ school.principal_name }}</td>
+                  <td>{{ school.atl_incharge }}</td>
                   <td>{{ school.assigned_trainer }}</td>
                 </tr>
                 {% endfor %}
@@ -1263,7 +1267,7 @@
 
           <div class="card report-filter-card">
             <h3>Report Filters</h3>
-            <p>Select school and batch to filter all report tables below.</p>
+            <p>Select school, batch, and date to filter all report tables below.</p>
             <div class="report-filter-controls">
               <select data-report-school>
                 <option value="">All Schools</option>
@@ -1279,6 +1283,7 @@
                 </option>
                 {% endfor %}
               </select>
+              <input type="date" data-report-date placeholder="Date" title="Filter by date">
               <a class="btn-ghost" data-report-export="day-individual" href="/attendance/export?scope=day&group=individual">Day Individual</a>
               <a class="btn-ghost" data-report-export="day-batch" href="/attendance/export?scope=day&group=batch">Day Batch</a>
               <a class="btn-ghost" data-report-export="full-individual" href="/attendance/export?scope=full&group=individual">Full Individual</a>
@@ -1436,7 +1441,7 @@
               </thead>
               <tbody>
                 {% for row in attendance_rows %}
-                <tr data-report-row data-school-id="{{ row.school_id }}" data-batch-id="{{ row.batch_id }}">
+                <tr data-report-row data-school-id="{{ row.school_id }}" data-batch-id="{{ row.batch_id }}" data-date="{{ row.date.isoformat() if row.date else '' }}">
                   <td>{{ row.date }}</td>
                   <td>{{ row.school_name }}</td>
                   <td>{{ row.batch_name }}</td>

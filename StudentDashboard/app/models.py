@@ -55,6 +55,7 @@ class School(Base):
     principal_phone = Column(String(40))
     lab_area_sqft = Column(Integer)
     lab_launch_date = Column(Date)
+    atl_incharge = Column(String(160))
     assigned_trainer = Column(String(160))
     current_students = Column(Integer, default=0)
     girls_count = Column(Integer, default=0)
