@@ -307,7 +307,7 @@
                 <label class="form-field-label">
                   <span>Assigned Schools</span>
                   <div class="checkbox-list">
-                    {% for school in unassigned_schools %}
+                    {% for school in assignment_schools %}
                     <label class="checkbox-list-row">
                       <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}">
                       {{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}
