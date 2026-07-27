@@ -1011,8 +1011,14 @@
                     {% endfor %}
                   </select>
                 </label>
-                <input name="name" placeholder="Batch name, e.g. Batch A / Grade 8 Robotics" required>
-                <input name="trainer_name" placeholder="Trainer name" value="{{ current_account.name }}" readonly>
+                <label class="form-field-label">
+                  <span>Batch Name</span>
+                  <input name="name" placeholder="Batch name, e.g. Batch A / Grade 8 Robotics" required>
+                </label>
+                <label class="form-field-label">
+                  <span>Trainer Name</span>
+                  <input name="trainer_name" placeholder="Trainer name" value="{{ current_account.name }}" readonly>
+                </label>
                 <label class="form-field-label">
                   <span>Training Start Date</span>
                   <input name="start_date" type="date" aria-label="Training start date">
