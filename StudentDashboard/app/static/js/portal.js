@@ -758,81 +758,142 @@ function initMultiSelectDropdowns(root = document) {
   }
 }
 
-function initComboSelects(root = document) {
-  const widgets = Array.from(root.querySelectorAll('[data-combo-select]'));
+function setSingleSelectValue(hiddenInputId, value) {
+  const hiddenInput = document.getElementById(hiddenInputId);
+  const widget = hiddenInput?.closest('[data-single-select]');
+  const label = widget?.querySelector('[data-single-select-label]');
+  const panel = widget?.querySelector('[data-single-select-panel]');
+  if (!hiddenInput || !widget || !label) return;
+
+  hiddenInput.value = value || '';
+  const emptyText = widget.dataset.singleSelectEmptyLabel || 'Select';
+  if (!value) {
+    label.textContent = emptyText;
+  } else {
+    const options = Array.from(panel?.querySelectorAll('[data-single-select-option]') || []);
+    const match = options.find(option => option.dataset.singleSelectValue === value);
+    label.textContent = match ? match.textContent.trim() : value;
+    options.forEach(option => {
+      option.classList.toggle('active', option.dataset.singleSelectValue === value);
+    });
+  }
+}
+
+function initSingleSelectDropdowns(root = document) {
+  const widgets = Array.from(root.querySelectorAll('[data-single-select]'));
   widgets.forEach(widget => {
-    if (widget.dataset.comboBound === 'true') return;
-    widget.dataset.comboBound = 'true';
+    if (widget.dataset.singleSelectBound === 'true') return;
+    widget.dataset.singleSelectBound = 'true';
 
-    const input = widget.querySelector('[data-combo-input]');
-    const toggle = widget.querySelector('[data-combo-toggle]');
-    const panel = widget.querySelector('[data-combo-panel]');
-    if (!input || !panel) return;
+    const hiddenInput = widget.querySelector('[data-single-select-value]');
+    const toggle = widget.querySelector('[data-single-select-toggle]');
+    const label = widget.querySelector('[data-single-select-label]');
+    const panel = widget.querySelector('[data-single-select-panel]');
+    const search = widget.querySelector('[data-single-select-search]');
+    const customSlot = widget.querySelector('[data-single-select-custom-slot]');
+    if (!hiddenInput || !toggle || !label || !panel) return;
 
-    const optionEls = () => Array.from(panel.querySelectorAll('[data-combo-option]'));
+    const emptyText = widget.dataset.singleSelectEmptyLabel || label.textContent.trim() || 'Select';
 
-    const filterOptions = () => {
-      const query = input.value.trim().toLowerCase();
-      let visibleCount = 0;
+    const optionEls = () => Array.from(panel.querySelectorAll('[data-single-select-option]'));
+
+    const highlightSelected = () => {
       optionEls().forEach(option => {
-        const match = !query || option.textContent.toLowerCase().includes(query);
-        option.hidden = !match;
-        if (match) visibleCount += 1;
+        option.classList.toggle('active', option.dataset.singleSelectValue === hiddenInput.value);
       });
-      let emptyEl = panel.querySelector('[data-combo-empty]');
-      if (!emptyEl) {
-        emptyEl = document.createElement('div');
-        emptyEl.className = 'combo-select-empty';
-        emptyEl.dataset.comboEmpty = 'true';
-        emptyEl.textContent = 'No matches. Your typed value will be used.';
-        panel.appendChild(emptyEl);
-      }
-      emptyEl.hidden = visibleCount !== 0;
     };
 
-    const openPanel = () => {
-      document.querySelectorAll('[data-combo-panel]').forEach(otherPanel => {
-        if (otherPanel !== panel) otherPanel.hidden = true;
-      });
-      filterOptions();
-      panel.hidden = false;
+    const applyLabel = () => {
+      const value = hiddenInput.value;
+      if (!value) {
+        label.textContent = emptyText;
+        return;
+      }
+      const match = optionEls().find(option => option.dataset.singleSelectValue === value);
+      label.textContent = match ? match.textContent.trim() : value;
     };
 
     const closePanel = () => {
       panel.hidden = true;
     };
 
-    input.addEventListener('focus', openPanel);
-    input.addEventListener('click', event => event.stopPropagation());
-    input.addEventListener('input', () => {
-      filterOptions();
-      panel.hidden = false;
-    });
+    const setValue = value => {
+      hiddenInput.value = value;
+      applyLabel();
+      highlightSelected();
+      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+    };
 
-    toggle?.addEventListener('click', event => {
+    const filterOptions = () => {
+      const query = (search?.value || '').trim();
+      const lowerQuery = query.toLowerCase();
+      optionEls().forEach(option => {
+        const match = !lowerQuery || option.textContent.toLowerCase().includes(lowerQuery);
+        option.hidden = !match;
+      });
+
+      if (!customSlot) return;
+      customSlot.innerHTML = '';
+      const exactMatch = optionEls().some(option => option.dataset.singleSelectValue.toLowerCase() === lowerQuery);
+      if (query && !exactMatch) {
+        const customRow = document.createElement('div');
+        customRow.className = 'combo-select-option combo-select-custom-row';
+        customRow.textContent = `Use "${query}"`;
+        customRow.addEventListener('click', () => {
+          setValue(query);
+          closePanel();
+        });
+        customSlot.appendChild(customRow);
+      }
+    };
+
+    const openPanel = () => {
+      document.querySelectorAll('[data-single-select-panel], [data-multiselect-panel]').forEach(otherPanel => {
+        if (otherPanel !== panel) otherPanel.hidden = true;
+      });
+      if (search) search.value = '';
+      filterOptions();
+      highlightSelected();
+      panel.hidden = false;
+      search?.focus();
+    };
+
+    toggle.addEventListener('click', event => {
       event.stopPropagation();
       if (panel.hidden) {
         openPanel();
-        input.focus();
       } else {
         closePanel();
       }
     });
 
     panel.addEventListener('click', event => event.stopPropagation());
+    search?.addEventListener('click', event => event.stopPropagation());
+    search?.addEventListener('input', filterOptions);
+    search?.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const query = search.value.trim();
+      if (!query) return;
+      const visibleMatch = optionEls().find(option => !option.hidden);
+      setValue(visibleMatch ? visibleMatch.dataset.singleSelectValue : query);
+      closePanel();
+    });
+
     optionEls().forEach(option => {
       option.addEventListener('click', () => {
-        input.value = option.dataset.comboValue || option.textContent.trim();
+        setValue(option.dataset.singleSelectValue);
         closePanel();
-        input.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
+
+    applyLabel();
   });
 
-  if (widgets.length && !document.body.dataset.comboSelectOutsideBound) {
-    document.body.dataset.comboSelectOutsideBound = 'true';
+  if (widgets.length && !document.body.dataset.singleSelectOutsideBound) {
+    document.body.dataset.singleSelectOutsideBound = 'true';
     document.addEventListener('click', () => {
-      document.querySelectorAll('[data-combo-panel]').forEach(panel => {
+      document.querySelectorAll('[data-single-select-panel]').forEach(panel => {
         panel.hidden = true;
       });
     });
@@ -1532,7 +1593,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAttendanceBulkForm();
   initReportFilters();
   initMultiSelectDropdowns();
-  initComboSelects();
+  initSingleSelectDropdowns();
   initGeneratedReports();
   initPerformanceForms();
   initAddCourseToggle();

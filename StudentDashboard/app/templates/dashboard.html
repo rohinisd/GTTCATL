@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-combo-search-icon">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-single-select-dropdown">
 </head>
 <body>
   <div id="app">
@@ -453,30 +453,42 @@
                 <input name="division" placeholder="Division">
                 <input name="pin_code" placeholder="PIN code">
                 <input name="principal_name" placeholder="Principal name">
-                <div class="combo-select" data-combo-select>
-                  <div class="combo-select-control">
-                    <i class="ti ti-search combo-select-search-icon"></i>
-                    <input type="text" name="atl_incharge" placeholder="ATL Incharge" autocomplete="off" data-combo-input>
-                    <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show ATL Incharge suggestions"><i class="ti ti-chevron-down"></i></button>
+                <label class="form-field-label">
+                  <span>ATL Incharge</span>
+                  <div class="multiselect" data-single-select data-single-select-empty-label="Select ATL Incharge">
+                    <input type="hidden" name="atl_incharge" data-single-select-value>
+                    <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select ATL Incharge</span><i class="ti ti-chevron-down"></i></button>
+                    <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+                      <div class="multiselect-search">
+                        <i class="ti ti-search"></i>
+                        <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
+                      </div>
+                      <div data-single-select-custom-slot></div>
+                      <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+                      {% for name in atl_incharge_options %}
+                      <div class="combo-select-option" data-single-select-option data-single-select-value="{{ name }}">{{ name }}</div>
+                      {% endfor %}
+                    </div>
                   </div>
-                  <div class="combo-select-panel" data-combo-panel hidden>
-                    {% for name in atl_incharge_options %}
-                    <div class="combo-select-option" data-combo-option data-combo-value="{{ name }}">{{ name }}</div>
-                    {% endfor %}
+                </label>
+                <label class="form-field-label">
+                  <span>Assigned Trainer</span>
+                  <div class="multiselect" data-single-select data-single-select-empty-label="Select trainer">
+                    <input type="hidden" name="assigned_trainer" data-single-select-value>
+                    <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select trainer</span><i class="ti ti-chevron-down"></i></button>
+                    <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+                      <div class="multiselect-search">
+                        <i class="ti ti-search"></i>
+                        <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
+                      </div>
+                      <div data-single-select-custom-slot></div>
+                      <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+                      {% for trainer in trainers %}
+                      <div class="combo-select-option" data-single-select-option data-single-select-value="{{ trainer.name }}">{{ trainer.name }}</div>
+                      {% endfor %}
+                    </div>
                   </div>
-                </div>
-                <div class="combo-select" data-combo-select>
-                  <div class="combo-select-control">
-                    <i class="ti ti-search combo-select-search-icon"></i>
-                    <input type="text" name="assigned_trainer" placeholder="Assigned trainer" autocomplete="off" data-combo-input>
-                    <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show trainer suggestions"><i class="ti ti-chevron-down"></i></button>
-                  </div>
-                  <div class="combo-select-panel" data-combo-panel hidden>
-                    {% for trainer in trainers %}
-                    <div class="combo-select-option" data-combo-option data-combo-value="{{ trainer.name }}">{{ trainer.name }}</div>
-                    {% endfor %}
-                  </div>
-                </div>
+                </label>
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add School</button>
               </form>
             </div>
@@ -2245,30 +2257,42 @@
         <input name="division" id="schoolEditDivision" placeholder="Division">
         <input name="pin_code" id="schoolEditPinCode" placeholder="PIN code">
         <input name="principal_name" id="schoolEditPrincipal" placeholder="Principal name">
-        <div class="combo-select" data-combo-select>
-          <div class="combo-select-control">
-            <i class="ti ti-search combo-select-search-icon"></i>
-            <input type="text" name="atl_incharge" id="schoolEditIncharge" placeholder="ATL Incharge" autocomplete="off" data-combo-input>
-            <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show ATL Incharge suggestions"><i class="ti ti-chevron-down"></i></button>
+        <label class="form-field-label">
+          <span>ATL Incharge</span>
+          <div class="multiselect" data-single-select data-single-select-empty-label="Select ATL Incharge">
+            <input type="hidden" name="atl_incharge" id="schoolEditIncharge" data-single-select-value>
+            <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select ATL Incharge</span><i class="ti ti-chevron-down"></i></button>
+            <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+              <div class="multiselect-search">
+                <i class="ti ti-search"></i>
+                <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
+              </div>
+              <div data-single-select-custom-slot></div>
+              <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+              {% for name in atl_incharge_options %}
+              <div class="combo-select-option" data-single-select-option data-single-select-value="{{ name }}">{{ name }}</div>
+              {% endfor %}
+            </div>
           </div>
-          <div class="combo-select-panel" data-combo-panel hidden>
-            {% for name in atl_incharge_options %}
-            <div class="combo-select-option" data-combo-option data-combo-value="{{ name }}">{{ name }}</div>
-            {% endfor %}
+        </label>
+        <label class="form-field-label">
+          <span>Assigned Trainer</span>
+          <div class="multiselect" data-single-select data-single-select-empty-label="Select trainer">
+            <input type="hidden" name="assigned_trainer" id="schoolEditTrainer" data-single-select-value>
+            <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select trainer</span><i class="ti ti-chevron-down"></i></button>
+            <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+              <div class="multiselect-search">
+                <i class="ti ti-search"></i>
+                <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
+              </div>
+              <div data-single-select-custom-slot></div>
+              <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+              {% for trainer in trainers %}
+              <div class="combo-select-option" data-single-select-option data-single-select-value="{{ trainer.name }}">{{ trainer.name }}</div>
+              {% endfor %}
+            </div>
           </div>
-        </div>
-        <div class="combo-select" data-combo-select>
-          <div class="combo-select-control">
-            <i class="ti ti-search combo-select-search-icon"></i>
-            <input type="text" name="assigned_trainer" id="schoolEditTrainer" placeholder="Assigned trainer" autocomplete="off" data-combo-input>
-            <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show trainer suggestions"><i class="ti ti-chevron-down"></i></button>
-          </div>
-          <div class="combo-select-panel" data-combo-panel hidden>
-            {% for trainer in trainers %}
-            <div class="combo-select-option" data-combo-option data-combo-value="{{ trainer.name }}">{{ trainer.name }}</div>
-            {% endfor %}
-          </div>
-        </div>
+        </label>
         <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
       </form>
     </div>
@@ -2287,8 +2311,8 @@
       document.getElementById('schoolEditDivision').value = division || '';
       document.getElementById('schoolEditPinCode').value = pinCode || '';
       document.getElementById('schoolEditPrincipal').value = principalName || '';
-      document.getElementById('schoolEditIncharge').value = atlIncharge || '';
-      document.getElementById('schoolEditTrainer').value = assignedTrainer || '';
+      setSingleSelectValue('schoolEditIncharge', atlIncharge || '');
+      setSingleSelectValue('schoolEditTrainer', assignedTrainer || '');
       modal.hidden = false;
     }
 
@@ -2381,6 +2405,6 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/static/js/portal.js?v=20261030-combo-select"></script>
+  <script src="/static/js/portal.js?v=20261030-single-select-dropdown"></script>
 </body>
 </html>
