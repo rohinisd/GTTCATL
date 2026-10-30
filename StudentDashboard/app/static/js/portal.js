@@ -267,13 +267,13 @@ function initContentViewer() {
       openLink.href = resourceUrl || '#';
       openLink.style.display = resourceUrl ? 'inline-flex' : 'none';
       if (contentId) {
-        editForm.action = `/content/update/${contentKind}/${contentId}`;
-        deleteForm.action = `/content/delete/${contentKind}/${contentId}`;
+        if (editForm) editForm.action = `/content/update/${contentKind}/${contentId}`;
+        if (deleteForm) deleteForm.action = `/content/delete/${contentKind}/${contentId}`;
       }
-      editTitle.value = row.dataset.contentTitle || '';
-      editType.value = row.dataset.contentType || 'article';
-      editUrl.value = resourceUrl;
-      editBody.value = row.dataset.contentBody || '';
+      if (editTitle) editTitle.value = row.dataset.contentTitle || '';
+      if (editType) editType.value = row.dataset.contentType || 'article';
+      if (editUrl) editUrl.value = resourceUrl;
+      if (editBody) editBody.value = row.dataset.contentBody || '';
       viewer.hidden = false;
       if (resourceSelect) resourceSelect.value = rowKey(row);
   };
