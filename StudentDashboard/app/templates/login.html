@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20260706-bulk">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-pw-eye">
 </head>
 <body class="login-body">
   <main class="login-shell">
@@ -52,7 +52,10 @@
           <span>Password</span>
           <div>
             <i class="ti ti-lock"></i>
-            <input name="password" type="password" autocomplete="current-password" required>
+            <input name="password" type="password" autocomplete="current-password" required data-password-input>
+            <button type="button" class="login-eye-toggle" data-password-toggle aria-label="Show password">
+              <i class="ti ti-eye"></i>
+            </button>
           </div>
         </label>
 
@@ -71,6 +74,17 @@
         ? '<i class="ti ti-sun"></i> Light'
         : '<i class="ti ti-moon"></i> Dark';
     }
+
+    document.querySelectorAll('[data-password-toggle]').forEach(button => {
+      button.addEventListener('click', () => {
+        const input = button.parentElement.querySelector('[data-password-input]');
+        if (!input) return;
+        const isHidden = input.type === 'password';
+        input.type = isHidden ? 'text' : 'password';
+        button.innerHTML = isHidden ? '<i class="ti ti-eye-off"></i>' : '<i class="ti ti-eye"></i>';
+        button.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+      });
+    });
   </script>
 </body>
 </html>
