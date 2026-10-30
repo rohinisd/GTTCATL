@@ -1467,12 +1467,22 @@ html[data-theme="dark"] .topbar {
   width: 100%;
   flex: 1;
   min-width: 0;
-  padding: 10px 34px 10px 12px;
+  padding: 10px 34px 10px 36px;
   border-radius: 10px;
   border: 1.5px solid var(--border);
   background: var(--surface2);
   color: var(--text);
   outline: none;
+}
+
+.combo-select-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text3);
+  font-size: 16px;
+  pointer-events: none;
 }
 
 .combo-select-toggle {
