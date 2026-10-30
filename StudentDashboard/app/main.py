@@ -2230,6 +2230,59 @@ async def add_school(
     return _dashboard_redirect("School added successfully.")
 
 
+@app.post("/schools/{school_id}/update")
+async def update_school(
+    request: Request,
+    school_id: int,
+    udise_code: str = Form(...),
+    atl_lab_code: str = Form(""),
+    name: str = Form(...),
+    district: str = Form(""),
+    division: str = Form(""),
+    pin_code: str = Form(""),
+    principal_name: str = Form(""),
+    atl_incharge: str = Form(""),
+    assigned_trainer: str = Form(""),
+):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+    if not _is_admin(request):
+        return _dashboard_redirect("Only admin can edit schools.", "error")
+
+    cleaned_udise = udise_code.strip()
+    cleaned_name = name.strip()
+    if not cleaned_udise:
+        return _dashboard_redirect("UDISE code is required.", "error")
+    if not cleaned_name:
+        return _dashboard_redirect("School name is required.", "error")
+
+    with SessionLocal() as db:
+        school = db.query(models.School).filter(models.School.id == school_id).first()
+        if not school:
+            return _dashboard_redirect("School was not found.", "error")
+
+        existing_school = (
+            db.query(models.School)
+            .filter(models.School.id != school_id, models.School.udise_code == cleaned_udise)
+            .first()
+        )
+        if existing_school:
+            return _dashboard_redirect(f"School UDISE already exists: {cleaned_udise}", "error")
+
+        school.udise_code = cleaned_udise
+        school.atl_lab_code = atl_lab_code.strip() or None
+        school.name = cleaned_name
+        school.district = district.strip() or None
+        school.division = division.strip() or None
+        school.pin_code = pin_code.strip() or None
+        school.principal_name = principal_name.strip() or None
+        school.atl_incharge = atl_incharge.strip() or None
+        school.assigned_trainer = assigned_trainer.strip() or None
+        db.commit()
+
+    return _dashboard_redirect(f"School {cleaned_name} was updated successfully.")
+
+
 @app.post("/manual/student")
 async def add_student(
     request: Request,

@@ -491,6 +491,9 @@
                   <th data-sort-key="principal_name">Principal</th>
                   <th data-sort-key="atl_incharge">ATL Incharge</th>
                   <th data-sort-key="assigned_trainer">Trainer</th>
+                  {% if is_admin %}
+                  <th>Actions</th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -504,6 +507,13 @@
                   <td>{{ school.principal_name }}</td>
                   <td>{{ school.atl_incharge }}</td>
                   <td>{{ school.assigned_trainer }}</td>
+                  {% if is_admin %}
+                  <td>
+                    <button class="btn-ghost" type="button" onclick='openSchoolEditModal({{ school.id }}, {{ school.udise_code|default("", true)|tojson }}, {{ school.atl_lab_code|default("", true)|tojson }}, {{ school.name|tojson }}, {{ school.district|default("", true)|tojson }}, {{ school.division|default("", true)|tojson }}, {{ school.pin_code|default("", true)|tojson }}, {{ school.principal_name|default("", true)|tojson }}, {{ school.atl_incharge|default("", true)|tojson }}, {{ school.assigned_trainer|default("", true)|tojson }})'>
+                      <i class="ti ti-edit"></i> Edit
+                    </button>
+                  </td>
+                  {% endif %}
                 </tr>
                 {% endfor %}
               </tbody>
@@ -2175,6 +2185,71 @@
       </form>
     </div>
   </div>
+
+  {% if is_admin %}
+  <div class="profile-modal" id="schoolEditModal" hidden>
+    <div class="profile-modal-backdrop" data-school-edit-close></div>
+    <div class="profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="schoolEditModalTitle">
+      <div class="profile-modal-header">
+        <div class="profile-modal-avatar"><i class="ti ti-building-community"></i></div>
+        <div>
+          <h2 id="schoolEditModalTitle">Edit School</h2>
+          <p>Update school and ATL lab details.</p>
+        </div>
+        <button class="profile-modal-close" type="button" data-school-edit-close aria-label="Close edit modal">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <form class="compact-form" id="schoolEditForm" method="post">
+        <input name="udise_code" id="schoolEditUdise" placeholder="UDISE code" required>
+        <input name="atl_lab_code" id="schoolEditAtlCode" placeholder="ATL lab code">
+        <input name="name" id="schoolEditName" placeholder="School name" required>
+        <input name="district" id="schoolEditDistrict" placeholder="District">
+        <input name="division" id="schoolEditDivision" placeholder="Division">
+        <input name="pin_code" id="schoolEditPinCode" placeholder="PIN code">
+        <input name="principal_name" id="schoolEditPrincipal" placeholder="Principal name">
+        <input name="atl_incharge" id="schoolEditIncharge" placeholder="ATL Incharge">
+        <input name="assigned_trainer" id="schoolEditTrainer" placeholder="Assigned trainer">
+        <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openSchoolEditModal(schoolId, udiseCode, atlLabCode, name, district, division, pinCode, principalName, atlIncharge, assignedTrainer) {
+      const modal = document.getElementById('schoolEditModal');
+      const form = document.getElementById('schoolEditForm');
+      if (!modal || !form) return;
+      form.action = `/schools/${schoolId}/update`;
+      document.getElementById('schoolEditUdise').value = udiseCode || '';
+      document.getElementById('schoolEditAtlCode').value = atlLabCode || '';
+      document.getElementById('schoolEditName').value = name || '';
+      document.getElementById('schoolEditDistrict').value = district || '';
+      document.getElementById('schoolEditDivision').value = division || '';
+      document.getElementById('schoolEditPinCode').value = pinCode || '';
+      document.getElementById('schoolEditPrincipal').value = principalName || '';
+      document.getElementById('schoolEditIncharge').value = atlIncharge || '';
+      document.getElementById('schoolEditTrainer').value = assignedTrainer || '';
+      modal.hidden = false;
+    }
+
+    function closeSchoolEditModal() {
+      const modal = document.getElementById('schoolEditModal');
+      if (modal) modal.hidden = true;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-school-edit-close]').forEach((button) => {
+        button.addEventListener('click', closeSchoolEditModal);
+      });
+      document.getElementById('schoolEditModal')?.addEventListener('click', (event) => {
+        if (event.target.id === 'schoolEditModal') {
+          closeSchoolEditModal();
+        }
+      });
+    });
+  </script>
+  {% endif %}
 
   <script id="dashboard-analytics-data" type="application/json">{{ dashboard_analytics|tojson }}</script>
   <script id="school-assignment-data" type="application/json">{{ school_assignment_map|tojson }}</script>
