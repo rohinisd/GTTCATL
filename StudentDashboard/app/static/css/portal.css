@@ -1453,6 +1453,81 @@ html[data-theme="dark"] .topbar {
   accent-color: var(--accent);
 }
 
+.combo-select {
+  position: relative;
+}
+
+.combo-select-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.combo-select .combo-select-control input {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 34px 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  outline: none;
+}
+
+.combo-select-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text3);
+}
+
+.combo-select-toggle:hover {
+  color: var(--text);
+}
+
+.combo-select-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+}
+
+.combo-select-option {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.combo-select-option:hover {
+  background: var(--surface2);
+}
+
+.combo-select-empty {
+  padding: 10px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 0.82rem;
+}
+
 .report-filter-card {
   margin-bottom: 16px;
 }

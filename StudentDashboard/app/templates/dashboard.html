@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-checkbox-size-fix">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-combo-select">
 </head>
 <body>
   <div id="app">
@@ -453,18 +453,28 @@
                 <input name="division" placeholder="Division">
                 <input name="pin_code" placeholder="PIN code">
                 <input name="principal_name" placeholder="Principal name">
-                <input name="atl_incharge" list="atlInchargeOptions" placeholder="ATL Incharge">
-                <datalist id="atlInchargeOptions">
-                  {% for name in atl_incharge_options %}
-                  <option value="{{ name }}"></option>
-                  {% endfor %}
-                </datalist>
-                <input name="assigned_trainer" list="assignedTrainerOptions" placeholder="Assigned trainer">
-                <datalist id="assignedTrainerOptions">
-                  {% for trainer in trainers %}
-                  <option value="{{ trainer.name }}"></option>
-                  {% endfor %}
-                </datalist>
+                <div class="combo-select" data-combo-select>
+                  <div class="combo-select-control">
+                    <input type="text" name="atl_incharge" placeholder="ATL Incharge" autocomplete="off" data-combo-input>
+                    <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show ATL Incharge suggestions"><i class="ti ti-chevron-down"></i></button>
+                  </div>
+                  <div class="combo-select-panel" data-combo-panel hidden>
+                    {% for name in atl_incharge_options %}
+                    <div class="combo-select-option" data-combo-option data-combo-value="{{ name }}">{{ name }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div class="combo-select" data-combo-select>
+                  <div class="combo-select-control">
+                    <input type="text" name="assigned_trainer" placeholder="Assigned trainer" autocomplete="off" data-combo-input>
+                    <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show trainer suggestions"><i class="ti ti-chevron-down"></i></button>
+                  </div>
+                  <div class="combo-select-panel" data-combo-panel hidden>
+                    {% for trainer in trainers %}
+                    <div class="combo-select-option" data-combo-option data-combo-value="{{ trainer.name }}">{{ trainer.name }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add School</button>
               </form>
             </div>
@@ -2233,18 +2243,28 @@
         <input name="division" id="schoolEditDivision" placeholder="Division">
         <input name="pin_code" id="schoolEditPinCode" placeholder="PIN code">
         <input name="principal_name" id="schoolEditPrincipal" placeholder="Principal name">
-        <input name="atl_incharge" id="schoolEditIncharge" list="atlInchargeOptionsEdit" placeholder="ATL Incharge">
-        <datalist id="atlInchargeOptionsEdit">
-          {% for name in atl_incharge_options %}
-          <option value="{{ name }}"></option>
-          {% endfor %}
-        </datalist>
-        <input name="assigned_trainer" id="schoolEditTrainer" list="assignedTrainerOptionsEdit" placeholder="Assigned trainer">
-        <datalist id="assignedTrainerOptionsEdit">
-          {% for trainer in trainers %}
-          <option value="{{ trainer.name }}"></option>
-          {% endfor %}
-        </datalist>
+        <div class="combo-select" data-combo-select>
+          <div class="combo-select-control">
+            <input type="text" name="atl_incharge" id="schoolEditIncharge" placeholder="ATL Incharge" autocomplete="off" data-combo-input>
+            <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show ATL Incharge suggestions"><i class="ti ti-chevron-down"></i></button>
+          </div>
+          <div class="combo-select-panel" data-combo-panel hidden>
+            {% for name in atl_incharge_options %}
+            <div class="combo-select-option" data-combo-option data-combo-value="{{ name }}">{{ name }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="combo-select" data-combo-select>
+          <div class="combo-select-control">
+            <input type="text" name="assigned_trainer" id="schoolEditTrainer" placeholder="Assigned trainer" autocomplete="off" data-combo-input>
+            <button type="button" class="combo-select-toggle" data-combo-toggle aria-label="Show trainer suggestions"><i class="ti ti-chevron-down"></i></button>
+          </div>
+          <div class="combo-select-panel" data-combo-panel hidden>
+            {% for trainer in trainers %}
+            <div class="combo-select-option" data-combo-option data-combo-value="{{ trainer.name }}">{{ trainer.name }}</div>
+            {% endfor %}
+          </div>
+        </div>
         <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
       </form>
     </div>
@@ -2357,6 +2377,6 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/static/js/portal.js?v=20261030-multiselect-search"></script>
+  <script src="/static/js/portal.js?v=20261030-combo-select"></script>
 </body>
 </html>

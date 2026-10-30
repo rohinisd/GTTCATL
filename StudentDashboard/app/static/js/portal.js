@@ -758,6 +758,87 @@ function initMultiSelectDropdowns(root = document) {
   }
 }
 
+function initComboSelects(root = document) {
+  const widgets = Array.from(root.querySelectorAll('[data-combo-select]'));
+  widgets.forEach(widget => {
+    if (widget.dataset.comboBound === 'true') return;
+    widget.dataset.comboBound = 'true';
+
+    const input = widget.querySelector('[data-combo-input]');
+    const toggle = widget.querySelector('[data-combo-toggle]');
+    const panel = widget.querySelector('[data-combo-panel]');
+    if (!input || !panel) return;
+
+    const optionEls = () => Array.from(panel.querySelectorAll('[data-combo-option]'));
+
+    const filterOptions = () => {
+      const query = input.value.trim().toLowerCase();
+      let visibleCount = 0;
+      optionEls().forEach(option => {
+        const match = !query || option.textContent.toLowerCase().includes(query);
+        option.hidden = !match;
+        if (match) visibleCount += 1;
+      });
+      let emptyEl = panel.querySelector('[data-combo-empty]');
+      if (!emptyEl) {
+        emptyEl = document.createElement('div');
+        emptyEl.className = 'combo-select-empty';
+        emptyEl.dataset.comboEmpty = 'true';
+        emptyEl.textContent = 'No matches. Your typed value will be used.';
+        panel.appendChild(emptyEl);
+      }
+      emptyEl.hidden = visibleCount !== 0;
+    };
+
+    const openPanel = () => {
+      document.querySelectorAll('[data-combo-panel]').forEach(otherPanel => {
+        if (otherPanel !== panel) otherPanel.hidden = true;
+      });
+      filterOptions();
+      panel.hidden = false;
+    };
+
+    const closePanel = () => {
+      panel.hidden = true;
+    };
+
+    input.addEventListener('focus', openPanel);
+    input.addEventListener('click', event => event.stopPropagation());
+    input.addEventListener('input', () => {
+      filterOptions();
+      panel.hidden = false;
+    });
+
+    toggle?.addEventListener('click', event => {
+      event.stopPropagation();
+      if (panel.hidden) {
+        openPanel();
+        input.focus();
+      } else {
+        closePanel();
+      }
+    });
+
+    panel.addEventListener('click', event => event.stopPropagation());
+    optionEls().forEach(option => {
+      option.addEventListener('click', () => {
+        input.value = option.dataset.comboValue || option.textContent.trim();
+        closePanel();
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  });
+
+  if (widgets.length && !document.body.dataset.comboSelectOutsideBound) {
+    document.body.dataset.comboSelectOutsideBound = 'true';
+    document.addEventListener('click', () => {
+      document.querySelectorAll('[data-combo-panel]').forEach(panel => {
+        panel.hidden = true;
+      });
+    });
+  }
+}
+
 function initGeneratedReports() {
   const filterShell = document.querySelector('[data-generated-report-filters]');
   const rows = Array.from(document.querySelectorAll('[data-generated-report-row]'));
@@ -1451,6 +1532,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAttendanceBulkForm();
   initReportFilters();
   initMultiSelectDropdowns();
+  initComboSelects();
   initGeneratedReports();
   initPerformanceForms();
   initAddCourseToggle();
