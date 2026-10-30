@@ -1383,6 +1383,36 @@ html[data-theme="dark"] .topbar {
   white-space: normal;
 }
 
+.multiselect-select-all-row {
+  font-weight: 800;
+}
+
+.multiselect-search {
+  position: relative;
+  padding: 8px;
+  border-bottom: 1px solid var(--border2);
+}
+
+.multiselect-search i {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text3);
+  font-size: 14px;
+}
+
+.multiselect-search input {
+  width: 100%;
+  padding: 8px 10px 8px 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  outline: none;
+  font-size: 0.85rem;
+}
+
 .multiselect-option {
   display: flex;
   align-items: center;

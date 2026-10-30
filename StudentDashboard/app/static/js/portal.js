@@ -683,11 +683,13 @@ function initMultiSelectDropdowns(root = document) {
     const toggle = widget.querySelector('[data-multiselect-toggle]');
     const panel = widget.querySelector('[data-multiselect-panel]');
     const label = widget.querySelector('[data-multiselect-label]');
+    const search = panel?.querySelector('[data-multiselect-search]');
     const selectAll = panel?.querySelector('[data-multiselect-select-all]');
     const emptyText = widget.dataset.multiselectEmptyLabel || label?.textContent.trim() || 'All';
     if (!toggle || !panel || !label) return;
 
     const options = () => Array.from(panel.querySelectorAll('input[type="checkbox"]:not([data-multiselect-select-all])'));
+    const visibleOptions = () => options().filter(checkbox => checkbox.closest('label')?.style.display !== 'none');
 
     const updateLabel = () => {
       const checked = options().filter(box => box.checked);
@@ -698,7 +700,24 @@ function initMultiSelectDropdowns(root = document) {
       } else {
         label.textContent = `${checked.length} selected`;
       }
-      if (selectAll) selectAll.checked = checked.length > 0 && checked.length === options().length;
+      if (selectAll) {
+        const visible = visibleOptions();
+        selectAll.checked = visible.length > 0 && visible.every(box => box.checked);
+      }
+    };
+
+    const applySearch = () => {
+      if (!search) return;
+      const query = search.value.trim().toLowerCase();
+      options().forEach(checkbox => {
+        const row = checkbox.closest('label');
+        if (!row) return;
+        row.style.display = !query || row.textContent.toLowerCase().includes(query) ? '' : 'none';
+      });
+      if (selectAll) {
+        const visible = visibleOptions();
+        selectAll.checked = visible.length > 0 && visible.every(box => box.checked);
+      }
     };
 
     toggle.addEventListener('click', event => {
@@ -708,14 +727,21 @@ function initMultiSelectDropdowns(root = document) {
         if (otherPanel !== panel) otherPanel.hidden = true;
       });
       panel.hidden = isOpen;
+      if (!isOpen && search) {
+        search.value = '';
+        applySearch();
+        search.focus();
+      }
     });
 
     panel.addEventListener('click', event => event.stopPropagation());
+    search?.addEventListener('click', event => event.stopPropagation());
+    search?.addEventListener('input', applySearch);
     options().forEach(checkbox => {
       checkbox.addEventListener('change', updateLabel);
     });
     selectAll?.addEventListener('change', () => {
-      options().forEach(checkbox => { checkbox.checked = selectAll.checked; });
+      visibleOptions().forEach(checkbox => { checkbox.checked = selectAll.checked; });
       updateLabel();
     });
 

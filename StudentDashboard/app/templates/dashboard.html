@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-schools-dropdown">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-schools-search">
 </head>
 <body>
   <div id="app">
@@ -309,7 +309,11 @@
                   <div class="multiselect" data-multiselect data-multiselect-empty-label="Select schools">
                     <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>Select schools</span><i class="ti ti-chevron-down"></i></button>
                     <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-multiselect-panel hidden>
-                      <label class="checkbox-list-row checkbox-list-head"><input type="checkbox" data-multiselect-select-all> Select all</label>
+                      <div class="multiselect-search">
+                        <i class="ti ti-search"></i>
+                        <input type="text" placeholder="Search schools..." data-multiselect-search>
+                      </div>
+                      <label class="checkbox-list-row multiselect-select-all-row"><input type="checkbox" data-multiselect-select-all> Select all</label>
                       {% for school in assignment_schools %}
                       <label class="checkbox-list-row">
                         <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}">
@@ -2179,6 +2183,10 @@
           <div class="multiselect" data-multiselect data-multiselect-empty-label="Select schools" id="trainerEditAssignedSchoolsWidget">
             <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>Select schools</span><i class="ti ti-chevron-down"></i></button>
             <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-multiselect-panel hidden id="trainerEditAssignedSchools">
+              <div class="multiselect-search">
+                <i class="ti ti-search"></i>
+                <input type="text" placeholder="Search schools..." data-multiselect-search>
+              </div>
               {% for school in assignment_schools %}
               <label class="checkbox-list-row">
                 <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}" data-trainer-edit-school-checkbox>
@@ -2329,6 +2337,6 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/static/js/portal.js?v=20260717-pdf-media"></script>
+  <script src="/static/js/portal.js?v=20261030-multiselect-search"></script>
 </body>
 </html>
