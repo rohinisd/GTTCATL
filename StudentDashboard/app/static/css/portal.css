@@ -1305,6 +1305,15 @@ html[data-theme="dark"] .topbar {
   border-bottom: 1px solid var(--border2);
 }
 
+.checkbox-list-head input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: var(--accent);
+}
+
 .checkbox-list-row {
   display: flex;
   align-items: flex-start;
@@ -1317,6 +1326,11 @@ html[data-theme="dark"] .topbar {
 .checkbox-list-row input[type="checkbox"] {
   flex-shrink: 0;
   margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: var(--accent);
 }
 
 .checkbox-list-empty {
@@ -1402,7 +1416,8 @@ html[data-theme="dark"] .topbar {
   font-size: 14px;
 }
 
-.multiselect-search input {
+.multiselect-search input,
+.compact-form .multiselect-search input {
   width: 100%;
   padding: 8px 10px 8px 30px;
   border-radius: 8px;
@@ -1427,6 +1442,15 @@ html[data-theme="dark"] .topbar {
 
 .multiselect-option:hover {
   background: var(--surface2);
+}
+
+.multiselect-option input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: var(--accent);
 }
 
 .report-filter-card {
