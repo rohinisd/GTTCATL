@@ -453,8 +453,18 @@
                 <input name="division" placeholder="Division">
                 <input name="pin_code" placeholder="PIN code">
                 <input name="principal_name" placeholder="Principal name">
-                <input name="atl_incharge" placeholder="ATL Incharge">
-                <input name="assigned_trainer" placeholder="Assigned trainer">
+                <input name="atl_incharge" list="atlInchargeOptions" placeholder="ATL Incharge">
+                <datalist id="atlInchargeOptions">
+                  {% for name in atl_incharge_options %}
+                  <option value="{{ name }}"></option>
+                  {% endfor %}
+                </datalist>
+                <input name="assigned_trainer" list="assignedTrainerOptions" placeholder="Assigned trainer">
+                <datalist id="assignedTrainerOptions">
+                  {% for trainer in trainers %}
+                  <option value="{{ trainer.name }}"></option>
+                  {% endfor %}
+                </datalist>
                 <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add School</button>
               </form>
             </div>
@@ -2223,8 +2233,18 @@
         <input name="division" id="schoolEditDivision" placeholder="Division">
         <input name="pin_code" id="schoolEditPinCode" placeholder="PIN code">
         <input name="principal_name" id="schoolEditPrincipal" placeholder="Principal name">
-        <input name="atl_incharge" id="schoolEditIncharge" placeholder="ATL Incharge">
-        <input name="assigned_trainer" id="schoolEditTrainer" placeholder="Assigned trainer">
+        <input name="atl_incharge" id="schoolEditIncharge" list="atlInchargeOptionsEdit" placeholder="ATL Incharge">
+        <datalist id="atlInchargeOptionsEdit">
+          {% for name in atl_incharge_options %}
+          <option value="{{ name }}"></option>
+          {% endfor %}
+        </datalist>
+        <input name="assigned_trainer" id="schoolEditTrainer" list="assignedTrainerOptionsEdit" placeholder="Assigned trainer">
+        <datalist id="assignedTrainerOptionsEdit">
+          {% for trainer in trainers %}
+          <option value="{{ trainer.name }}"></option>
+          {% endfor %}
+        </datalist>
         <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
       </form>
     </div>

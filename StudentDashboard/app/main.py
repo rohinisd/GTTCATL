@@ -3730,6 +3730,11 @@ async def dashboard(request: Request):
                     for account in accounts
                 }
         all_schools = db.query(models.School).order_by(models.School.division, models.School.district, models.School.name).all()
+        atl_incharge_options = sorted({
+            school.atl_incharge.strip()
+            for school in all_schools
+            if school.atl_incharge and school.atl_incharge.strip()
+        })
         scope_school_ids = _trainer_school_scope_ids(db, current_account)
         schools = [school for school in all_schools if _school_in_scope(scope_school_ids, school.id)]
         assignment_schools = all_schools if _can_manage_trainers(request) else schools
@@ -4188,6 +4193,7 @@ async def dashboard(request: Request):
             "trainer_password_map": trainer_password_map,
             "schools": schools,
             "assignment_schools": assignment_schools,
+            "atl_incharge_options": atl_incharge_options,
             "unassigned_schools": unassigned_schools,
             "school_assignment_map": {str(school_id): trainer_id for school_id, trainer_id in school_assignment_map.items()},
             "trainers_count": len(trainers),
