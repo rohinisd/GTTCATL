@@ -767,16 +767,17 @@ function setSingleSelectValue(hiddenInputId, value) {
 
   hiddenInput.value = value || '';
   const emptyText = widget.dataset.singleSelectEmptyLabel || 'Select';
+  const options = Array.from(panel?.querySelectorAll('[data-single-select-option]') || []);
   if (!value) {
     label.textContent = emptyText;
   } else {
-    const options = Array.from(panel?.querySelectorAll('[data-single-select-option]') || []);
     const match = options.find(option => option.dataset.singleSelectValue === value);
-    label.textContent = match ? match.textContent.trim() : value;
-    options.forEach(option => {
-      option.classList.toggle('active', option.dataset.singleSelectValue === value);
-    });
+    label.textContent = match ? match.textContent.replace(/\s+/g, ' ').trim() : value;
   }
+  options.forEach(option => {
+    const checkbox = option.querySelector('[data-single-select-checkbox]');
+    if (checkbox) checkbox.checked = option.dataset.singleSelectValue === (value || '');
+  });
 }
 
 function initSingleSelectDropdowns(root = document) {
@@ -796,10 +797,12 @@ function initSingleSelectDropdowns(root = document) {
     const emptyText = widget.dataset.singleSelectEmptyLabel || label.textContent.trim() || 'Select';
 
     const optionEls = () => Array.from(panel.querySelectorAll('[data-single-select-option]'));
+    const optionText = option => option.textContent.replace(/\s+/g, ' ').trim();
 
-    const highlightSelected = () => {
+    const syncCheckboxes = () => {
       optionEls().forEach(option => {
-        option.classList.toggle('active', option.dataset.singleSelectValue === hiddenInput.value);
+        const checkbox = option.querySelector('[data-single-select-checkbox]');
+        if (checkbox) checkbox.checked = option.dataset.singleSelectValue === hiddenInput.value;
       });
     };
 
@@ -810,7 +813,7 @@ function initSingleSelectDropdowns(root = document) {
         return;
       }
       const match = optionEls().find(option => option.dataset.singleSelectValue === value);
-      label.textContent = match ? match.textContent.trim() : value;
+      label.textContent = match ? optionText(match) : value;
     };
 
     const closePanel = () => {
@@ -820,7 +823,7 @@ function initSingleSelectDropdowns(root = document) {
     const setValue = value => {
       hiddenInput.value = value;
       applyLabel();
-      highlightSelected();
+      syncCheckboxes();
       hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
     };
 
@@ -828,7 +831,7 @@ function initSingleSelectDropdowns(root = document) {
       const query = (search?.value || '').trim();
       const lowerQuery = query.toLowerCase();
       optionEls().forEach(option => {
-        const match = !lowerQuery || option.textContent.toLowerCase().includes(lowerQuery);
+        const match = !lowerQuery || optionText(option).toLowerCase().includes(lowerQuery);
         option.hidden = !match;
       });
 
@@ -837,7 +840,7 @@ function initSingleSelectDropdowns(root = document) {
       const exactMatch = optionEls().some(option => option.dataset.singleSelectValue.toLowerCase() === lowerQuery);
       if (query && !exactMatch) {
         const customRow = document.createElement('div');
-        customRow.className = 'combo-select-option combo-select-custom-row';
+        customRow.className = 'checkbox-list-row combo-select-custom-row';
         customRow.textContent = `Use "${query}"`;
         customRow.addEventListener('click', () => {
           setValue(query);
@@ -853,7 +856,7 @@ function initSingleSelectDropdowns(root = document) {
       });
       if (search) search.value = '';
       filterOptions();
-      highlightSelected();
+      syncCheckboxes();
       panel.hidden = false;
       search?.focus();
     };
@@ -881,7 +884,8 @@ function initSingleSelectDropdowns(root = document) {
     });
 
     optionEls().forEach(option => {
-      option.addEventListener('click', () => {
+      option.addEventListener('click', event => {
+        event.preventDefault();
         setValue(option.dataset.singleSelectValue);
         closePanel();
       });

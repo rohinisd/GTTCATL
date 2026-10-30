@@ -1453,24 +1453,8 @@ html[data-theme="dark"] .topbar {
   accent-color: var(--accent);
 }
 
-.combo-select-option {
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  cursor: pointer;
-}
-
-.combo-select-option:hover,
-.combo-select-option.active {
-  background: var(--surface2);
-}
-
-.combo-select-option.active {
-  color: var(--accent);
-}
-
 .combo-select-custom-row {
+  cursor: pointer;
   border-bottom: 1px solid var(--border2);
   margin-bottom: 4px;
   font-style: italic;

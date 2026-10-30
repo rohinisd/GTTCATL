@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-single-select-dropdown">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-single-select-checkbox">
 </head>
 <body>
   <div id="app">
@@ -458,15 +458,19 @@
                   <div class="multiselect" data-single-select data-single-select-empty-label="Select ATL Incharge">
                     <input type="hidden" name="atl_incharge" data-single-select-value>
                     <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select ATL Incharge</span><i class="ti ti-chevron-down"></i></button>
-                    <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+                    <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-single-select-panel hidden>
                       <div class="multiselect-search">
                         <i class="ti ti-search"></i>
                         <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
                       </div>
                       <div data-single-select-custom-slot></div>
-                      <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+                      <label class="checkbox-list-row" data-single-select-option data-single-select-value="">
+                        <input type="checkbox" data-single-select-checkbox> — None —
+                      </label>
                       {% for name in atl_incharge_options %}
-                      <div class="combo-select-option" data-single-select-option data-single-select-value="{{ name }}">{{ name }}</div>
+                      <label class="checkbox-list-row" data-single-select-option data-single-select-value="{{ name }}">
+                        <input type="checkbox" data-single-select-checkbox> {{ name }}
+                      </label>
                       {% endfor %}
                     </div>
                   </div>
@@ -476,15 +480,19 @@
                   <div class="multiselect" data-single-select data-single-select-empty-label="Select trainer">
                     <input type="hidden" name="assigned_trainer" data-single-select-value>
                     <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select trainer</span><i class="ti ti-chevron-down"></i></button>
-                    <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+                    <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-single-select-panel hidden>
                       <div class="multiselect-search">
                         <i class="ti ti-search"></i>
                         <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
                       </div>
                       <div data-single-select-custom-slot></div>
-                      <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+                      <label class="checkbox-list-row" data-single-select-option data-single-select-value="">
+                        <input type="checkbox" data-single-select-checkbox> — None —
+                      </label>
                       {% for trainer in trainers %}
-                      <div class="combo-select-option" data-single-select-option data-single-select-value="{{ trainer.name }}">{{ trainer.name }}</div>
+                      <label class="checkbox-list-row" data-single-select-option data-single-select-value="{{ trainer.name }}">
+                        <input type="checkbox" data-single-select-checkbox> {{ trainer.name }}
+                      </label>
                       {% endfor %}
                     </div>
                   </div>
@@ -2262,15 +2270,19 @@
           <div class="multiselect" data-single-select data-single-select-empty-label="Select ATL Incharge">
             <input type="hidden" name="atl_incharge" id="schoolEditIncharge" data-single-select-value>
             <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select ATL Incharge</span><i class="ti ti-chevron-down"></i></button>
-            <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+            <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-single-select-panel hidden>
               <div class="multiselect-search">
                 <i class="ti ti-search"></i>
                 <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
               </div>
               <div data-single-select-custom-slot></div>
-              <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+              <label class="checkbox-list-row" data-single-select-option data-single-select-value="">
+                <input type="checkbox" data-single-select-checkbox> — None —
+              </label>
               {% for name in atl_incharge_options %}
-              <div class="combo-select-option" data-single-select-option data-single-select-value="{{ name }}">{{ name }}</div>
+              <label class="checkbox-list-row" data-single-select-option data-single-select-value="{{ name }}">
+                <input type="checkbox" data-single-select-checkbox> {{ name }}
+              </label>
               {% endfor %}
             </div>
           </div>
@@ -2280,15 +2292,19 @@
           <div class="multiselect" data-single-select data-single-select-empty-label="Select trainer">
             <input type="hidden" name="assigned_trainer" id="schoolEditTrainer" data-single-select-value>
             <button type="button" class="multiselect-toggle" data-single-select-toggle><span data-single-select-label>Select trainer</span><i class="ti ti-chevron-down"></i></button>
-            <div class="multiselect-panel multiselect-panel-fill" data-single-select-panel hidden>
+            <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-single-select-panel hidden>
               <div class="multiselect-search">
                 <i class="ti ti-search"></i>
                 <input type="text" placeholder="Search or type a new name" autocomplete="off" data-single-select-search>
               </div>
               <div data-single-select-custom-slot></div>
-              <div class="combo-select-option" data-single-select-option data-single-select-value="">— None —</div>
+              <label class="checkbox-list-row" data-single-select-option data-single-select-value="">
+                <input type="checkbox" data-single-select-checkbox> — None —
+              </label>
               {% for trainer in trainers %}
-              <div class="combo-select-option" data-single-select-option data-single-select-value="{{ trainer.name }}">{{ trainer.name }}</div>
+              <label class="checkbox-list-row" data-single-select-option data-single-select-value="{{ trainer.name }}">
+                <input type="checkbox" data-single-select-checkbox> {{ trainer.name }}
+              </label>
               {% endfor %}
             </div>
           </div>
@@ -2405,6 +2421,6 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/static/js/portal.js?v=20261030-single-select-dropdown"></script>
+  <script src="/static/js/portal.js?v=20261030-single-select-checkbox"></script>
 </body>
 </html>
