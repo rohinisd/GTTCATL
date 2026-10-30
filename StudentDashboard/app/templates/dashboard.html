@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-checkbox-align">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261030-schools-dropdown">
 </head>
 <body>
   <div id="app">
@@ -306,13 +306,17 @@
                 <input name="districts" placeholder="Districts / District">
                 <label class="form-field-label">
                   <span>Assigned Schools</span>
-                  <div class="checkbox-list">
-                    {% for school in assignment_schools %}
-                    <label class="checkbox-list-row">
-                      <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}">
-                      {{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}
-                    </label>
-                    {% endfor %}
+                  <div class="multiselect" data-multiselect data-multiselect-empty-label="Select schools">
+                    <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>Select schools</span><i class="ti ti-chevron-down"></i></button>
+                    <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-multiselect-panel hidden>
+                      <label class="checkbox-list-row checkbox-list-head"><input type="checkbox" data-multiselect-select-all> Select all</label>
+                      {% for school in assignment_schools %}
+                      <label class="checkbox-list-row">
+                        <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}">
+                        {{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}
+                      </label>
+                      {% endfor %}
+                    </div>
                   </div>
                 </label>
                 {% if is_admin %}
@@ -2172,13 +2176,16 @@
         <input name="districts" id="trainerEditDistricts" placeholder="Districts / District">
         <label class="form-field-label">
           <span>Assigned Schools</span>
-          <div class="checkbox-list" id="trainerEditAssignedSchools">
-            {% for school in assignment_schools %}
-            <label class="checkbox-list-row">
-              <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}" data-trainer-edit-school-checkbox>
-              {{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}
-            </label>
-            {% endfor %}
+          <div class="multiselect" data-multiselect data-multiselect-empty-label="Select schools" id="trainerEditAssignedSchoolsWidget">
+            <button type="button" class="multiselect-toggle" data-multiselect-toggle><span data-multiselect-label>Select schools</span><i class="ti ti-chevron-down"></i></button>
+            <div class="multiselect-panel multiselect-panel-fill checkbox-list" data-multiselect-panel hidden id="trainerEditAssignedSchools">
+              {% for school in assignment_schools %}
+              <label class="checkbox-list-row">
+                <input type="checkbox" name="assigned_school_ids" value="{{ school.id }}" data-trainer-edit-school-checkbox>
+                {{ school.name }}{% if school.district %} - {{ school.district }}{% endif %}
+              </label>
+              {% endfor %}
+            </div>
           </div>
         </label>
         <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
@@ -2267,6 +2274,21 @@
       });
     }
 
+    function updateTrainerEditSchoolsLabel() {
+      const widget = document.getElementById('trainerEditAssignedSchoolsWidget');
+      const label = widget?.querySelector('[data-multiselect-label]');
+      if (!label) return;
+      const checked = Array.from(document.querySelectorAll('[data-trainer-edit-school-checkbox]'))
+        .filter((checkbox) => checkbox.checked && !checkbox.disabled);
+      if (!checked.length) {
+        label.textContent = 'Select schools';
+      } else if (checked.length === 1) {
+        label.textContent = checked[0].closest('label')?.textContent.trim() || '1 selected';
+      } else {
+        label.textContent = `${checked.length} selected`;
+      }
+    }
+
     function openTrainerEditModal(trainerId, name, email, phone, role, division, districts, assignedSchool) {
       const modal = document.getElementById('trainerEditModal');
       const form = document.getElementById('trainerEditForm');
@@ -2286,6 +2308,7 @@
         checkbox.checked = schoolValues.includes(checkbox.value);
       });
       refreshAssignedSchoolOptions(trainerId, schoolValues);
+      updateTrainerEditSchoolsLabel();
       modal.hidden = false;
     }
 
