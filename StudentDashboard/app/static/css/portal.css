@@ -1307,11 +1307,16 @@ html[data-theme="dark"] .topbar {
 
 .checkbox-list-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border2);
   font-weight: 600;
+}
+
+.checkbox-list-row input[type="checkbox"] {
+  flex-shrink: 0;
+  margin-top: 3px;
 }
 
 .checkbox-list-empty {
