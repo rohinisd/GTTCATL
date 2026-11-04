@@ -974,6 +974,9 @@
                   <th>Type</th>
                   <th>Resource</th>
                   <th>Content Preview</th>
+                  {% if is_admin %}
+                  <th>Actions</th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -1001,6 +1004,13 @@
                     {% endif %}
                   </td>
                   <td class="content-preview">{{ content.content_body[:220] }}{% if content.content_body|length > 220 %}...{% endif %}</td>
+                  {% if is_admin %}
+                  <td data-row-action>
+                    <form method="post" action="/content/delete/{{ content.kind }}/{{ content.id }}" onsubmit="return confirm('Delete this content permanently? This cannot be undone.');">
+                      <button class="btn-ghost btn-danger-ghost" type="submit"><i class="ti ti-trash"></i> Delete</button>
+                    </form>
+                  </td>
+                  {% endif %}
                 </tr>
                 {% endfor %}
               </tbody>
@@ -2424,6 +2434,6 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/static/js/portal.js?v=20261030-single-select-checkbox"></script>
+  <script src="/static/js/portal.js?v=20261104-content-row-delete"></script>
 </body>
 </html>

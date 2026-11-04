@@ -376,7 +376,7 @@ function initContentViewer() {
 
   allRows.forEach(row => {
     row.addEventListener('click', event => {
-      if (event.target.closest('a')) return;
+      if (event.target.closest('a') || event.target.closest('[data-row-action]')) return;
       populateResourceSelector(row);
       showContentRow(row);
       viewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
