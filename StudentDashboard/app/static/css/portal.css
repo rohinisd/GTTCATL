@@ -2191,6 +2191,11 @@ html[data-theme="dark"] .topbar {
   resize: vertical;
 }
 
+.content-edit-form .form-field-label input {
+  font-size: 15px;
+  font-weight: 400;
+}
+
 .content-edit-form button {
   width: fit-content;
 }

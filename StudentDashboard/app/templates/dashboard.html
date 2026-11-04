@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261104-plain-title-field">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261104-title-label-v2">
 </head>
 <body>
   <div id="app">
@@ -1031,7 +1031,10 @@
                 <h4>Modify or Add Content</h4>
                 <p class="form-hint">Keeping the same type updates this item. Choosing another type adds it to the lesson without removing existing PDF, PPT, or video content.</p>
                 <form class="content-edit-form" method="post" enctype="multipart/form-data" data-content-edit-form>
-                  <input name="title" data-content-edit-title placeholder="Content title, e.g. Lesson 1 PPT or Sensor demo video" required>
+                  <label class="form-field-label">
+                    <span>Content Title</span>
+                    <input name="title" data-content-edit-title placeholder="Content title, e.g. Lesson 1 PPT or Sensor demo video" required>
+                  </label>
                   <select name="content_type" data-content-edit-type required>
                     <option value="article">Article / Text</option>
                     <option value="pdf">PDF Document</option>
