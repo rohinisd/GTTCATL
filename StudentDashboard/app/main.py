@@ -2960,7 +2960,7 @@ async def update_course_content(
     request: Request,
     content_kind: str,
     content_id: int,
-    title: str = Form(...),
+    title: str = Form(""),
     content_type: str = Form(...),
     resource_url: str = Form(""),
     content_body: str = Form(""),
@@ -2973,8 +2973,6 @@ async def update_course_content(
 
     cleaned_title = title.strip()
     cleaned_url = _normalize_resource_url(resource_url)
-    if not cleaned_title:
-        return _dashboard_redirect("Lesson title is required.", "error")
     if content_type == "video_link":
         try:
             _validate_video_link(cleaned_url)
@@ -2996,6 +2994,8 @@ async def update_course_content(
             lesson_id = content_item.id if content_item else None
         if not content_item:
             return _dashboard_redirect("Selected content was not found.", "error")
+        if not cleaned_title:
+            cleaned_title = content_item.title
         if content_type != content_item.content_type:
             if not saved_url:
                 return _dashboard_redirect("Choose a file or paste a valid link to add this content type.", "error")
