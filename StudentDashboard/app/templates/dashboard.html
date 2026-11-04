@@ -1031,7 +1031,10 @@
                 <h4>Modify or Add Content</h4>
                 <p class="form-hint">Keeping the same type updates this item. Choosing another type adds it to the lesson without removing existing PDF, PPT, or video content.</p>
                 <form class="content-edit-form" method="post" enctype="multipart/form-data" data-content-edit-form>
-                  <input name="title" data-content-edit-title placeholder="Lesson title" required>
+                  <label class="form-field-label">
+                    <span>Content Title</span>
+                    <input name="title" data-content-edit-title placeholder="Lesson title" required>
+                  </label>
                   <select name="content_type" data-content-edit-type required>
                     <option value="article">Article / Text</option>
                     <option value="pdf">PDF Document</option>
