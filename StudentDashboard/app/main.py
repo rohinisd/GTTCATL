@@ -2506,7 +2506,12 @@ async def bulk_upload(record_type: str, request: Request, file: UploadFile = Fil
                     )
 
                 else:
-                    name = col(row, "name") or col(row, "student_name")
+                    name = (
+                        col(row, "name")
+                        or col(row, "student_name")
+                        or col(row, "student full name")
+                        or col(row, "full name")
+                    )
                     email = (col(row, "email") or col(row, "student_email")).lower()
                     school_udise = col(row, "school_udise_code") or col(row, "udise_code")
                     if not name:
