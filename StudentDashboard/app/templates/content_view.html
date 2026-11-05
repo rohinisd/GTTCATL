@@ -11,16 +11,17 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-view-fullscreen">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-true-fullscreen">
 </head>
 <body class="content-view-body-tag">
-  <main class="content-view-page">
-    <header class="content-view-header">
-      <span class="badge badge-warn" id="contentViewType">{{ content_type }}</span>
-      <h1>{{ title }}</h1>
-    </header>
-    <div class="content-view-frame" id="contentViewFrame"></div>
-  </main>
+  <header class="content-view-header">
+    <span class="badge badge-warn" id="contentViewType">{{ content_type }}</span>
+    <h1>{{ title }}</h1>
+    <button type="button" class="btn-ghost" id="contentViewFullscreen">
+      <i class="ti ti-maximize"></i> Fullscreen
+    </button>
+  </header>
+  <div class="content-view-frame" id="contentViewFrame"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
   <script>
@@ -33,6 +34,14 @@
   <script src="/static/js/portal.js?v=20261105-view-fullscreen"></script>
   <script>
     document.addEventListener('contextmenu', event => event.preventDefault());
+
+    document.getElementById('contentViewFullscreen')?.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+    });
 
     const contentType = {{ content_type|default('', true)|tojson }};
     const resourceUrl = {{ resource_url|default('', true)|tojson }};
