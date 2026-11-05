@@ -170,6 +170,16 @@ function youtubeEmbedUrl(url) {
   return '';
 }
 
+function inferContentType(contentType, url) {
+  const value = (url || '').toLowerCase();
+  if (value.includes('youtube.com') || value.includes('youtu.be')) return 'video_link';
+  if (value.endsWith('.pdf')) return 'pdf';
+  if (value.endsWith('.ppt') || value.endsWith('.pptx')) return 'ppt';
+  if (value.endsWith('.doc') || value.endsWith('.docx')) return 'docx';
+  if (value.endsWith('.mp4') || value.endsWith('.mov') || value.endsWith('.webm') || value.endsWith('.mkv')) return 'video_file';
+  return contentType || 'article';
+}
+
 function renderPdfIntoContainer(container, url) {
   if (!container || container.dataset.pdfRendered === 'true') return;
   container.dataset.pdfRendered = 'true';
@@ -287,6 +297,7 @@ function initContentViewer() {
   const frame = viewer.querySelector('[data-content-viewer-frame]');
   const previewGrid = viewer.querySelector('[data-content-preview-grid]');
   const openLink = viewer.querySelector('[data-content-viewer-open]');
+  const viewLink = viewer.querySelector('[data-content-viewer-view]');
   const resourceSelect = viewer.querySelector('[data-content-resource-select]');
   const close = viewer.querySelector('[data-content-viewer-close]');
   const editForm = viewer.querySelector('[data-content-edit-form]');
@@ -295,16 +306,6 @@ function initContentViewer() {
   const editType = viewer.querySelector('[data-content-edit-type]');
   const editUrl = viewer.querySelector('[data-content-edit-url]');
   const editBody = viewer.querySelector('[data-content-edit-body]');
-
-  const inferContentType = (contentType, url) => {
-    const value = (url || '').toLowerCase();
-    if (value.includes('youtube.com') || value.includes('youtu.be')) return 'video_link';
-    if (value.endsWith('.pdf')) return 'pdf';
-    if (value.endsWith('.ppt') || value.endsWith('.pptx')) return 'ppt';
-    if (value.endsWith('.doc') || value.endsWith('.docx')) return 'docx';
-    if (value.endsWith('.mp4') || value.endsWith('.mov') || value.endsWith('.webm') || value.endsWith('.mkv')) return 'video_file';
-    return contentType || 'article';
-  };
 
   const renderPreview = (contentType, url) => {
     const effectiveType = inferContentType(contentType, url);
@@ -379,6 +380,10 @@ function initContentViewer() {
       frame.style.display = 'none';
       openLink.href = resourceUrl || '#';
       openLink.style.display = resourceUrl && isAdmin ? 'inline-flex' : 'none';
+      if (viewLink) {
+        viewLink.href = contentId ? `/content/view/${contentKind}/${contentId}` : '#';
+        viewLink.style.display = resourceUrl && contentId ? 'inline-flex' : 'none';
+      }
       if (contentId) {
         if (editForm) editForm.action = `/content/update/${contentKind}/${contentId}`;
         if (deleteForm) deleteForm.action = `/content/delete/${contentKind}/${contentId}`;
@@ -475,11 +480,18 @@ function initContentViewer() {
           </div>
           <p>${candidate.dataset.contentBody || 'No description available.'}</p>
           <div class="content-preview-card-frame">${renderPreview(effectiveType, resourceUrl)}</div>
-          ${resourceUrl && isAdmin ? `
-          <a class="btn-ghost content-preview-open" href="${resourceUrl}" target="_blank" rel="noopener">
-            <i class="ti ti-external-link"></i> Open resource
-          </a>
-          ` : ''}
+          <div class="content-preview-card-actions">
+            ${resourceUrl && candidate.dataset.contentId ? `
+            <a class="btn-ghost content-preview-view" href="/content/view/${candidate.dataset.contentKind || 'resource'}/${candidate.dataset.contentId}" target="_blank" rel="noopener">
+              <i class="ti ti-eye"></i> View full screen
+            </a>
+            ` : ''}
+            ${resourceUrl && isAdmin ? `
+            <a class="btn-ghost content-preview-open" href="${resourceUrl}" target="_blank" rel="noopener">
+              <i class="ti ti-external-link"></i> Open resource
+            </a>
+            ` : ''}
+          </div>
         `;
         card.addEventListener('click', event => {
           if (event.target.closest('a')) return;

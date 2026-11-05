@@ -2962,6 +2962,37 @@ async def upload_course_content(
     return _dashboard_redirect("Lesson resource uploaded successfully.")
 
 
+@app.get("/content/view/{content_kind}/{content_id}")
+async def view_course_content(request: Request, content_kind: str, content_id: int):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login")
+
+    with SessionLocal() as db:
+        if content_kind == "resource":
+            content_item = db.query(models.LessonResource).filter(models.LessonResource.id == content_id).first()
+        else:
+            content_item = db.query(models.Lesson).filter(models.Lesson.id == content_id).first()
+        if not content_item:
+            raise HTTPException(404, "Content not found.")
+
+        title = content_item.title
+        content_type = content_item.content_type
+        resource_url = content_item.resource_url
+        content_body = content_item.content_body
+
+    return templates.TemplateResponse(
+        request,
+        "content_view.html",
+        {
+            "app_name": "GTTC Student Dashboard",
+            "title": title,
+            "content_type": content_type,
+            "resource_url": resource_url,
+            "content_body": content_body,
+        },
+    )
+
+
 @app.post("/content/update/{content_kind}/{content_id}")
 async def update_course_content(
     request: Request,

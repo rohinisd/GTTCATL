@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-docx-preview">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-view-fullscreen">
 </head>
 <body data-is-admin="{{ 'true' if is_admin else 'false' }}">
   <div id="app">
@@ -1036,6 +1036,9 @@
               <div class="content-viewer-body" data-content-viewer-body></div>
               <div class="content-viewer-frame" data-content-viewer-frame></div>
               <div class="content-preview-grid" data-content-preview-grid></div>
+              <a class="btn-primary content-viewer-view" data-content-viewer-view href="#" target="_blank" rel="noopener">
+                <i class="ti ti-eye"></i> View full screen
+              </a>
               <a class="btn-primary content-viewer-open" data-content-viewer-open href="#" target="_blank" rel="noopener">
                 <i class="ti ti-external-link"></i> Open resource
               </a>
@@ -2446,6 +2449,6 @@
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js"></script>
-  <script src="/static/js/portal.js?v=20261105-docx-preview"></script>
+  <script src="/static/js/portal.js?v=20261105-view-fullscreen"></script>
 </body>
 </html>

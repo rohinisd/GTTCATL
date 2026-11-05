@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }} - {{ app_name }}</title>
+  <script>
+    (function(){
+      const theme = localStorage.getItem('gttc_lms_theme') || localStorage.getItem('gttc_theme') || 'light';
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-view-fullscreen">
+</head>
+<body class="content-view-body-tag">
+  <main class="content-view-page">
+    <header class="content-view-header">
+      <span class="badge badge-warn" id="contentViewType">{{ content_type }}</span>
+      <h1>{{ title }}</h1>
+    </header>
+    <div class="content-view-frame" id="contentViewFrame"></div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js"></script>
+  <script src="/static/js/portal.js?v=20261105-view-fullscreen"></script>
+  <script>
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    const contentType = {{ content_type|default('', true)|tojson }};
+    const resourceUrl = {{ resource_url|default('', true)|tojson }};
+    const contentBody = {{ content_body|default('', true)|tojson }};
+    const effectiveType = inferContentType(contentType, resourceUrl);
+    const frame = document.getElementById('contentViewFrame');
+    document.getElementById('contentViewType').textContent = effectiveType;
+
+    const escapeHtml = value => value.replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
+
+    if (!resourceUrl) {
+      frame.innerHTML = contentBody
+        ? `<div class="content-view-article">${escapeHtml(contentBody).replace(/\n/g, '<br>')}</div>`
+        : '<div class="content-empty">No file or link attached to this content yet.</div>';
+    } else if (effectiveType === 'pdf') {
+      frame.innerHTML = '<div class="pdf-canvas-preview content-view-pdf" data-pdf-preview data-pdf-url="' + resourceUrl.replace(/"/g, '&quot;') + '"></div>';
+      initPdfPreviews(frame);
+    } else if (effectiveType === 'docx') {
+      frame.innerHTML = '<div class="docx-preview content-view-docx" data-docx-preview data-docx-url="' + resourceUrl.replace(/"/g, '&quot;') + '"></div>';
+      initDocxPreviews(frame);
+    } else if (effectiveType === 'video_file') {
+      frame.innerHTML = `<video class="content-view-video" controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false" src="${resourceUrl}"></video>`;
+    } else if (effectiveType === 'video_link') {
+      const embed = youtubeEmbedUrl(resourceUrl);
+      frame.innerHTML = embed
+        ? `<iframe class="content-view-video" src="${embed}" title="Video" allowfullscreen></iframe>`
+        : '<div class="content-empty">This video link cannot be embedded here.</div>';
+    } else if (effectiveType === 'article') {
+      frame.innerHTML = contentBody
+        ? `<div class="content-view-article">${escapeHtml(contentBody).replace(/\n/g, '<br>')}</div>`
+        : '<div class="content-empty">No article/text note added yet.</div>';
+    } else {
+      frame.innerHTML = '<div class="content-empty">Preview is not available for this content type yet.</div>';
+    }
+  </script>
+</body>
+</html>
