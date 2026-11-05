@@ -11,9 +11,9 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261104-fixed-table-layout">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-pdf-canvas-viewer">
 </head>
-<body>
+<body data-is-admin="{{ 'true' if is_admin else 'false' }}">
   <div id="app">
     <aside class="sidebar">
       <div class="sidebar-brand">
@@ -998,7 +998,7 @@
                   <td>{{ content.content_title }}</td>
                   <td><span class="badge badge-warn">{{ content.content_type }}</span></td>
                   <td>
-                    {% if content.resource_url %}
+                    {% if content.resource_url and is_admin %}
                     <a class="resource-link" href="{{ content.resource_url }}" target="_blank" rel="noopener">Open</a>
                     {% else %}
                     -
@@ -2436,6 +2436,12 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/static/js/portal.js?v=20261104-content-row-delete"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+    }
+  </script>
+  <script src="/static/js/portal.js?v=20261105-view-only-content"></script>
 </body>
 </html>

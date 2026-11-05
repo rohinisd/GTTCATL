@@ -170,10 +170,79 @@ function youtubeEmbedUrl(url) {
   return '';
 }
 
+function renderPdfIntoContainer(container, url) {
+  if (!container || container.dataset.pdfRendered === 'true') return;
+  container.dataset.pdfRendered = 'true';
+
+  if (!window.pdfjsLib) {
+    container.innerHTML = '<div class="content-empty">PDF preview is unavailable right now.</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="pdf-canvas-toolbar">
+      <button type="button" class="btn-ghost" data-pdf-prev><i class="ti ti-chevron-left"></i></button>
+      <span data-pdf-page-info>Loading…</span>
+      <button type="button" class="btn-ghost" data-pdf-next><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="pdf-canvas-scroll"><canvas data-pdf-canvas></canvas></div>
+  `;
+  container.addEventListener('contextmenu', event => event.preventDefault());
+
+  const canvas = container.querySelector('[data-pdf-canvas]');
+  const ctx = canvas.getContext('2d');
+  const pageInfo = container.querySelector('[data-pdf-page-info]');
+  const prevBtn = container.querySelector('[data-pdf-prev]');
+  const nextBtn = container.querySelector('[data-pdf-next]');
+  const scrollArea = container.querySelector('.pdf-canvas-scroll');
+  let pdfDoc = null;
+  let pageNum = 1;
+  let renderTask = null;
+
+  const renderPage = num => {
+    pdfDoc.getPage(num).then(page => {
+      if (renderTask) renderTask.cancel();
+      const availableWidth = scrollArea.clientWidth || 600;
+      const unscaledViewport = page.getViewport({ scale: 1 });
+      const scale = Math.min(availableWidth / unscaledViewport.width, 2);
+      const viewport = page.getViewport({ scale });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      renderTask = page.render({ canvasContext: ctx, viewport });
+      renderTask.promise.then(() => {
+        pageInfo.textContent = `${num} / ${pdfDoc.numPages}`;
+        prevBtn.disabled = num <= 1;
+        nextBtn.disabled = num >= pdfDoc.numPages;
+      }).catch(() => {});
+    });
+  };
+
+  pdfjsLib.getDocument(url).promise.then(doc => {
+    pdfDoc = doc;
+    renderPage(pageNum);
+  }).catch(() => {
+    container.innerHTML = '<div class="content-empty">Could not load this PDF for preview.</div>';
+  });
+
+  prevBtn.addEventListener('click', () => {
+    if (pageNum > 1) { pageNum -= 1; renderPage(pageNum); }
+  });
+  nextBtn.addEventListener('click', () => {
+    if (pdfDoc && pageNum < pdfDoc.numPages) { pageNum += 1; renderPage(pageNum); }
+  });
+}
+
+function initPdfPreviews(root = document) {
+  root.querySelectorAll('[data-pdf-preview]').forEach(container => {
+    renderPdfIntoContainer(container, container.dataset.pdfUrl);
+  });
+}
+
 function initContentViewer() {
   const viewer = document.querySelector('[data-content-viewer]');
   if (!viewer) return;
 
+  const isAdmin = document.body.dataset.isAdmin === 'true';
   const title = viewer.querySelector('[data-content-viewer-title]');
   const course = viewer.querySelector('[data-content-viewer-course]');
   const type = viewer.querySelector('[data-content-viewer-type]');
@@ -208,7 +277,7 @@ function initContentViewer() {
       return '<div class="content-empty">No file or external link has been attached yet.</div>';
     }
     if (effectiveType === 'video_file') {
-      return `<video controls src="${url}"></video>`;
+      return `<video controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false" src="${url}"></video>`;
     }
     if (effectiveType === 'video_link') {
       const embed = youtubeEmbedUrl(url);
@@ -217,8 +286,9 @@ function initContentViewer() {
         : '<div class="content-empty">This video link cannot be embedded here. Use Open resource to view it.</div>';
     }
     if (effectiveType === 'pdf') {
-      // Prefer native PDF rendering; avoid embedding Vercel protection / login HTML in the frame.
-      return `<iframe src="${url}#toolbar=1" title="PDF preview"></iframe>`;
+      // Rendered page-by-page via PDF.js canvas (see initPdfPreviews) instead of a native
+      // iframe viewer, so there is no built-in download/print toolbar to hide.
+      return `<div class="pdf-canvas-preview" data-pdf-preview data-pdf-url="${url}"></div>`;
     }
     if (effectiveType === 'ppt') {
       return `<div class="content-empty">PPT/PPTX preview depends on browser support. Use Open resource to view or download it.</div>`;
@@ -265,7 +335,7 @@ function initContentViewer() {
       frame.innerHTML = renderPreview(row.dataset.contentType || '', resourceUrl);
       frame.style.display = 'none';
       openLink.href = resourceUrl || '#';
-      openLink.style.display = resourceUrl ? 'inline-flex' : 'none';
+      openLink.style.display = resourceUrl && isAdmin ? 'inline-flex' : 'none';
       if (contentId) {
         if (editForm) editForm.action = `/content/update/${contentKind}/${contentId}`;
         if (deleteForm) deleteForm.action = `/content/delete/${contentKind}/${contentId}`;
@@ -357,7 +427,7 @@ function initContentViewer() {
           </div>
           <p>${candidate.dataset.contentBody || 'No description available.'}</p>
           <div class="content-preview-card-frame">${renderPreview(effectiveType, resourceUrl)}</div>
-          ${resourceUrl ? `
+          ${resourceUrl && isAdmin ? `
           <a class="btn-ghost content-preview-open" href="${resourceUrl}" target="_blank" rel="noopener">
             <i class="ti ti-external-link"></i> Open resource
           </a>
@@ -372,6 +442,7 @@ function initContentViewer() {
       });
       previewGrid.appendChild(sectionEl);
     });
+    initPdfPreviews(previewGrid);
   };
 
   allRows.forEach(row => {
