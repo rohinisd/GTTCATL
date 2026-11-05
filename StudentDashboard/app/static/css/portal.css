@@ -2165,6 +2165,23 @@ html[data-theme="dark"] .topbar {
   -webkit-user-select: none;
 }
 
+.docx-preview {
+  max-height: 520px;
+  overflow: auto;
+  padding: 16px;
+  background: var(--bg);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.docx-preview .docx-doc {
+  background: var(--surface);
+  color: #1f2430;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.15);
+}
+
 .content-preview-open {
   margin: 12px;
   width: fit-content;

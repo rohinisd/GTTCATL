@@ -1646,6 +1646,7 @@ def _validate_content_upload(content_type: str, upload: UploadFile | None, resou
     allowed_extensions = {
         "pdf": {".pdf"},
         "ppt": {".ppt", ".pptx"},
+        "docx": {".doc", ".docx"},
         "video_file": {".mp4", ".mov", ".webm", ".mkv"},
     }
     if content_type == "article":
@@ -1686,6 +1687,7 @@ def _validate_optional_content_file(content_type: str, upload: UploadFile | None
     allowed_extensions = {
         "pdf": {".pdf"},
         "ppt": {".ppt", ".pptx"},
+        "docx": {".doc", ".docx"},
         "video_file": {".mp4", ".mov", ".webm", ".mkv"},
     }
     if content_type in {"article", "video_link"}:
@@ -1727,7 +1729,7 @@ def _content_group(course_title: str, content_type: str):
         return "volume-2"
     if course_title == "Volume III - Grades 9-10 ATL Activities":
         return "volume-3"
-    if content_type in {"pdf", "ppt", "video_link", "video_file"} and not course_title.startswith("Experiment "):
+    if content_type in {"pdf", "ppt", "docx", "video_link", "video_file"} and not course_title.startswith("Experiment "):
         return "uploaded"
     if course_title.startswith("Experiment "):
         return "experiments"

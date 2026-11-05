@@ -11,7 +11,7 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-pdf-canvas-viewer">
+  <link rel="stylesheet" href="/static/css/portal.css?v=20261105-docx-preview">
 </head>
 <body data-is-admin="{{ 'true' if is_admin else 'false' }}">
   <div id="app">
@@ -931,11 +931,12 @@
                 <option value="article">Article / Text</option>
                 <option value="pdf">PDF Document</option>
                 <option value="ppt">PPT / PPTX Presentation</option>
+                <option value="docx">Word Document</option>
                 <option value="video_link">YouTube / Video Link</option>
                 <option value="video_file">Upload Video File</option>
               </select>
               <input name="resource_url" placeholder="YouTube/video URL, if using link">
-              <input name="file" type="file" accept=".pdf,.ppt,.pptx,.mp4,.mov,.webm,.mkv">
+              <input name="file" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.mp4,.mov,.webm,.mkv">
               <textarea name="content_body" placeholder="Article/text content, short description, or instructions for students"></textarea>
               <script type="application/json" id="lessonOptionsData">{{ lesson_options_by_course|tojson }}</script>
               <button class="btn-primary" type="submit"><i class="ti ti-plus"></i> Add Content</button>
@@ -1051,11 +1052,12 @@
                     <option value="article">Article / Text</option>
                     <option value="pdf">PDF Document</option>
                     <option value="ppt">PPT / PPTX Presentation</option>
+                    <option value="docx">Word Document</option>
                     <option value="video_link">YouTube / Video Link</option>
                     <option value="video_file">Upload Video File</option>
                   </select>
                   <input name="resource_url" data-content-edit-url placeholder="Existing resource URL or video link">
-                  <input name="file" type="file" accept=".pdf,.ppt,.pptx,.mp4,.mov,.webm,.mkv">
+                  <input name="file" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.mp4,.mov,.webm,.mkv">
                   <textarea name="content_body" data-content-edit-body placeholder="Description or instructions"></textarea>
                   <button class="btn-primary" type="submit"><i class="ti ti-device-floppy"></i> Save Changes</button>
                 </form>
@@ -2442,6 +2444,8 @@
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
     }
   </script>
-  <script src="/static/js/portal.js?v=20261105-view-only-content"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js"></script>
+  <script src="/static/js/portal.js?v=20261105-docx-preview"></script>
 </body>
 </html>

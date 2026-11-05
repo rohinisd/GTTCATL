@@ -238,6 +238,43 @@ function initPdfPreviews(root = document) {
   });
 }
 
+function renderDocxIntoContainer(container, url) {
+  if (!container || container.dataset.docxRendered === 'true') return;
+  container.dataset.docxRendered = 'true';
+
+  if (!window.docx || !window.JSZip) {
+    container.innerHTML = '<div class="content-empty">Document preview is unavailable right now.</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="content-empty">Loading document…</div>';
+  container.addEventListener('contextmenu', event => event.preventDefault());
+
+  fetch(url)
+    .then(response => {
+      if (!response.ok) throw new Error('fetch failed');
+      return response.blob();
+    })
+    .then(blob => {
+      container.innerHTML = '';
+      return docx.renderAsync(blob, container, container, {
+        inWrapper: true,
+        ignoreWidth: false,
+        ignoreHeight: true,
+        className: 'docx-doc',
+      });
+    })
+    .catch(() => {
+      container.innerHTML = '<div class="content-empty">Could not load this document for preview.</div>';
+    });
+}
+
+function initDocxPreviews(root = document) {
+  root.querySelectorAll('[data-docx-preview]').forEach(container => {
+    renderDocxIntoContainer(container, container.dataset.docxUrl);
+  });
+}
+
 function initContentViewer() {
   const viewer = document.querySelector('[data-content-viewer]');
   if (!viewer) return;
@@ -264,6 +301,7 @@ function initContentViewer() {
     if (value.includes('youtube.com') || value.includes('youtu.be')) return 'video_link';
     if (value.endsWith('.pdf')) return 'pdf';
     if (value.endsWith('.ppt') || value.endsWith('.pptx')) return 'ppt';
+    if (value.endsWith('.doc') || value.endsWith('.docx')) return 'docx';
     if (value.endsWith('.mp4') || value.endsWith('.mov') || value.endsWith('.webm') || value.endsWith('.mkv')) return 'video_file';
     return contentType || 'article';
   };
@@ -292,6 +330,11 @@ function initContentViewer() {
     }
     if (effectiveType === 'ppt') {
       return `<div class="content-empty">PPT/PPTX preview depends on browser support. Use Open resource to view or download it.</div>`;
+    }
+    if (effectiveType === 'docx') {
+      // Rendered client-side via docx-preview (see initDocxPreviews) so the document
+      // text can be read without exposing a raw downloadable Word file to open natively.
+      return `<div class="docx-preview" data-docx-preview data-docx-url="${url}"></div>`;
     }
     return `<iframe src="${url}" title="Content preview"></iframe>`;
   };
@@ -389,6 +432,11 @@ function initContentViewer() {
         matches: type => type === 'ppt',
       },
       {
+        title: 'Word Document',
+        empty: 'No Word document uploaded for this lesson yet.',
+        matches: type => type === 'docx',
+      },
+      {
         title: 'Article / Text Content',
         empty: 'No article/text note added for this lesson yet.',
         matches: type => type === 'article',
@@ -443,6 +491,7 @@ function initContentViewer() {
       previewGrid.appendChild(sectionEl);
     });
     initPdfPreviews(previewGrid);
+    initDocxPreviews(previewGrid);
   };
 
   allRows.forEach(row => {
@@ -475,7 +524,7 @@ function initContentViewer() {
       editUrl.value = '';
       editUrl.placeholder = 'Paste YouTube/video URL here';
     }
-    if (['pdf', 'ppt', 'video_file'].includes(editType.value) && isWebUrl) {
+    if (['pdf', 'ppt', 'docx', 'video_file'].includes(editType.value) && isWebUrl) {
       editUrl.value = '';
       editUrl.placeholder = 'Choose a file to replace this resource';
     }
@@ -505,6 +554,10 @@ function initContentTypePlaceholders() {
     ppt: {
       url: 'Choose a PPT/PPTX file to upload',
       body: 'Short PPT description or student instructions',
+    },
+    docx: {
+      url: 'Choose a Word file to upload',
+      body: 'Short document description or student instructions',
     },
     video_link: {
       url: 'Paste YouTube/video URL here',
