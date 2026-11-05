@@ -3945,7 +3945,8 @@ async def dashboard(request: Request):
                     }
                     for resource in resources
                 ]
-                if lesson.resource_url or lesson.content_type != "article":
+                lesson_has_content = bool(lesson.resource_url) or lesson.content_type != "article" or bool((lesson.content_body or "").strip())
+                if lesson_has_content:
                     lesson_resources.insert(
                         0,
                         {
@@ -3957,6 +3958,11 @@ async def dashboard(request: Request):
                             "resource_url": lesson.resource_url or "",
                         },
                     )
+                if not lesson_has_content and not lesson_resources:
+                    # Content was deleted (cleared back to an empty lesson placeholder) rather
+                    # than the lesson row itself, which would break course/lesson dropdowns and
+                    # re-seeding. Hide it from the library instead so deleting it looks final.
+                    continue
                 content_rows.append(
                     {
                         "id": lesson.id,
