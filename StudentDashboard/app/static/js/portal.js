@@ -416,54 +416,26 @@ function initContentViewer() {
     if (!previewGrid) return;
     previewGrid.innerHTML = '';
     const sections = [
-      {
-        title: 'YouTube / Video Link',
-        empty: 'No YouTube or external video link added for this lesson yet.',
-        matches: type => type === 'video_link',
-      },
-      {
-        title: 'Uploaded Video File',
-        empty: 'No uploaded video file added for this lesson yet.',
-        matches: type => type === 'video_file',
-      },
-      {
-        title: 'PDF Content',
-        empty: 'No PDF uploaded for this lesson yet.',
-        matches: type => type === 'pdf',
-      },
-      {
-        title: 'PPT Content',
-        empty: 'No PPT/PPTX uploaded for this lesson yet.',
-        matches: type => type === 'ppt',
-      },
-      {
-        title: 'Word Document',
-        empty: 'No Word document uploaded for this lesson yet.',
-        matches: type => type === 'docx',
-      },
-      {
-        title: 'Article / Text Content',
-        empty: 'No article/text note added for this lesson yet.',
-        matches: type => type === 'article',
-      },
+      { title: 'YouTube / Video Link', matches: type => type === 'video_link' },
+      { title: 'Uploaded Video File', matches: type => type === 'video_file' },
+      { title: 'PDF Content', matches: type => type === 'pdf' },
+      { title: 'PPT Content', matches: type => type === 'ppt' },
+      { title: 'Word Document', matches: type => type === 'docx' },
+      { title: 'Article / Text Content', matches: type => type === 'article' },
     ];
 
     sections.forEach(section => {
-      const sectionEl = document.createElement('section');
-      sectionEl.className = 'content-preview-section';
-      sectionEl.innerHTML = `<h4>${section.title}</h4>`;
       const matchingRows = rows.filter(candidate =>
         section.matches(inferContentType(candidate.dataset.contentType || '', candidate.dataset.contentUrl || ''))
       );
 
       if (!matchingRows.length) {
-        const empty = document.createElement('div');
-        empty.className = 'content-preview-card content-preview-card-empty';
-        empty.innerHTML = `<div class="content-empty">${section.empty}</div>`;
-        sectionEl.appendChild(empty);
-        previewGrid.appendChild(sectionEl);
         return;
       }
+
+      const sectionEl = document.createElement('section');
+      sectionEl.className = 'content-preview-section';
+      sectionEl.innerHTML = `<h4>${section.title}</h4>`;
 
       matchingRows.forEach(candidate => {
         const resourceUrl = candidate.dataset.contentUrl || '';
